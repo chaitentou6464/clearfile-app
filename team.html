@@ -1,0 +1,143 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>スタッフ実績（店長用）</title>
+<meta name="theme-color" content="#1c2230">
+<style>
+:root{--bg:#f4f5f7;--card:#fff;--ink:#1c2230;--sub:#6b7280;--line:#e5e7eb;--acc:#2563eb;--ok:#16a34a;--bad:#dc2626}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+body{margin:0;background:var(--bg);color:var(--ink);font-family:-apple-system,"Hiragino Sans","Noto Sans JP",sans-serif;font-size:15px;padding-bottom:30px}
+header{position:sticky;top:0;z-index:5;background:var(--ink);color:#fff;padding:12px 14px 10px}
+.mrow{display:flex;align-items:center;justify-content:space-between;gap:8px}
+.mrow button{background:rgba(255,255,255,.12);color:#fff;border:0;border-radius:10px;width:40px;height:36px;font-size:18px}
+.mrow button:disabled{opacity:.3}
+.mtitle{font-size:18px;font-weight:700;text-align:center}
+.hsub{color:#cbd5e1;text-align:center;font-size:12.5px;margin-top:4px}
+main{padding:12px}
+.card{background:var(--card);border-radius:14px;padding:14px;margin-bottom:12px;box-shadow:0 1px 2px rgba(0,0,0,.05)}
+.sub{color:var(--sub);font-size:12.5px}
+.between{display:flex;justify-content:space-between;align-items:center;gap:8px}
+.name{font-weight:800;font-size:17px}
+.pts{font-weight:800;color:var(--acc);font-size:20px}
+.pts small{font-size:12px;margin-left:2px}
+.gr{padding:9px 0;border-bottom:1px solid var(--line)}.gr:last-child{border:0}
+.gbar{position:relative;height:22px;background:var(--bg);border-radius:7px;margin:5px 0 3px;overflow:hidden}
+.gbar i{display:block;height:100%;border-radius:7px}
+.gpct{position:absolute;right:7px;top:0;line-height:22px;font-size:11.5px;font-weight:800}
+.gcut,.gideal{position:absolute;top:0;bottom:0;width:2px}.gcut{background:var(--bad)}.gideal{background:var(--ink);opacity:.55}
+.dot{display:inline-block;width:9px;height:9px;border-radius:3px;margin-right:3px;vertical-align:middle}
+.tag{display:inline-block;font-size:11px;font-weight:700;padding:2px 7px;border-radius:20px;background:#f1f5f9;color:var(--sub)}
+.tag.old{background:#fee2e2;color:var(--bad)}
+.btn{display:block;width:100%;height:44px;border-radius:12px;border:0;background:var(--acc);color:#fff;font-size:15px;font-weight:700;margin-top:10px}
+.btn.ghost{background:#fff;color:var(--ink);border:1px solid var(--line)}
+.mini{border:1px solid var(--line);background:#fff;border-radius:8px;height:30px;padding:0 10px;font-size:13px}
+textarea{width:100%;border:1px solid var(--line);border-radius:10px;padding:10px;font-size:13px;font-family:inherit;margin-top:8px}
+.notice{background:#fff7ed;color:#9a3412;border-radius:10px;padding:10px 12px;font-size:13px;margin-bottom:12px;line-height:1.6}
+.okmsg{background:#dcfce7;color:#166534;border-radius:10px;padding:10px 12px;font-size:13.5px;margin-bottom:12px;font-weight:700}
+table{width:100%;border-collapse:collapse;font-size:13px}
+th,td{padding:7px 4px;border-bottom:1px solid var(--line);text-align:right;white-space:nowrap}
+th:first-child,td:first-child{text-align:left}
+th{color:var(--sub);font-weight:600;font-size:11.5px}
+.empty{text-align:center;color:var(--sub);padding:26px 8px;line-height:1.8}
+.hd{display:flex;justify-content:space-between;align-items:center;margin-bottom:6px}
+.back{color:#cbd5e1;font-size:12.5px;text-decoration:none}
+</style>
+</head>
+<body>
+<div id="app"></div>
+<script>
+(function(){
+var LS='team_v1',app=document.getElementById('app');
+var T;try{T=JSON.parse(localStorage.getItem(LS)||'null')}catch(e){T=null}
+if(!T||!T.staff)T={staff:{}};
+var view={ym:null,msg:'',err:'',open:null,del:null,showImport:false};
+var GC={done:'#ef4444',near:'#facc15',far:'#22c55e'};
+function save(){try{localStorage.setItem(LS,JSON.stringify(T))}catch(e){}}
+function esc(s){return String(s==null?'':s).replace(/[&<>"']/g,function(c){return{'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]})}
+function fmt(n){return(Math.round(n*100)/100).toLocaleString('ja-JP')}
+function pad(n){return String(n).padStart(2,'0')}
+function nowYM(){var d=new Date();return d.getFullYear()+'-'+pad(d.getMonth()+1)}
+
+function dec(code){
+  code=String(code).trim();var kind=code[0],b=code.slice(1).replace(/-/g,'+').replace(/_/g,'/');while(b.length%4)b+='=';
+  var bin=atob(b),u8=new Uint8Array(bin.length);for(var i=0;i<bin.length;i++)u8[i]=bin.charCodeAt(i);
+  if(kind==='z'){var st=new Blob([u8]).stream().pipeThrough(new DecompressionStream('deflate-raw'));return new Response(st).text().then(JSON.parse)}
+  return Promise.resolve(JSON.parse(new TextDecoder().decode(u8)));
+}
+function importCode(raw){
+  var m=String(raw).match(/[#&?]d=([A-Za-z0-9_\-]+)/),code=m?m[1]:String(raw).trim();
+  return dec(code).then(function(p){
+    if(!p||p.v!==1||!p.id||!p.ym||!Array.isArray(p.items))throw new Error('bad');
+    var s=T.staff[p.id]||(T.staff[p.id]={name:'',months:{}});
+    if(p.name)s.name=p.name;
+    var cur=s.months[p.ym];
+    if(cur&&cur.at>p.at){view.msg=(s.name||'スタッフ')+'さんの'+Number(p.ym.slice(5))+'月分は、もっと新しいデータが入っているので取り込みませんでした';}
+    else{s.months[p.ym]=p;view.msg=(s.name||'スタッフ')+'さんの'+Number(p.ym.slice(5))+'月分を取り込みました';}
+    save();view.ym=p.ym;view.err='';
+  });
+}
+function months(){var set={};set[nowYM()]=1;Object.keys(T.staff).forEach(function(id){Object.keys(T.staff[id].months).forEach(function(k){set[k]=1})});return Object.keys(set).sort()}
+function ago(at){var d=new Date(at),mins=(Date.now()-at)/60000;var s=(d.getMonth()+1)+'/'+d.getDate()+' '+pad(d.getHours())+':'+pad(d.getMinutes());return{txt:s+' 時点',old:mins>60*24}}
+
+function staffCard(id,s,p){
+  var ideal=p.work?Math.min(100,p.el/p.work*100):null,rows='',cnt={done:0,near:0,far:0};
+  p.items.forEach(function(it){
+    var base=it.g!=null?it.g:it.c;
+    if(base==null){rows+='<div class="gr"><div class="between"><b>'+esc(it.n)+'</b><span class="sub">'+fmt(it.t)+esc(it.u)+'（目標なし）</span></div></div>';return}
+    var rate=base?it.t/base:0,st=rate>=1?'done':rate>=0.7?'near':'far';cnt[st]++;
+    var cut=(it.g!=null&&it.c!=null&&it.g)?Math.min(100,it.c/it.g*100):null;
+    rows+='<div class="gr"><div class="between"><b>'+esc(it.n)+'</b><span><b>'+fmt(it.t)+'</b><span class="sub"> / '+fmt(base)+esc(it.u)+'</span></span></div>'+
+      '<div class="gbar"><i style="width:'+Math.min(100,rate*100)+'%;background:'+GC[st]+'"></i><span class="gpct">'+Math.floor(rate*1000)/10+'%</span>'+
+      (cut!=null?'<b class="gcut" style="left:'+cut+'%"></b>':'')+(ideal!=null&&p.ym===nowYM()?'<b class="gideal" style="left:'+ideal+'%"></b>':'')+'</div>'+
+      (it.c!=null&&it.g!=null?'<div class="sub">足切り '+fmt(it.c)+esc(it.u)+(it.t>=it.c?'（クリア）':'（あと'+fmt(it.c-it.t)+esc(it.u)+'）')+'</div>':'')+'</div>';
+  });
+  var a=ago(p.at);
+  return '<div class="card"><div class="hd"><div><div class="name">'+esc(s.name||'名前なし')+'</div><span class="tag'+(a.old?' old':'')+'">'+a.txt+'</span></div><div style="text-align:right"><div class="pts">'+fmt(p.pts||0)+'<small>pt</small></div>'+
+    '<div class="sub"><i class="dot" style="background:'+GC.done+'"></i>'+cnt.done+' <i class="dot" style="background:'+GC.near+'"></i>'+cnt.near+' <i class="dot" style="background:'+GC.far+'"></i>'+cnt.far+'</div></div></div>'+rows+
+    '<div style="text-align:right;margin-top:8px"><button class="mini" data-a="del" data-id="'+id+'" style="color:var(--bad)">'+(view.del===id?'本当に削除（全月分）':'このスタッフを削除')+'</button></div></div>';
+}
+
+function render(){
+  var ms=months();if(!view.ym||ms.indexOf(view.ym)<0)view.ym=nowYM();
+  var i=ms.indexOf(view.ym),ym=view.ym;
+  var list=Object.keys(T.staff).filter(function(id){return T.staff[id].months[ym]}).sort(function(a,b){return(T.staff[b].months[ym].pts||0)-(T.staff[a].months[ym].pts||0)});
+  var inFrame=window.top!==window;
+  var h='<header>'+(inFrame?'':'<div style="margin-bottom:6px"><a class="back" href="index.html">‹ クリアファイルへ</a></div>')+
+    '<div class="mrow"><button data-a="prev"'+(i<=0?' disabled':'')+'>‹</button><div class="mtitle">📊 スタッフ実績　'+ym.slice(0,4)+'年'+Number(ym.slice(5))+'月</div><button data-a="next"'+(i>=ms.length-1?' disabled':'')+'>›</button></div>'+
+    '<div class="hsub">'+list.length+'人分 ／ 送られてきた時点の数字です</div></header><main>';
+  if(/\bLine\//i.test(navigator.userAgent))h+='<div class="notice">LINEの中で開いています。ここで取り込んだデータはLINEの中にしか残りません。右上のメニューから「ブラウザで開く」を選んでから、もう一度このリンクを開いてください。</div>';
+  if(view.msg)h+='<div class="okmsg">✓ '+esc(view.msg)+'</div>';
+  if(view.err)h+='<div class="notice">'+esc(view.err)+'</div>';
+  if(list.length){
+    h+='<div class="card"><div class="name" style="font-size:15px;margin-bottom:4px">一覧</div><table><tr><th>名前</th><th>ポイント</th><th>達成</th><th>もう少し</th><th>送信</th></tr>';
+    list.forEach(function(id){var s=T.staff[id],p=s.months[ym],c={done:0,near:0};p.items.forEach(function(it){var b=it.g!=null?it.g:it.c;if(b==null)return;var r=b?it.t/b:0;if(r>=1)c.done++;else if(r>=0.7)c.near++});var d=new Date(p.at);
+      h+='<tr data-a="jump" data-id="'+id+'"><td><b>'+esc(s.name||'名前なし')+'</b></td><td>'+fmt(p.pts||0)+'pt</td><td style="color:#ef4444;font-weight:700">'+c.done+'</td><td style="color:#ca8a04;font-weight:700">'+c.near+'</td><td class="sub">'+(d.getMonth()+1)+'/'+d.getDate()+'</td></tr>'});
+    h+='</table></div>';
+    list.forEach(function(id){h+='<div id="s-'+id+'">'+staffCard(id,T.staff[id],T.staff[id].months[ym])+'</div>'});
+  }else h+='<div class="card empty">この月のデータはまだありません。<br>スタッフが目標管理アプリの「店長に送る」で送ったリンクを開くか、下に貼り付けると取り込めます。</div>';
+  h+='<div class="card"><div class="name" style="font-size:15px">実績を取り込む</div><div class="sub" style="margin-top:4px">スタッフから届いたメッセージ（リンク）をそのまま貼り付けてください。</div><textarea id="imp" rows="3" placeholder="【実績報告】… https://…/team.html#d=…"></textarea><button class="btn" data-a="imp">取り込む</button></div>';
+  h+='<div class="card"><div class="name" style="font-size:15px">スタッフ用アプリのリンク</div><div class="sub" style="margin-top:4px">スタッフに送ってホーム画面に追加してもらってください。</div><textarea readonly rows="2">'+esc(new URL('target/',location.href).href)+'</textarea><button class="btn ghost" data-a="copylink">リンクをコピー</button></div>';
+  h+='<p class="sub" style="text-align:center">データはこのスマホの中だけに保存されます。<br>赤＝達成／黄＝もう少し（70%以上）／緑＝まだまだ　縦線：赤＝足切り、黒＝今日までの目安</p></main>';
+  app.innerHTML=h;
+}
+app.addEventListener('click',function(e){
+  var t=e.target.closest('[data-a]');if(!t)return;var a=t.dataset.a,ms=months(),i=ms.indexOf(view.ym);
+  if(a==='prev'&&i>0){view.ym=ms[i-1];view.msg='';render()}
+  else if(a==='next'&&i<ms.length-1){view.ym=ms[i+1];view.msg='';render()}
+  else if(a==='jump'){var el=document.getElementById('s-'+t.dataset.id);if(el)el.scrollIntoView({behavior:'smooth',block:'start'})}
+  else if(a==='del'){var id=t.dataset.id;if(view.del===id){delete T.staff[id];view.del=null;save();view.msg='削除しました'}else view.del=id;render()}
+  else if(a==='imp'){var v=document.getElementById('imp').value;if(!v.trim())return;importCode(v).then(render).catch(function(){view.err='読み込めませんでした。届いたメッセージを全部コピーして貼り付けてください。';view.msg='';render()})}
+  else if(a==='copylink'){var u=new URL('target/',location.href).href;try{navigator.clipboard.writeText(u).then(function(){t.textContent='コピーしました'},function(){})}catch(err){}}
+});
+function fromHash(){
+  if(/[#&]d=/.test(location.hash)){var hsh=location.hash;try{history.replaceState(null,'',location.pathname)}catch(e){}
+    importCode(hsh).then(render).catch(function(){view.err='リンクが途中で切れているようです。届いたメッセージを全部コピーして、下の「実績を取り込む」に貼り付けてください。';render()})}
+}
+window.addEventListener('hashchange',fromHash);
+render();fromHash();
+})();
+</script>
+</body>
+</html>
