@@ -965,7 +965,7 @@ function renderShelf(){
     h+='<button class="fcard'+(sel&&sel.has(i)?" picked":"")+'" data-open="'+i+'" style="--fc:'+esc(f.color)+'">'+(sel?'<span class="ck">'+(sel.has(i)?"✓":"")+'</span>':'')+'<div class="fcov">'+(st.first?'<img alt="" src="'+esc(st.first)+'">':'')+'<div class="ctint"></div><div class="fspine"></div><div class="flabel">'+esc(f.title)+'</div><div class="cgloss"></div></div>';
     h+='<div class="fmeta">書類'+st.docs+'枚'+(st.notes?'・付箋'+st.notes+'枚':'')+'</div></button>';
   });
-  if(!sel)h+='<button class="fcard fteam" data-team="1"><div class="fcov"><img class="ticon" alt="" src="target/icon-192.png"><span>スタッフ実績</span></div><div class="fmeta">店長用</div></button>';
+  if(!sel)h+='<button class="fcard fteam" data-team="1"><div class="fcov"><img class="ticon" alt="" src="target/icon-192-v2.png"><span>スタッフ実績</span></div><div class="fmeta">店長用</div></button>';
   if(!sel)h+='<button class="fcard fnew" data-act="newfile"><div class="fcov"><b>＋</b><span>新しい<br>クリアファイル</span></div><div class="fmeta">&nbsp;</div></button>';
   h+='</div>';
   if(sel)h+='<div class="selbar"><button class="btn main" data-act="seldel"'+(sel.size?'':' disabled')+' style="background:#c0392b">🗑 '+(sel.size?sel.size+'冊を削除':'削除するファイルを選んでください')+'</button></div>';
