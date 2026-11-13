@@ -115,7 +115,7 @@ function staffCard(id,s,p){
       '<div class="sub">'+msg.join('　')+'</div></div>';
   });
   var a=ago(p.at);
-  return '<div class="card"><div class="hd"><div><div class="name">'+esc(s.name||'名前なし')+'</div><span class="tag'+(a.old?' old':'')+'">'+a.txt+'</span></div><div style="text-align:right"><div class="pts">'+fmt(p.pts||0)+'<small>pt</small></div>'+
+  return '<div class="card"><div class="hd"><div><div class="name">'+esc(s.name||'名前なし')+'</div><span class="tag'+(a.old?' old':'')+'">'+a.txt+'</span></div><div style="text-align:right"><div class="pts">'+fmt(p.pts||0)+'<small>'+(p.pc!=null?' / '+fmt(p.pc):'')+'pt</small></div>'+(p.pc!=null?'<div class="sub" style="font-weight:700;color:'+((p.pts||0)>=p.pc?'#16a34a':'#dc2626')+'">'+((p.pts||0)>=p.pc?'pt足切りクリア':'足切りまで'+fmt(p.pc-(p.pts||0))+'pt')+'</div>':'')+
     '<div class="sub"><i class="dot" style="background:'+GC.done+'"></i>'+cnt.done+' <i class="dot" style="background:'+GC.near+'"></i>'+cnt.near+' <i class="dot" style="background:'+GC.far+'"></i>'+cnt.far+'</div></div></div>'+rows+
     '<div style="text-align:right;margin-top:8px"><button class="mini" data-a="del" data-id="'+id+'" style="color:var(--bad)">'+(view.del===id?'本当に削除（全月分）':'このスタッフを削除')+'</button></div></div>';
 }
@@ -134,7 +134,7 @@ function render(){
   if(list.length){
     h+='<div class="card"><div class="name" style="font-size:15px;margin-bottom:4px">一覧</div><table><tr><th>名前</th><th>ポイント</th><th>達成</th><th>もう少し</th><th>送信</th></tr>';
     list.forEach(function(id){var s=T.staff[id],p=s.months[ym],c={done:0,near:0};p.items.forEach(function(it){var b=it.g!=null?it.g:it.c;if(b==null)return;var bt=it.g==null?(it.cy?(it.ty||0):(it.ct!=null?it.ct:it.t)):it.t;var r=b?bt/b:0;if(r>=1)c.done++;else if(r>=0.7)c.near++});var d=new Date(p.at);
-      h+='<tr data-a="jump" data-id="'+id+'"><td><b>'+esc(s.name||'名前なし')+'</b></td><td>'+fmt(p.pts||0)+'pt</td><td style="color:#ef4444;font-weight:700">'+c.done+'</td><td style="color:#ca8a04;font-weight:700">'+c.near+'</td><td class="sub">'+(d.getMonth()+1)+'/'+d.getDate()+'</td></tr>'});
+      h+='<tr data-a="jump" data-id="'+id+'"><td><b>'+esc(s.name||'名前なし')+'</b></td><td>'+fmt(p.pts||0)+(p.pc!=null?'<span class="sub">/'+fmt(p.pc)+'</span>':'')+'pt</td><td style="color:#ef4444;font-weight:700">'+c.done+'</td><td style="color:#ca8a04;font-weight:700">'+c.near+'</td><td class="sub">'+(d.getMonth()+1)+'/'+d.getDate()+'</td></tr>'});
     h+='</table></div>';
     list.forEach(function(id){h+='<div id="s-'+id+'">'+staffCard(id,T.staff[id],T.staff[id].months[ym])+'</div>'});
   }else h+='<div class="card empty">この月のデータはまだありません。<br>スタッフが目標管理アプリの「店長に送る」で送ったリンクを開くか、下に貼り付けると取り込めます。</div>';
