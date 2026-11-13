@@ -501,13 +501,14 @@ function cutView(ym,m){
   const st=x=>x.done?'ok':(isCur&&x.proj!=null&&x.proj>=x.T)?'pace':(past?'ng':'bad');
   const cnt={ok:0,pace:0,bad:0,ng:0};rows.forEach(x=>cnt[st(x)]++);
   const allOk=cnt.ok===rows.length;
+  const SC={ok:'var(--ok)',pace:'var(--acc)',bad:'var(--bad)',ng:'var(--bad)'},ptR=rows.find(r=>r.pt),ptC=ptR?SC[st(ptR)]:'var(--acc)';
   let h=`<div class="card cuthead ${allOk?'all':''}">
     <div class="cuttop">
       <div><div class="sub">${mo}月の足切り</div><div class="cutbig">${cnt.ok}<small> / ${rows.length} クリア</small></div></div>
-      ${pc!==null?(()=>{const tot=monthPts(ym),ok=tot>=pc;return `<div class="cutdiv"></div><div><div class="sub">合計ポイント</div><div class="cutbig" style="color:${ok?'var(--ok)':'var(--acc)'}">${fmt(tot)}<small> / ${fmt(pc)}pt</small></div></div>`;})():''}
+      ${pc!==null?(()=>{const tot=monthPts(ym),ok=tot>=pc;return `<div class="cutdiv"></div><div><div class="sub">合計ポイント</div><div class="cutbig" style="color:${ptC}">${fmt(tot)}<small> / ${fmt(pc)}pt</small></div></div>`;})():''}
     </div>
     <div class="cutsum">${allOk?'🎉 全部クリア！':`<span class="cb ok">クリア ${cnt.ok}</span>${isCur?`<span class="cb pace">ペースOK ${cnt.pace}</span><span class="cb bad">ペース不足 ${cnt.bad}</span>`:`<span class="cb bad">未達 ${cnt.ng+cnt.bad}</span>`}`}</div>
-    ${pc!==null?(()=>{const tot=monthPts(ym),ok=tot>=pc;return `<div class="ptbar" style="margin:12px 0 0"><i style="width:${pc?Math.min(100,tot/pc*100):0}%;background:${ok?'var(--ok)':'var(--bad)'}"></i></div><div class="between sub" style="margin-top:3px"><span>${(()=>{const x=rows.find(r=>r.pt);return x&&!ok&&isCur?`今日の目安 <b style="color:var(--ink)">${x.daily==null?'—':fmt(x.daily)+'pt'}</b>${x.proj!=null?`　着地予測 ${fmt(Math.round(x.proj))}pt`:''}`:'';})()}</span><span>${ok?'<b style="color:var(--ok)">ポイント足切りクリア！</b>':`あと <b style="color:var(--ink)">${fmt(pc-tot)}pt</b>`}</span></div>`;})():''}
+    ${pc!==null?(()=>{const tot=monthPts(ym),ok=tot>=pc;return `<div class="ptbar" style="margin:12px 0 0"><i style="width:${pc?Math.min(100,tot/pc*100):0}%;background:${ptC}"></i></div><div class="between sub" style="margin-top:3px"><span>${(()=>{const x=rows.find(r=>r.pt);return x&&!ok&&isCur?`今日の目安 <b style="color:var(--ink)">${x.daily==null?'—':fmt(x.daily)+'pt'}</b>${x.proj!=null?`　着地予測 ${fmt(Math.round(x.proj))}pt`:''}`:'';})()}</span><span>${ok?'<b style="color:var(--ok)">ポイント足切りクリア！</b>':`あと <b style="color:var(--ink)">${fmt(pc-tot)}pt</b>`}</span></div>`;})():''}
     ${isCur?`<div class="sub" style="margin-top:6px">残り出勤日 ${rem}日（今日を含む）</div>`:''}
   </div>`;
   const order={bad:0,ng:0,pace:1,ok:2};
