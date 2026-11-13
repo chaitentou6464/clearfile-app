@@ -403,6 +403,52 @@ function omrResult(res){
       modal(`<h3>反映しました</h3><p class="sub">${Number(k.slice(5,7))}/${Number(k.slice(8))} の成果に ${n}件 を追加しました。</p><button class="btn" data-x="no">OK</button>`,(e2,c)=>{if(e2.target.closest('[data-x]'))c();});
     }});
 }
+// ---- データをファイルで共有（Excel / CSV）----
+function exportTables(ym){
+  const m=monthOf(ym),n=daysIn(ym),logs=m.logs||{};
+  const ptOfItem=id=>{let t=0;for(const k in logs)for(const r of logs[k])if(r.i===id){const it=S.items.find(x=>x.id===id);if(it)t+=r.q*logPt(it,r);}return t;};
+  const subQ=(id,sid)=>{let q=0;for(const k in logs)for(const r of logs[k])if(r.i===id&&r.s===sid)q+=r.q;return q;};
+  const pct=v=>v==null?'':Math.round(v*1000)/10+'%';
+  const sum=[['項目','種類','単位','実績','足切り','足切り達成率','個人目標','個人目標達成率','ポイント']];
+  S.items.forEach(it=>{const r=calc(ym,it),c=r.t.cut,g=r.t.goal,u=it.unit||'';
+    sum.push([it.name||'名前なし','（合計）',u,r.total,c?(c.yen?c.T+'円':c.T):'',c?pct(c.rate):'',g?g.T:'',g?pct(g.rate):'',ptOfItem(it.id)]);
+    subsOf(it).forEach(x=>sum.push(['',(x.name||'種類')+(x.cut?'（足切り対象）':''),u,subQ(it.id,x.id),'','','','','']));});
+  const pc=ptCutOf(),tp=monthPts(ym);
+  sum.push([]);sum.push(['ポイント合計','','pt',tp,pc==null?'':pc,pc?pct(tp/pc):'','','','']);
+  sum.push(['出勤日数','','日',n-m.off.length,'','','','','']);
+  const cols=[];S.items.forEach(it=>{cols.push({h:it.name||'名前なし',f:k=>Number((m.entries[k]||{})[it.id]||0)});subsOf(it).forEach(x=>cols.push({h:(it.name||'')+'（'+(x.name||'種類')+'）',f:k=>(logs[k]||[]).filter(r=>r.i===it.id&&r.s===x.id).reduce((a,r)=>a+r.q,0)}));});
+  const day=[['日付','曜日','休み',...cols.map(c=>c.h),'ポイント']];
+  for(let d=1;d<=n;d++){const k=dkey(ym,d);let p=0;(logs[k]||[]).forEach(r=>{const it=S.items.find(x=>x.id===r.i);if(it)p+=r.q*logPt(it,r);});
+    day.push([k,'日月火水木金土'[dow(k)],m.off.includes(k)?'休':'',...cols.map(c=>c.f(k)),p]);}
+  day.push(['合計','','',...cols.map(c=>{let t=0;for(let d=1;d<=n;d++)t+=c.f(dkey(ym,d));return t;}),tp]);
+  const rec=[['日付','項目','種類','数','単位','ポイント','金額（円）']];
+  Object.keys(logs).sort().forEach(k=>logs[k].forEach(r=>{const it=S.items.find(x=>x.id===r.i);if(!it)return;const sb=subsOf(it).find(x=>x.id===r.s);rec.push([k,it.name,sb?sb.name:'',r.q,it.unit||'',r.q*logPt(it,r),r.y||'']);}));
+  return{sum,day,rec};
+}
+function loadXLSX(){return new Promise((ok,ng)=>{if(window.XLSX)return ok(window.XLSX);const sc=document.createElement('script');sc.src='xlsx.full.min.js';sc.onload=()=>ok(window.XLSX);sc.onerror=ng;document.head.appendChild(sc);});}
+async function shareFile(blob,name){
+  const file=new File([blob],name,{type:blob.type});
+  if(navigator.canShare&&navigator.canShare({files:[file]})){try{await navigator.share({files:[file],title:name});return;}catch(e){if(e&&e.name==='AbortError')return;}}
+  const url=URL.createObjectURL(blob),a=document.createElement('a');a.href=url;a.download=name;document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),4000);
+  modal(`<h3>ダウンロードしました</h3><p class="sub">「${esc(name)}」をダウンロードフォルダに保存しました。ファイルアプリから開いたり、LINEなどで送ったりできます。</p><button class="btn" data-x="no">OK</button>`,(e,c)=>{if(e.target.closest('[data-x]'))c();});
+}
+async function exportData(fmt){
+  const ym=view.ym,T=exportTables(ym),base=`実績_${(S.me.name||'名前なし').replace(/[\\/:*?"<>|]/g,'')}_${ym}`;
+  if(fmt==='csv'){
+    const q=v=>{v=v==null?'':String(v);return /[",\n]/.test(v)?'"'+v.replace(/"/g,'""')+'"':v;};
+    const lines=[[`${Number(ym.slice(5))}月の集計`],...T.sum,[],['日別'],...T.day,[],['成果の記録'],...T.rec];
+    const csv='﻿'+lines.map(r=>r.map(q).join(',')).join('\r\n');
+    return shareFile(new Blob([csv],{type:'text/csv'}),base+'.csv');
+  }
+  let X;try{X=await loadXLSX();}catch(e){modal('<h3>Excelの準備ができませんでした</h3><p class="sub">ネットにつながっているか確認して、もう一度押してください。</p><button class="btn" data-x="no">閉じる</button>',(e2,c)=>{if(e2.target.closest('[data-x]'))c();});return;}
+  const wb=X.utils.book_new();
+  const add=(rows,nm,w)=>{const ws=X.utils.aoa_to_sheet(rows);ws['!cols']=w;X.utils.book_append_sheet(wb,ws,nm);};
+  add(T.sum,'集計',[{wch:16},{wch:20},{wch:6},{wch:8},{wch:10},{wch:12},{wch:10},{wch:14},{wch:10}]);
+  add(T.day,'日別',[{wch:12},{wch:5},{wch:5},...T.day[0].slice(3).map(h=>({wch:Math.max(8,String(h).length*2)}))]);
+  add(T.rec,'成果の記録',[{wch:12},{wch:16},{wch:12},{wch:6},{wch:6},{wch:9},{wch:11}]);
+  const out=X.write(wb,{bookType:'xlsx',type:'array'});
+  return shareFile(new Blob([out],{type:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'}),base+'.xlsx');
+}
 function backupRestore(){
   modal(`<h3>バックアップから戻す</h3><p class="sub">コピーしておいたバックアップの文字を貼り付けてください。<b>今このスマホにあるデータは置き換わります。</b></p><textarea id="bk" class="tin" rows="4" placeholder="TGTBK:..."></textarea><div class="mrow2"><button class="btn ghost" data-x="no">やめる</button><button class="btn" data-x="ok">戻す</button></div><p id="bkmsg" class="sub" style="color:var(--bad)"></p>`,async(e,close,w)=>{
     const x=e.target.closest('[data-x]');if(!x)return;if(x.dataset.x!=='ok'){close();return;}
@@ -545,6 +591,10 @@ function setView(ym,m){
   h+=`<div class="card"><div class="iname">みんなに設定を共有</div><div class="sub" style="margin-top:4px">今の項目・種類・ポイント・足切りが入ったリンクを作ります。受け取った人はリンクを開いて「読み込む」を押すだけで同じ設定になります（実績・名前・休みは送られません）。</div>
     <label class="flex" style="margin-top:10px;font-size:14px"><input type="checkbox" id="cfggoal" style="width:20px;height:20px">個人目標の数字も入れる</label>
     <button class="btn" data-a="sharecfg">🔗 設定の共有リンクを作る</button></div>`;
+  h+=`<div class="card"><div class="iname">データをファイルで共有</div><div class="sub" style="margin-top:4px">${mo}月の実績（集計・日別・成果の記録）をファイルにして、LINEやメールで送ったり保存したりできます。別の月は上の ‹ › で切り替えてください。</div>
+    <button class="btn" data-a="exp" data-f="xlsx">📗 Excelで共有（.xlsx）</button>
+    <button class="btn ghost" data-a="exp" data-f="csv">📄 スプレッドシートで共有（.csv）</button>
+    <div class="sub" style="margin-top:6px">スプレッドシートの場合は、共有先で「スプレッドシート」アプリを選ぶか、Googleドライブに保存して開いてください。</div></div>`;
   h+=`<div class="card"><div class="iname">バックアップ</div><div class="sub" style="margin-top:4px">データはこのスマホの中だけに保存されています。ブラウザのデータを消したり機種変更したりすると消えるので、ときどきバックアップを取っておいてください。</div><button class="btn ghost" data-a="bkcopy">バックアップをコピー</button><button class="btn ghost" data-a="bkrestore">バックアップから戻す</button></div>`;
   return h;
 }
@@ -654,6 +704,7 @@ $app.addEventListener('click',e=>{
   if(a==='cmode'){const it=findItem(id);if(!it)return;it.cut.mode=t.dataset.v;changed();render();return;}
   if(a==='sadd'){const it=findItem(id);if(!it)return;if(!Array.isArray(it.subs))it.subs=[];it.subs.push({id:uid(),name:'',pt:it.subs.length?'':(it.pt??'')});changed();render();return;}
   if(a==='sdel'){const it=findItem(id),sid=t.dataset.s;if(!it)return;if(delAsk===sid){it.subs=subsOf(it).filter(x=>x.id!==sid);delAsk=null;changed();}else delAsk=sid;render();return;}
+  if(a==='exp'){exportData(t.dataset.f);return;}
   if(a==='omrsheet'){omrSheet();return;}
   if(a==='omrread'){omrPick(t.dataset.k);return;}
   if(a==='sharecfg'){shareCfg(!!(document.getElementById('cfggoal')||{}).checked);return;}
