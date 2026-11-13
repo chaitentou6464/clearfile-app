@@ -34,6 +34,13 @@ main{padding:12px}
 .glab{position:relative;margin-top:3px}
 .gl{position:absolute;font-size:10.5px;white-space:nowrap;line-height:14px}
 .gcutl{color:var(--bad);font-weight:700}.ggoall{color:var(--ink)}
+.sbars{margin:2px 0 6px;padding:6px 8px;background:#f8fafc;border-radius:8px}
+.sbr{display:grid;grid-template-columns:7.5em 1fr auto;align-items:center;gap:8px;font-size:12px;padding:2px 0}
+.sbn{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.sbc{font-style:normal;font-size:9.5px;color:#fff;background:var(--bad);border-radius:4px;padding:0 3px;margin-right:3px;vertical-align:1px}
+.sbt{height:8px;background:var(--line);border-radius:4px;overflow:hidden}
+.sbt i{display:block;height:100%;background:#94a3b8;border-radius:4px}.sbt i.on{background:#f87171}.sbt i.oth{background:#cbd5e1}
+.sbq{font-weight:700;white-space:nowrap}.sbq small{font-weight:400;color:var(--sub)}
 .dot{display:inline-block;width:9px;height:9px;border-radius:3px;margin-right:3px;vertical-align:middle}
 .tag{display:inline-block;font-size:11px;font-weight:700;padding:2px 7px;border-radius:20px;background:#f1f5f9;color:var(--sub)}
 .tag.old{background:#fee2e2;color:var(--bad)}
@@ -104,6 +111,7 @@ function staffCard(id,s,p){
     if(it.c!=null)msg.push((ct>=it.c?'足切りクリア':'足切りまであと '+fmt(it.c-ct)+esc(cu))+(cy?'（'+(it.cn?esc(it.cn)+'の':'')+'売上'+fmt(ct)+'円）':it.cn?'（'+esc(it.cn)+' '+fmt(ct)+esc(cu)+'）':''));
     rows+='<div class="gr"><div class="between"><b>'+esc(it.n)+'</b><span><b>'+fmt(bt)+'</b><span class="sub"> / '+fmt(base)+esc(bu)+'</span>　<b style="font-size:12.5px">'+Math.floor(rate*1000)/10+'%</b></span></div>'+
       '<div class="gwrap"><div class="gbar"><i style="width:'+Math.min(100,bt/sc*100)+'%;background:'+GC[st]+'"></i></div>'+L.map(function(l){return '<b class="'+l.c+'" style="left:'+l.x+'%"></b>'}).join('')+'<div class="glab" style="height:'+(two?32:L.length?16:0)+'px">'+lab+'</div></div>'+
+      ((it.sb&&it.sb.length&&!(it.g==null&&cy))?'<div class="sbars">'+it.sb.map(function(x){return '<div class="sbr"><span class="sbn">'+(x.c?'<i class="sbc">足切り</i>':'')+esc(x.n)+'</span><span class="sbt"><i class="'+(x.c?'on':'')+(x.o?' oth':'')+'" style="width:'+Math.min(100,x.q/sc*100)+'%"></i></span><span class="sbq">'+fmt(x.q)+esc(it.u)+(cy&&x.y?'<small> '+fmt(x.y)+'円</small>':'')+'</span></div>'}).join('')+'</div>':'')+
       '<div class="sub">'+msg.join('　')+'</div></div>';
   });
   var a=ago(p.at);

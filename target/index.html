@@ -75,6 +75,13 @@ nav button.on{color:var(--acc);font-weight:700}
 .glab{position:relative;margin-top:3px}
 .gl{position:absolute;font-size:10.5px;white-space:nowrap;line-height:14px}
 .gcutl{color:var(--bad);font-weight:700}.ggoall{color:var(--ink)}
+.sbars{margin:2px 0 6px;padding:6px 8px;background:#f8fafc;border-radius:8px}
+.sbr{display:grid;grid-template-columns:7.5em 1fr auto;align-items:center;gap:8px;font-size:12px;padding:2px 0}
+.sbn{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.sbc{font-style:normal;font-size:9.5px;color:#fff;background:var(--bad);border-radius:4px;padding:0 3px;margin-right:3px;vertical-align:1px}
+.sbt{height:8px;background:var(--line);border-radius:4px;overflow:hidden}
+.sbt i{display:block;height:100%;background:#94a3b8;border-radius:4px}.sbt i.on{background:#f87171}.sbt i.oth{background:#cbd5e1}
+.sbq{font-weight:700;white-space:nowrap}.sbq small{font-weight:400;color:var(--sub)}
 .dot{display:inline-block;width:9px;height:9px;border-radius:3px;margin-right:3px;vertical-align:middle}
 nav button{font-size:11px}
 .ihead{display:flex;width:100%;justify-content:space-between;align-items:center;gap:8px;text-align:left;background:none;border:0;border-top:1px solid var(--line);padding:12px 2px;margin-top:4px;font-size:15px;color:var(--ink)}
@@ -222,7 +229,7 @@ async function dec(code){
 function payload(ym){
   const m=monthOf(ym),n=daysIn(ym);let work=0,el=0;
   for(let d=1;d<=n;d++){const k=dkey(ym,d);if(m.off.includes(k))continue;work++;if(k<=todayKey)el++;}
-  const items=S.items.map(it=>{const r=calc(ym,it);return{n:it.name||'名前なし',u:it.unit||'',c:r.t.cut?r.t.cut.T:null,cy:isYen(it,'cut')?1:0,ty:r.yT,ct:r.t.cut?r.t.cut.tot:null,cn:cutNames(it),g:r.t.goal?r.t.goal.T:null,t:r.total,p:ptOf(it)};});
+  const items=S.items.map(it=>{const r=calc(ym,it);return{n:it.name||'名前なし',u:it.unit||'',c:r.t.cut?r.t.cut.T:null,cy:isYen(it,'cut')?1:0,ty:r.yT,ct:r.t.cut?r.t.cut.tot:null,cn:cutNames(it),sb:subStats(ym,it,r.total),g:r.t.goal?r.t.goal.T:null,t:r.total,p:ptOf(it)};});
   return{v:1,id:S.me.id,name:S.me.name,ym,at:Date.now(),items,pts:monthPts(ym),work,el};
 }
 function modal(html,onClick){
@@ -389,7 +396,19 @@ function setView(ym,m){
 let delAsk=null,openId=null;
 function sendCard(){const mo=Number(view.ym.slice(5));return `<div class="card"><div class="iname">店長に送る</div><div class="sub" style="margin-top:4px">${mo}月の実績をLINEなどで店長に送ります${S.me.name?`（名前：${esc(S.me.name)}）`:''}。仕事終わりに送るのがおすすめです。</div><button class="btn" data-a="send">📤 ${mo}月の実績を店長に送る</button></div>`;}
 const GC={done:'#ef4444',near:'#facc15',far:'#22c55e'};
-function gBar(base,g,c,cu,color,cn){
+function subStats(ym,it,total){
+  const sb=subsOf(it);if(!sb.length)return [];
+  const m=monthOf(ym),q={},y={};
+  for(const k in (m.logs||{}))for(const r of m.logs[k]){if(r.i!==it.id)continue;q[r.s]=(q[r.s]||0)+r.q;y[r.s]=(y[r.s]||0)+(r.y||0);}
+  const out=sb.map(x=>({n:x.name||'種類',q:q[x.id]||0,y:y[x.id]||0,c:x.cut?1:0}));
+  const sum=out.reduce((a,b)=>a+b.q,0);if(total>sum)out.push({n:'種類なし',q:total-sum,y:0,c:0,o:1});
+  return out;
+}
+function subBarsHtml(list,sc,u,yen){
+  if(!list||!list.length)return '';
+  return '<div class="sbars">'+list.map(x=>`<div class="sbr"><span class="sbn">${x.c?'<i class="sbc">足切り</i>':''}${esc(x.n)}</span><span class="sbt"><i style="width:${Math.min(100,x.q/sc*100)}%" class="${x.c?'on':''}${x.o?' oth':''}"></i></span><span class="sbq">${fmt(x.q)}${u}${yen&&x.y?`<small> ${fmt(x.y)}円</small>`:''}</span></div>`).join('')+'</div>';
+}
+function gBar(base,g,c,cu,color,cn,subs,u){
   // 線（足切り・個人目標）と、その下のラベル
   const same=c&&!c.yen&&(!g||!g.yen);
   const sc=Math.max(base.T,same?c.T:0,base.tot)*1.08||1;
@@ -398,7 +417,7 @@ function gBar(base,g,c,cu,color,cn){
   if(g)lines.push({x:g.T/sc*100,cls:'ggoal',txt:'個人目標'});
   const two=lines.length===2&&Math.abs(lines[0].x-lines[1].x)<34;
   const lab=lines.map((l,i)=>{const tf=l.x>82?'translateX(-100%)':l.x<18?'translateX(0)':'translateX(-50%)';return `<span class="gl ${l.cls}l" style="left:${l.x}%;top:${two&&i===1?16:0}px;transform:${tf}">${l.txt}</span>`;}).join('');
-  return `<div class="gwrap"><div class="gbar"><i style="width:${Math.min(100,base.tot/sc*100)}%;background:${color}"></i></div>${lines.map(l=>`<b class="${l.cls}" style="left:${l.x}%"></b>`).join('')}<div class="glab" style="height:${two?32:lines.length?16:0}px">${lab}</div></div>`;
+  return `<div class="gwrap"><div class="gbar"><i style="width:${Math.min(100,base.tot/sc*100)}%;background:${color}"></i></div>${lines.map(l=>`<b class="${l.cls}" style="left:${l.x}%"></b>`).join('')}<div class="glab" style="height:${two?32:lines.length?16:0}px">${lab}</div></div>${base.yen?'':subBarsHtml(subs,sc,u,c&&c.yen)}`;
 }
 function graphView(ym,m){
   if(!S.items.length)return `<div class="card empty">目標の項目がありません。<button class="btn" data-tab="set">項目を追加する</button></div>`;
@@ -410,7 +429,7 @@ function graphView(ym,m){
     const rate=base.rate,st=rate>=1?'done':rate>=0.7?'near':'far';cnt[st]++;const bu=base.yen?'円':u,cu=uOf(it,'cut');
     rows+=`<div class="gr">
       <div class="between"><b>${esc(it.name||'名前なし')}</b><span><b style="font-size:17px">${fmt(base.tot)}</b><span class="sub"> / ${fmt(base.T)}${bu}</span>　<b style="font-size:13px">${Math.floor(rate*1000)/10}%</b></span></div>
-      ${gBar(base,g,c,cu,GC[st],c&&c.flt?cutNames(it):'')}
+      ${gBar(base,g,c,cu,GC[st],c&&c.flt?cutNames(it):'',subStats(ym,it,r.total),u)}
       <div class="sub">${g?(g.done?'個人目標 達成！':`個人目標まであと ${fmt(g.left)}${u}`):''}${c?`${g?'　':''}${c.done?'足切りクリア':`足切りまであと ${fmt(c.left)}${cu}`}${c.yen?`（${cutSet(it)?esc(cutNames(it))+'の':''}売上${fmt(c.tot)}円）`:c.flt?`（${esc(cutNames(it))} ${fmt(c.tot)}${cu}）`:''}`:''}</div>
     </div>`;
   }
