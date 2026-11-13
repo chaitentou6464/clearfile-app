@@ -87,6 +87,8 @@ nav button{font-size:11px}
 .tin{width:100%;border:1px solid var(--line);border-radius:10px;padding:10px;font-size:15px;margin-top:10px;font-family:inherit}
 textarea.tin{font-size:12px;word-break:break-all}
 .mrow2{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.ck{display:flex;flex-direction:column;align-items:center;font-size:10px;color:var(--bad);font-weight:700;gap:1px;min-width:38px}
+.ck input{width:22px;height:22px;margin:0;accent-color:var(--bad)}
 .notice{background:#fff7ed;color:#9a3412;border-radius:10px;padding:9px 11px;font-size:12.5px;margin-bottom:12px}
 </style>
 </head>
@@ -130,6 +132,7 @@ let lastAct=null,lastQty=1,lastSub=null;
 const ptOf=it=>Number(it&&it.pt||0);
 const subsOf=it=>(it&&Array.isArray(it.subs))?it.subs:[];
 function logPt(it,r){const sb=subsOf(it).find(x=>x.id===r.s);return sb?Number(sb.pt||0):ptOf(it);}
+const cutSet=it=>{const ids=subsOf(it).filter(x=>x.cut).map(x=>x.id);return ids.length?ids:null;};
 const isYen=(it,k)=>k==='cut'&&it&&it.cut&&it.cut.mode==='yen';
 const uOf=(it,k)=>isYen(it,k)?'円':esc(it.unit||'');
 function logName(it,r){const sb=subsOf(it).find(x=>x.id===r.s);return esc(it.name)+(sb?`（${esc(sb.name||'種類')}）`:'');}
@@ -173,15 +176,17 @@ function calc(ym,item){
   const work=[];for(let d=1;d<=n;d++){const k=dkey(ym,d);if(!m.off.includes(k))work.push(k);}
   let total=0,before=0,todayV=0;
   for(const k in m.entries){const v=Number(m.entries[k][item.id]||0);total+=v;if(ym===curYM){if(k<todayKey)before+=v;else if(k===todayKey)todayV=v;}}
-  let yT=0,yB=0,yToday=0;
-  for(const k in (m.logs||{}))for(const x of m.logs[k]){if(x.i!==item.id||!x.y)continue;yT+=x.y;if(ym===curYM){if(k<todayKey)yB+=x.y;else if(k===todayKey)yToday+=x.y;}}
-  const r={total,work:work.length,todayV,yT,yToday,t:{}};
+  let yT=0,yB=0,yToday=0,fT=0,fB=0,fToday=0;const cs=cutSet(item);
+  for(const k in (m.logs||{}))for(const x of m.logs[k]){if(x.i!==item.id)continue;if(cs&&!cs.includes(x.s))continue;
+    const y=x.y||0;yT+=y;fT+=x.q;if(ym===curYM){if(k<todayKey){yB+=y;fB+=x.q;}else if(k===todayKey){yToday+=y;fToday+=x.q;}}}
+  const r={total,work:work.length,todayV,yT,yToday,fT,cs:!!cs,t:{}};
   const remain=work.filter(k=>k>=todayKey).length,elapsed=work.filter(k=>k<=todayKey).length;
   if(ym===curYM){r.remain=remain;r.proj=elapsed?total/elapsed*work.length:0;r.ideal=work.length?elapsed/work.length:0;}
   for(const[kind]of KINDS){
     const T=tval(ym,item,kind);if(T===null)continue;
-    const yen=isYen(item,kind),tot=yen?yT:total,bef=yen?yB:before;
-    const o={T,yen,tot,now:yen?yToday:todayV,rate:T?tot/T:0,left:Math.max(0,T-tot),done:tot>=T,proj:elapsed?tot/elapsed*work.length:0};
+    const yen=isYen(item,kind),flt=kind==='cut'&&!!cs&&!yen;
+    const tot=yen?yT:flt?fT:total,bef=yen?yB:flt?fB:before;
+    const o={T,yen,flt,tot,now:yen?yToday:flt?fToday:todayV,rate:T?tot/T:0,left:Math.max(0,T-tot),done:tot>=T,proj:elapsed?tot/elapsed*work.length:0};
     if(ym===curYM)o.daily=remain?Math.max(0,Math.ceil((T-bef)/remain)):null;
     else if(ym>curYM)o.daily=work.length?Math.ceil(T/work.length):null;
     r.t[kind]=o;
@@ -216,7 +221,7 @@ async function dec(code){
 function payload(ym){
   const m=monthOf(ym),n=daysIn(ym);let work=0,el=0;
   for(let d=1;d<=n;d++){const k=dkey(ym,d);if(m.off.includes(k))continue;work++;if(k<=todayKey)el++;}
-  const items=S.items.map(it=>{const r=calc(ym,it);return{n:it.name||'名前なし',u:it.unit||'',c:r.t.cut?r.t.cut.T:null,cy:isYen(it,'cut')?1:0,ty:r.yT,g:r.t.goal?r.t.goal.T:null,t:r.total,p:ptOf(it)};});
+  const items=S.items.map(it=>{const r=calc(ym,it);return{n:it.name||'名前なし',u:it.unit||'',c:r.t.cut?r.t.cut.T:null,cy:isYen(it,'cut')?1:0,ty:r.yT,ct:r.t.cut?r.t.cut.tot:null,g:r.t.goal?r.t.goal.T:null,t:r.total,p:ptOf(it)};});
   return{v:1,id:S.me.id,name:S.me.name,ym,at:Date.now(),items,pts:monthPts(ym),work,el};
 }
 function modal(html,onClick){
@@ -317,6 +322,7 @@ function todayView(ym,m){
         <div class="stat"><div>足切り</div><div>${c?`${fmt(c.T)}${cu}`:'—'}${c?`<span class="sub"> ${Math.floor(c.rate*1000)/10}%</span>`:''}</div></div>
         <div class="stat"><div>目標</div><div>${g?`${fmt(g.T)}${u}`:'—'}${g?`<span class="sub"> ${Math.floor(g.rate*1000)/10}%</span>`:''}</div></div>
       </div>
+      ${c&&c.flt?`<div class="sub" style="margin-top:6px">足切り（${subsOf(it).filter(x=>x.cut).map(x=>esc(x.name||'種類')).join('・')}のみ）：<b>${fmt(c.tot)}${cu}</b> / ${fmt(c.T)}${cu}${c.done?'（クリア）':`（あと${fmt(c.left)}${cu}）`}</div>`:''}
       ${c&&c.yen?`<div class="sub" style="margin-top:6px">足切り（金額）：売上合計 <b>${fmt(c.tot)}円</b> / ${fmt(c.T)}円${c.done?'（クリア）':`（あと${fmt(c.left)}円）`}</div>`:''}
       ${isCur?`<div class="sub" style="margin-top:6px">着地予測：<b>${fmt(Math.round(r.proj*10)/10)}${u}</b>${c&&c.yen?`／売上 <b>${fmt(Math.round(c.proj))}円</b>`:''}</div>`:''}
     </div>`;
@@ -350,7 +356,7 @@ function setView(ym,m){
   if(!S.items.length)h+=`<div class="empty">項目がありません</div>`;
   S.items.forEach((it,i)=>{
     const sm=KINDS.map(([k,l])=>{const v=tval(ym,it,k);return v===null?'':`${l} ${fmt(v)}${uOf(it,k)}`}).filter(Boolean).join('・')||'目標未設定';
-    const ptS=subsOf(it).length?'・'+subsOf(it).map(x=>`${esc(x.name||'種類')} ${fmt(Number(x.pt||0))}pt`).join('／'):(it.pt===''||it.pt==null?'':`・1${esc(it.unit||'件')} ${fmt(Number(it.pt))}pt`);
+    const ptS=subsOf(it).length?'・'+subsOf(it).map(x=>`${esc(x.name||'種類')}${x.cut?'(足切り)':''} ${fmt(Number(x.pt||0))}pt`).join('／'):(it.pt===''||it.pt==null?'':`・1${esc(it.unit||'件')} ${fmt(Number(it.pt))}pt`);
     h+=`<button class="ihead" data-a="toggle" data-id="${it.id}"><span><b>${esc(it.name||'名前なし')}</b><span class="sub">${sm}${ptS}</span></span><span class="chev">${openId===it.id?'閉じる ▲':'設定 ▼'}</span></button>`;
     if(openId!==it.id)return;
     h+=`<div class="ibody">
@@ -364,8 +370,8 @@ function setView(ym,m){
     const sbs=subsOf(it);
     h+=`<div class="field"><label>ポイント（今日の成果で使います）</label>`;
     if(!sbs.length)h+=`<div class="flex"><span class="sub" style="white-space:nowrap">1${esc(it.unit||'件')}につき</span><input type="number" inputmode="decimal" value="${it.pt??''}" data-a="ipt" data-id="${it.id}" placeholder="0"><span class="sub">pt</span></div>`;
-    else{h+=`<div class="sub" style="margin-bottom:4px">種類ごとに1${esc(it.unit||'件')}あたりのポイントを決めます</div>`;
-      sbs.forEach(x=>{h+=`<div class="flex" style="margin-top:6px"><input value="${esc(x.name)}" data-a="sname" data-id="${it.id}" data-s="${x.id}" placeholder="例：端末あり" style="flex:2"><input type="number" inputmode="decimal" value="${x.pt??''}" data-a="spt" data-id="${it.id}" data-s="${x.id}" placeholder="0" style="flex:1"><span class="sub">pt</span><button class="mini" data-a="sdel" data-id="${it.id}" data-s="${x.id}" style="color:var(--bad)">${delAsk===x.id?'削除':'✕'}</button></div>`;});}
+    else{h+=`<div class="sub" style="margin-bottom:4px">種類ごとに1${esc(it.unit||'件')}あたりのポイントを決めます。<b>「足切り」にチェックした種類だけ</b>足切りに数えます（チェックなしなら全部数えます）。</div>`;
+      sbs.forEach(x=>{h+=`<div class="flex" style="margin-top:6px"><label class="ck"><input type="checkbox" data-a="scut" data-id="${it.id}" data-s="${x.id}" ${x.cut?'checked':''}><span>足切り</span></label><input value="${esc(x.name)}" data-a="sname" data-id="${it.id}" data-s="${x.id}" placeholder="例：端末あり" style="flex:2"><input type="number" inputmode="decimal" value="${x.pt??''}" data-a="spt" data-id="${it.id}" data-s="${x.id}" placeholder="0" style="flex:1"><span class="sub">pt</span><button class="mini" data-a="sdel" data-id="${it.id}" data-s="${x.id}" style="color:var(--bad)">${delAsk===x.id?'削除':'✕'}</button></div>`;});}
     h+=`<button class="mini" data-a="sadd" data-id="${it.id}" style="margin-top:8px;padding:0 12px;height:36px;color:var(--acc);font-weight:700">＋ 種類を追加（例：端末あり／端末なし）</button></div>`;
     h+=`<div class="flex" style="margin-top:8px;justify-content:flex-end">
         <button class="mini" data-a="up" data-id="${it.id}" ${i===0?'disabled':''}>↑</button>
@@ -404,7 +410,7 @@ function graphView(ym,m){
     rows+=`<div class="gr">
       <div class="between"><b>${esc(it.name||'名前なし')}</b><span><b style="font-size:17px">${fmt(base.tot)}</b><span class="sub"> / ${fmt(base.T)}${bu}</span>　<b style="font-size:13px">${Math.floor(rate*1000)/10}%</b></span></div>
       ${gBar(base,g,c,cu,GC[st])}
-      <div class="sub">${g?(g.done?'個人目標 達成！':`個人目標まであと ${fmt(g.left)}${u}`):''}${c?`${g?'　':''}${c.done?'足切りクリア':`足切りまであと ${fmt(c.left)}${cu}`}${c.yen?`（売上${fmt(c.tot)}円）`:''}`:''}</div>
+      <div class="sub">${g?(g.done?'個人目標 達成！':`個人目標まであと ${fmt(g.left)}${u}`):''}${c?`${g?'　':''}${c.done?'足切りクリア':`足切りまであと ${fmt(c.left)}${cu}`}${c.yen?`（売上${fmt(c.tot)}円）`:c.flt?`（対象 ${fmt(c.tot)}${cu}）`:''}`:''}</div>
     </div>`;
   }
   return `<div class="card">
@@ -457,10 +463,11 @@ $app.addEventListener('change',e=>{
   if(a==='setToday')setEntry(m,todayKey,id,t.value===''?'':Math.max(0,Number(t.value)));
   else if(a==='setDay')setEntry(m,view.sel,id,t.value===''?'':Math.max(0,Number(t.value)));
   else{const it=findItem(id);if(!it)return;if(a==='iname')it.name=t.value;if(a==='iunit')it.unit=t.value;if(a==='ipt')it.pt=t.value===''?'':Number(t.value);
+    if(a==='scut'){const x=subsOf(it).find(v=>v.id===t.dataset.s);if(x)x.cut=t.checked;}
     if(a==='sname'||a==='spt'){const x=subsOf(it).find(v=>v.id===t.dataset.s);if(x){if(a==='sname')x.name=t.value;else x.pt=t.value===''?'':Number(t.value);}}
     if(a==='tval'){const k=t.dataset.k,v=t.value===''?'':Number(t.value);if(it[k].fixed)it[k].value=v;else{m.t[it.id]=m.t[it.id]||{};m.t[it.id][k]=v;}}}
   changed();
-  if(a==='setToday'||a==='setDay'||a==='tval'||a==='ipt'||a==='spt'||a==='sname')render();
+  if(a==='setToday'||a==='setDay'||a==='tval'||a==='ipt'||a==='spt'||a==='sname'||a==='scut')render();
 });
 const _r=render;render=function(){_r();updPrev();};
 render();
