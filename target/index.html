@@ -90,6 +90,8 @@ nav button.on{color:var(--acc);font-weight:700}
 .omcard{box-shadow:0 0 0 2px var(--bad)}
 .omhint{margin-top:10px;background:#fef2f2;color:#991b1b;border-radius:10px;padding:8px 10px;font-size:12.5px}
 .cuthead{text-align:center}
+.cutpt{display:flex;justify-content:space-between;align-items:baseline;margin-top:12px;padding-top:10px;border-top:1px solid var(--line);font-size:13px;color:var(--sub)}
+.cutpt b{font-size:22px;color:var(--ink)}.cutpt.ok b{color:var(--ok)}
 .cuthead.all{background:#f0fdf4;box-shadow:0 0 0 2px var(--ok)}
 .cutbig{font-size:44px;font-weight:800;line-height:1.1;margin:2px 0 6px}.cutbig small{font-size:16px;color:var(--sub);font-weight:700}
 .cutsum{display:flex;justify-content:center;gap:6px;flex-wrap:wrap;font-weight:700}
@@ -490,7 +492,7 @@ function cutView(ym,m){
   const rows=[];
   const pc=ptCutOf();
   if(pc!==null){const tot=monthPts(ym),bef=monthPts(ym,todayKey);
-    rows.push({n:'ポイント',sub:'今日の成果の合計',T:pc,tot,u:'pt',done:tot>=pc,left:Math.max(0,pc-tot),daily:isCur&&rem?Math.max(0,Math.ceil((pc-bef)/rem)):null,proj:isCur&&el?tot/el*work:null});}
+    rows.push({pt:1,n:'ポイント',sub:'今日の成果の合計',T:pc,tot,u:'pt',done:tot>=pc,left:Math.max(0,pc-tot),daily:isCur&&rem?Math.max(0,Math.ceil((pc-bef)/rem)):null,proj:isCur&&el?tot/el*work:null});}
   for(const it of S.items){const r=calc(ym,it),c=r.t.cut;if(!c)continue;
     rows.push({n:it.name||'名前なし',sub:c.yen?(cutSet(it)?cutNames(it)+'の売上合計':'売上合計'):(c.flt?cutNames(it)+'のみ':''),T:c.T,tot:c.tot,u:uOf(it,'cut'),done:c.done,left:c.left,daily:isCur?c.daily:null,proj:isCur?c.proj:null});}
   if(!rows.length)return `<div class="card empty">足切りが設定されていません。<br>項目設定で、項目の足切りやポイントの足切りを入れてください。<button class="btn" data-tab="set">項目設定へ</button></div>`;
@@ -501,11 +503,13 @@ function cutView(ym,m){
     <div class="sub">${mo}月の足切り</div>
     <div class="cutbig">${cnt.ok}<small> / ${rows.length} クリア</small></div>
     <div class="cutsum">${allOk?'🎉 全部クリア！':`<span class="cb ok">クリア ${cnt.ok}</span>${isCur?`<span class="cb pace">ペースOK ${cnt.pace}</span><span class="cb bad">ペース不足 ${cnt.bad}</span>`:`<span class="cb bad">未達 ${cnt.ng+cnt.bad}</span>`}`}</div>
+    ${pc!==null?(()=>{const tot=monthPts(ym),ok=tot>=pc;return `<div class="cutpt ${ok?'ok':''}"><span>${mo}月の合計ポイント</span><span><b>${fmt(tot)}</b> / ${fmt(pc)}pt</span></div><div class="ptbar" style="margin:6px 0 0"><i style="width:${pc?Math.min(100,tot/pc*100):0}%;background:${ok?'var(--ok)':'var(--bad)'}"></i></div><div class="between sub" style="margin-top:3px"><span>${(()=>{const x=rows.find(r=>r.pt);return x&&!ok&&isCur?`今日の目安 <b style="color:var(--ink)">${x.daily==null?'—':fmt(x.daily)+'pt'}</b>${x.proj!=null?`　着地予測 ${fmt(Math.round(x.proj))}pt`:''}`:'';})()}</span><span>${ok?'<b style="color:var(--ok)">ポイント足切りクリア！</b>':`あと <b style="color:var(--ink)">${fmt(pc-tot)}pt</b>`}</span></div>`;})():''}
     ${isCur?`<div class="sub" style="margin-top:6px">残り出勤日 ${rem}日（今日を含む）</div>`:''}
   </div>`;
   const order={bad:0,ng:0,pace:1,ok:2};
   rows.sort((a,b)=>order[st(a)]-order[st(b)]);
-  h+='<div class="card" style="padding:6px 14px">'+rows.map(x=>{const s_=st(x),rate=x.T?Math.min(100,x.tot/x.T*100):0;
+  const list=rows.filter(x=>!x.pt);
+  if(list.length)h+='<div class="card" style="padding:6px 14px">'+list.map(x=>{const s_=st(x),rate=x.T?Math.min(100,x.tot/x.T*100):0;
     const badge=s_==='ok'?'<span class="cb ok">✓ クリア</span>':s_==='pace'?'<span class="cb pace">ペースOK</span>':s_==='ng'?'<span class="cb bad">未達</span>':'<span class="cb bad">ペース不足</span>';
     return `<div class="crow">
       <div class="between"><div><b>${esc(x.n)}</b>${x.sub?`<span class="sub">　${esc(x.sub)}</span>`:''}</div>${badge}</div>
