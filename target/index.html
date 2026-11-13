@@ -133,6 +133,7 @@ const ptOf=it=>Number(it&&it.pt||0);
 const subsOf=it=>(it&&Array.isArray(it.subs))?it.subs:[];
 function logPt(it,r){const sb=subsOf(it).find(x=>x.id===r.s);return sb?Number(sb.pt||0):ptOf(it);}
 const cutSet=it=>{const ids=subsOf(it).filter(x=>x.cut).map(x=>x.id);return ids.length?ids:null;};
+const cutNames=it=>cutSet(it)?subsOf(it).filter(x=>x.cut).map(x=>x.name||'種類').join('・'):'';
 const isYen=(it,k)=>k==='cut'&&it&&it.cut&&it.cut.mode==='yen';
 const uOf=(it,k)=>isYen(it,k)?'円':esc(it.unit||'');
 function logName(it,r){const sb=subsOf(it).find(x=>x.id===r.s);return esc(it.name)+(sb?`（${esc(sb.name||'種類')}）`:'');}
@@ -221,7 +222,7 @@ async function dec(code){
 function payload(ym){
   const m=monthOf(ym),n=daysIn(ym);let work=0,el=0;
   for(let d=1;d<=n;d++){const k=dkey(ym,d);if(m.off.includes(k))continue;work++;if(k<=todayKey)el++;}
-  const items=S.items.map(it=>{const r=calc(ym,it);return{n:it.name||'名前なし',u:it.unit||'',c:r.t.cut?r.t.cut.T:null,cy:isYen(it,'cut')?1:0,ty:r.yT,ct:r.t.cut?r.t.cut.tot:null,g:r.t.goal?r.t.goal.T:null,t:r.total,p:ptOf(it)};});
+  const items=S.items.map(it=>{const r=calc(ym,it);return{n:it.name||'名前なし',u:it.unit||'',c:r.t.cut?r.t.cut.T:null,cy:isYen(it,'cut')?1:0,ty:r.yT,ct:r.t.cut?r.t.cut.tot:null,cn:cutNames(it),g:r.t.goal?r.t.goal.T:null,t:r.total,p:ptOf(it)};});
   return{v:1,id:S.me.id,name:S.me.name,ym,at:Date.now(),items,pts:monthPts(ym),work,el};
 }
 function modal(html,onClick){
@@ -388,12 +389,12 @@ function setView(ym,m){
 let delAsk=null,openId=null;
 function sendCard(){const mo=Number(view.ym.slice(5));return `<div class="card"><div class="iname">店長に送る</div><div class="sub" style="margin-top:4px">${mo}月の実績をLINEなどで店長に送ります${S.me.name?`（名前：${esc(S.me.name)}）`:''}。仕事終わりに送るのがおすすめです。</div><button class="btn" data-a="send">📤 ${mo}月の実績を店長に送る</button></div>`;}
 const GC={done:'#ef4444',near:'#facc15',far:'#22c55e'};
-function gBar(base,g,c,cu,color){
+function gBar(base,g,c,cu,color,cn){
   // 線（足切り・個人目標）と、その下のラベル
   const same=c&&!c.yen&&(!g||!g.yen);
   const sc=Math.max(base.T,same?c.T:0,base.tot)*1.08||1;
   const lines=[];
-  if(c&&same)lines.push({x:c.T/sc*100,cls:'gcut',txt:`足切り ${fmt(c.T)}${cu}`});
+  if(c&&same)lines.push({x:c.T/sc*100,cls:'gcut',txt:`足切り ${fmt(c.T)}${cu}${cn?`（${esc(cn)}）`:''}`});
   if(g)lines.push({x:g.T/sc*100,cls:'ggoal',txt:'個人目標'});
   const two=lines.length===2&&Math.abs(lines[0].x-lines[1].x)<34;
   const lab=lines.map((l,i)=>{const tf=l.x>82?'translateX(-100%)':l.x<18?'translateX(0)':'translateX(-50%)';return `<span class="gl ${l.cls}l" style="left:${l.x}%;top:${two&&i===1?16:0}px;transform:${tf}">${l.txt}</span>`;}).join('');
@@ -409,8 +410,8 @@ function graphView(ym,m){
     const rate=base.rate,st=rate>=1?'done':rate>=0.7?'near':'far';cnt[st]++;const bu=base.yen?'円':u,cu=uOf(it,'cut');
     rows+=`<div class="gr">
       <div class="between"><b>${esc(it.name||'名前なし')}</b><span><b style="font-size:17px">${fmt(base.tot)}</b><span class="sub"> / ${fmt(base.T)}${bu}</span>　<b style="font-size:13px">${Math.floor(rate*1000)/10}%</b></span></div>
-      ${gBar(base,g,c,cu,GC[st])}
-      <div class="sub">${g?(g.done?'個人目標 達成！':`個人目標まであと ${fmt(g.left)}${u}`):''}${c?`${g?'　':''}${c.done?'足切りクリア':`足切りまであと ${fmt(c.left)}${cu}`}${c.yen?`（売上${fmt(c.tot)}円）`:c.flt?`（対象 ${fmt(c.tot)}${cu}）`:''}`:''}</div>
+      ${gBar(base,g,c,cu,GC[st],c&&c.flt?cutNames(it):'')}
+      <div class="sub">${g?(g.done?'個人目標 達成！':`個人目標まであと ${fmt(g.left)}${u}`):''}${c?`${g?'　':''}${c.done?'足切りクリア':`足切りまであと ${fmt(c.left)}${cu}`}${c.yen?`（${cutSet(it)?esc(cutNames(it))+'の':''}売上${fmt(c.tot)}円）`:c.flt?`（${esc(cutNames(it))} ${fmt(c.tot)}${cu}）`:''}`:''}</div>
     </div>`;
   }
   return `<div class="card">
