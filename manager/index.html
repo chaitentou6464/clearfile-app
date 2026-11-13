@@ -152,7 +152,8 @@ textarea.tin{font-size:12px;word-break:break-all}
 <script id="appjs">
 (function(){
 const $app=document.getElementById('app');
-const LS='target_v1';
+const CLOUD=/\/cloud\//.test(location.pathname); // サーバー版（cloud/）
+const LS=CLOUD?'cloud_v1':'target_v1';
 let S;
 try{S=JSON.parse(localStorage.getItem(LS)||'null')}catch(e){S=null}
 if(!S||typeof S!=='object')S={months:{}};
@@ -279,8 +280,9 @@ function setMsg(t){saveMsg=t;const e=document.getElementById('savemsg');if(e)e.t
 function changed(){
   S.savedAt=Date.now();
   if(SHARED){if(!CUR)return;SH.profiles[CUR].S=S;setMsg(saveShared()?'この端末に保存しました':'保存できませんでした（空き容量を確認してください）');return;}
-  try{localStorage.setItem(LS,JSON.stringify(S));setMsg('このスマホに保存しました');}
+  try{localStorage.setItem(LS,JSON.stringify(S));setMsg(CLOUD?'保存中…':'このスマホに保存しました');}
   catch(e){setMsg('保存できませんでした（空き容量を確認してください）');}
+  if(CLOUD)cloudPush();
 }
 try{if(navigator.storage&&navigator.storage.persist)navigator.storage.persist();}catch(e){}
 if(!S.me)S.me={id:Math.random().toString(36).slice(2,12),name:''};
@@ -552,6 +554,183 @@ function memberCut(st,p,id,live){
 }
 // ---- 共用端末：名前の選択・メンバー欄（店長の暗証番号つき）----
 let mgrOK=false;
+// ======== サーバー版（cloud/）========
+const SB_URL='https://xpqlmqutjzhqwbbysdfg.supabase.co',SB_KEY='sb_publishable__OwvLcYWjVxmTWX8Gn0Xgg_Yc3jxZW7';
+const CL={ok:false,stage:'loading',client:null,user:null,member:null,shop:null,err:'',info:'',pushT:null,pending:false,lastSync:null,team:null,teamAt:0,teamLoading:false,chan:null};
+const isCloudMgr=()=>CLOUD&&CL.member&&CL.member.role==='manager';
+const idToEmail=id=>String(id).trim().toLowerCase();
+function loadSB(){return new Promise((ok,ng)=>{if(window.supabase)return ok(window.supabase);const sc=document.createElement('script');sc.src='../cloud/supabase.js';sc.onload=()=>ok(window.supabase);sc.onerror=ng;document.head.appendChild(sc);});}
+function jaErr(e){const m=String(e&&(e.message||e.error_description||e)||'');
+  if(/Invalid login credentials/i.test(m))return 'メールアドレスかパスワードがちがいます。';
+  if(/invalid/i.test(m)&&/email/i.test(m))return 'メールアドレスの形がちがうようです。もう一度確認してください。';
+  if(/already registered|already exists/i.test(m))return 'そのメールアドレスはもう登録されています。ログインしてください。';
+  if(/Password should be at least/i.test(m))return 'パスワードは6文字以上にしてください。';
+  if(/bad_code/.test(m))return '店舗コードが見つかりません。店長に確認してください。';
+  if(/already_member/.test(m))return 'このアカウントは、もう店舗に参加しています。';
+  if(/not_manager/.test(m))return '店長だけができる操作です。';
+  if(/last_manager/.test(m))return '店長が1人もいなくなるので、変更できません。';
+  if(/Email not confirmed/i.test(m))return 'サーバー側の設定（メールの確認）がオンになっています。管理者に「Confirm email をオフに」と伝えてください。';
+  if(/Failed to fetch|NetworkError|network/i.test(m))return 'ネットにつながっていないようです。電波のよい所でもう一度試してください。';
+  return 'うまくいきませんでした（'+m.slice(0,80)+'）';}
+async function cloudBoot(){
+  render();
+  try{await loadSB();}catch(e){CL.stage='offline';render();return;}
+  CL.client=window.supabase.createClient(SB_URL,SB_KEY,{auth:{persistSession:true,autoRefreshToken:true,storageKey:'cloud_auth'}});
+  const jm=location.hash.match(/[#&]join=([A-Za-z0-9]+)/);if(jm){CL.joinCode=jm[1].toUpperCase();try{history.replaceState(null,'',location.pathname)}catch(e){}}
+  let ses=null;try{ses=(await CL.client.auth.getSession()).data.session;}catch(e){}
+  if(!ses){CL.stage=CL.joinCode?'signup':'login';render();return;}
+  CL.user=ses.user;await cloudAfterLogin();
+}
+async function cloudAfterLogin(){
+  const c=CL.client;
+  const {data:mem,error}=await c.from('members').select('user_id,shop_id,name,role').eq('user_id',CL.user.id).maybeSingle();
+  if(error){CL.stage='login';CL.err=jaErr(error);render();return;}
+  if(!mem){CL.stage='join';render();return;}
+  CL.member=mem;
+  const {data:shop}=await c.from('shops').select('id,name,code,cfg,cfg_at').eq('id',mem.shop_id).maybeSingle();CL.shop=shop||{name:'',code:''};
+  // サーバーのデータとこのスマホのデータで、新しい方を使う
+  const {data:row}=await c.from('states').select('data,updated_at').eq('user_id',CL.user.id).maybeSingle();
+  const local=(S&&S.cloudUser===CL.user.id)?S:null;
+  if(row&&row.data&&row.data.months&&(!local||(row.data.savedAt||0)>(local.savedAt||0))){
+    try{localStorage.setItem(LS,JSON.stringify(row.data))}catch(e){}
+    if(!sessionStorage.getItem('cloud_reloaded')){sessionStorage.setItem('cloud_reloaded','1');location.reload();return;}
+  }
+  sessionStorage.removeItem('cloud_reloaded');
+  if(!local){S={months:{},items:[],ptCut:600,me:{id:CL.user.id,name:mem.name}};}
+  S.cloudUser=CL.user.id;S.me.id=CL.user.id;S.me.name=mem.name;
+  CL.ok=true;
+  // 店長が配った設定が新しければ反映
+  if(CL.shop.cfg&&CL.shop.cfg_at&&(!S.cfgAt||S.cfgAt<CL.shop.cfg_at)){S.cfgAt=CL.shop.cfg_at;applyCfg(CL.shop.cfg,true);CL.info='店長が配った最新の設定を反映しました';}
+  if(!row||!row.data||!row.data.months||(S.savedAt||0)>(row.data.savedAt||0)||CL.info)changed();else{CL.lastSync=new Date(row.updated_at);setMsg('サーバーと同期済み');}
+  render();
+  if(isCloudMgr())cloudWatchTeam();
+  window.addEventListener('online',()=>{if(CL.pending)cloudPush(true);});
+  document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='visible'&&CL.ok){if(CL.pending)cloudPush(true);if(isCloudMgr()&&view.tab==='member')cloudLoadTeam(true);}});
+}
+function cloudPush(now){
+  if(!CL.ok||!CL.client)return;CL.pending=true;clearTimeout(CL.pushT);
+  CL.pushT=setTimeout(async()=>{
+    S.cloudUser=CL.user.id;
+    const {error}=await CL.client.from('states').upsert({user_id:CL.user.id,shop_id:CL.member.shop_id,data:S,updated_at:new Date().toISOString()});
+    if(error){setMsg(navigator.onLine?'サーバーに保存できませんでした（あとでもう一度送ります）':'オフライン：つながったら自動で送ります');return;}
+    CL.pending=false;CL.lastSync=new Date();setMsg('サーバーに保存しました');
+  },now?0:1200);
+}
+function cloudGate(){
+  const st=CL.stage,e=CL.err?`<div class="notice">${esc(CL.err)}</div>`:'';
+  const wrap=b=>`<div class="pick"><div class="pickhead"><div class="ptl">目標達成マネージャー</div><div class="psub">サーバー版　データは自動で保存・共有されます</div></div>${e}<div class="card">${b}</div></div>`;
+  if(st==='loading')return wrap('<div class="empty">つないでいます…</div>');
+  if(st==='offline')return wrap('<div class="sub" style="line-height:1.7">サーバーにつながりませんでした。ネットにつながっているか確認して、もう一度開いてください。</div><button class="btn" data-a="reload">もう一度</button>');
+  if(st==='login')return wrap(`<div class="iname">ログイン</div>
+    <div class="field"><label>メールアドレス</label><input id="cid" type="email" autocomplete="username" autocapitalize="off" placeholder="例：yamada@gmail.com"></div>
+    <div class="field"><label>パスワード</label><input id="cpw" type="password" autocomplete="current-password"></div>
+    <button class="btn" data-a="clogin">ログイン</button>
+    <button class="btn ghost" data-a="cstage" data-v="signup">はじめての人はこちら（登録）</button>`);
+  if(st==='signup')return wrap(`<div class="iname">はじめての登録</div>
+    <div class="field"><label>メールアドレス（ログインに使います）</label><input id="cid" type="email" autocomplete="username" autocapitalize="off" placeholder="例：yamada@gmail.com"></div>
+    <div class="field"><label>パスワード（6文字以上）</label><input id="cpw" type="password" autocomplete="new-password"></div>
+    <div class="field"><label>名前（店長やメンバーに表示されます）</label><input id="cnm" placeholder="例：山田"></div>
+    <div class="field"><label>店舗コード（店長から聞いた6文字）</label><input id="ccode" autocapitalize="characters" value="${esc(CL.joinCode||'')}" placeholder="例：A1B2C3"></div>
+    <button class="btn" data-a="csignup" data-v="join">登録して店舗に参加</button>
+    <div class="sub" style="margin-top:14px">店長の方で、まだ店舗を作っていない場合は、店舗コードを空けたまま次を押してください。</div>
+    <div class="field"><label>新しく作る店舗の名前</label><input id="cshop" placeholder="例：◯◯店"></div>
+    <button class="btn ghost" data-a="csignup" data-v="create">登録して店舗を作る（店長）</button>
+    <button class="btn ghost" data-a="cstage" data-v="login">ログイン画面にもどる</button>
+    <p class="sub" style="margin-top:10px">メールが届くことはありません。パスワードは忘れないようにメモしてください。</p>`);
+  if(st==='join')return wrap(`<div class="iname">店舗に参加</div><div class="sub">ログインできました。最後に、参加する店舗を決めてください。</div>
+    <div class="field"><label>名前</label><input id="cnm" placeholder="例：山田"></div>
+    <div class="field"><label>店舗コード</label><input id="ccode" autocapitalize="characters" value="${esc(CL.joinCode||'')}" placeholder="例：A1B2C3"></div>
+    <button class="btn" data-a="cjoin" data-v="join">店舗に参加</button>
+    <div class="field"><label>または、新しく作る店舗の名前（店長）</label><input id="cshop" placeholder="例：◯◯店"></div>
+    <button class="btn ghost" data-a="cjoin" data-v="create">店舗を作る</button>
+    <button class="btn ghost" data-a="clogout">ログアウト</button>`);
+  return wrap('');
+}
+async function cloudAction(a,t){
+  const v=id=>((document.getElementById(id)||{}).value||'').trim(),c=CL.client;CL.err='';
+  const busy=()=>{t.disabled=true;t.textContent='お待ちください…';};
+  try{
+    if(a==='cstage'){CL.stage=t.dataset.v;render();return;}
+    if(a==='reload'){location.reload();return;}
+    if(a==='clogout'){await c.auth.signOut();try{localStorage.removeItem(LS)}catch(e){}location.reload();return;}
+    if(a==='clogin'){const id=v('cid'),pw=v('cpw');if(!id||!pw){CL.err='メールアドレスとパスワードを入れてください。';render();return;}busy();
+      const {data,error}=await c.auth.signInWithPassword({email:idToEmail(id),password:pw});if(error)throw error;CL.user=data.user;CL.stage='loading';render();await cloudAfterLogin();return;}
+    if(a==='csignup'||a==='cjoin'){
+      const nm=v('cnm'),code=v('ccode').toUpperCase(),shopName=v('cshop'),mode=t.dataset.v;
+      if(!nm){CL.err='名前を入れてください。';render();return;}
+      if(mode==='join'&&!code){CL.err='店舗コードを入れてください。';render();return;}
+      if(mode==='create'&&!shopName){CL.err='作る店舗の名前を入れてください。';render();return;}
+      if(a==='csignup'){const id=v('cid'),pw=v('cpw');
+        if(!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(id)){CL.err='メールアドレスを正しく入れてください。';render();return;}
+        if(pw.length<6){CL.err='パスワードは6文字以上にしてください。';render();return;}busy();
+        const {data,error}=await c.auth.signUp({email:idToEmail(id),password:pw});if(error)throw error;
+        if(!data.session){CL.err='登録はできましたが、サーバー側の設定（メールの確認）がオンのためログインできません。管理者に「Confirm email をオフに」と伝えてください。';render();return;}
+        CL.user=data.user;}
+      else busy();
+      if(mode==='join'){const {error}=await c.rpc('join_shop',{shop_code:code,member_name:nm});if(error)throw error;}
+      else{const {data:newCode,error}=await c.rpc('create_shop',{shop_name:shopName,member_name:nm});if(error)throw error;CL.newCode=newCode;}
+      CL.stage='loading';render();await cloudAfterLogin();
+      if(CL.newCode)modal(`<h3>店舗を作りました</h3><p class="sub">店舗コードは <b style="font-size:22px;letter-spacing:2px;color:var(--ink)">${esc(CL.newCode)}</b> です。スタッフは登録のときにこのコードを入れて参加します。項目設定の「アカウント」からいつでも確認・共有できます。</p><button class="btn" data-x="no">OK</button>`,(e,cl)=>{if(e.target.closest('[data-x]'))cl();});
+      return;}
+  }catch(err){CL.err=jaErr(err);if(!CL.ok)render();else modal(`<h3>うまくいきませんでした</h3><p class="sub">${esc(CL.err)}</p><button class="btn" data-x="no">閉じる</button>`,(e,cl)=>{if(e.target.closest('[data-x]'))cl();});}
+}
+function cloudSyncCard(){const t=CL.lastSync;return `<div class="card"><div class="iname">店長への共有</div><div class="sub" style="margin-top:4px;line-height:1.7">入力した内容は、自動でサーバーに保存され、店長の画面にそのまま反映されます。送る操作はいりません。</div><div class="sub" style="margin-top:6px">${CL.pending?'⏳ 送信待ち（つながると自動で送ります）':t?`✓ 最後に保存：${t.getMonth()+1}/${t.getDate()} ${pad(t.getHours())}:${pad(t.getMinutes())}`:''}</div></div>`;}
+function cloudAccountCard(){const m=CL.member||{},sh=CL.shop||{},id=(CL.user&&CL.user.email||'');
+  return `<div class="card"><div class="iname">アカウント</div>
+    <div class="drow"><span class="sub">名前</span><span class="flex"><b>${esc(m.name||'')}</b><button class="mini" data-a="crename">変更</button></span></div>
+    <div class="drow"><span class="sub">メール</span><b style="font-size:13px">${esc(id)}</b></div>
+    <div class="drow"><span class="sub">店舗</span><b>${esc(sh.name||'')}</b></div>
+    <div class="drow"><span class="sub">役割</span><b>${m.role==='manager'?'店長':'スタッフ'}</b></div>
+    ${m.role==='manager'?`<div class="drow"><span class="sub">店舗コード</span><span class="flex"><b style="letter-spacing:2px">${esc(sh.code||'')}</b><button class="mini" data-a="cinvite">招待を送る</button></span></div>`:''}
+    <button class="btn ghost" data-a="clogout">ログアウト</button></div>`;}
+function cloudCfgCard(){if(!isCloudMgr())return `<div class="card"><div class="iname">店舗の設定</div><div class="sub" style="margin-top:4px">項目・種類・ポイント・足切りは、店長が配った設定が自動で入ります。${S.cfgAt?'（最終反映：'+new Date(S.cfgAt).toLocaleString('ja-JP',{month:'numeric',day:'numeric',hour:'2-digit',minute:'2-digit'})+'）':''}</div></div>`;
+  return `<div class="card"><div class="iname">店舗全員に設定を配る（店長）</div><div class="sub" style="margin-top:4px">今の項目・種類・ポイント・足切りを、店舗の全員に配ります。スタッフが次にアプリを開いたとき、自動で反映されます。実績や個人目標はそのままです。</div><button class="btn" data-a="cdist">この設定を全員に配る</button></div>`;}
+async function cloudLoadTeam(force){
+  if(!isCloudMgr()||CL.teamLoading)return;if(!force&&CL.team&&Date.now()-CL.teamAt<20000)return;
+  CL.teamLoading=true;
+  const c=CL.client;const [m,st]=await Promise.all([c.from('members').select('user_id,name,role').eq('shop_id',CL.member.shop_id),c.from('states').select('user_id,data,updated_at').eq('shop_id',CL.member.shop_id)]);
+  CL.teamLoading=false;
+  if(m.error||st.error){CL.teamErr=jaErr(m.error||st.error);}else{CL.teamErr='';CL.team={members:m.data||[],states:Object.fromEntries((st.data||[]).map(r=>[r.user_id,r]))};CL.teamAt=Date.now();}
+  if(view.tab==='member')render();
+}
+function cloudWatchTeam(){
+  try{CL.chan=CL.client.channel('team-'+CL.member.shop_id).on('postgres_changes',{event:'*',schema:'public',table:'states',filter:'shop_id=eq.'+CL.member.shop_id},()=>{if(view.tab==='member')cloudLoadTeam(true);else CL.teamAt=0;}).subscribe();}catch(e){}
+}
+function withData(data,id,name,fn){const save=S;try{S=JSON.parse(JSON.stringify(data||{}));if(!S.months)S.months={};if(!S.items)S.items=[];S.me={id,name};return fn();}finally{S=save;}}
+function cloudMemberView(ym){
+  if(!CL.team){cloudLoadTeam(true);return `<div class="card empty">${CL.teamErr?esc(CL.teamErr):'メンバーのデータを読み込んでいます…'}</div>`;}
+  cloudLoadTeam(false);
+  const T=CL.team,P={};
+  T.members.forEach(mb=>{const r=T.states[mb.user_id];P[mb.user_id]=r&&r.data&&r.data.items&&r.data.items.length?withData(r.data,mb.user_id,mb.name,()=>payload(ym)):null;});
+  const act=T.members.filter(mb=>P[mb.user_id]).sort((a,b)=>(P[b.user_id].pts||0)-(P[a.user_id].pts||0));
+  if(!view.member||!P[view.member])view.member=act[0]?act[0].user_id:null;
+  const nm=id=>(T.members.find(x=>x.user_id===id)||{}).name||'名前なし';
+  let h=`<div class="card"><div class="between" style="align-items:center"><div class="iname">店舗メンバー</div><button class="mini" data-a="crefresh">↻ 更新</button></div>
+    ${act.length?`<div class="chips">${act.map(mb=>`<button class="chip ${mb.user_id===view.member?'on':''}" data-a="mem" data-id="${mb.user_id}"><b>${esc(mb.name)}</b><small>${fmt(P[mb.user_id].pts||0)}pt</small></button>`).join('')}</div>`:'<div class="sub" style="margin-top:8px">まだデータのあるメンバーがいません。</div>'}
+    ${T.members.filter(mb=>!P[mb.user_id]).length?`<div class="sub" style="margin-top:8px">まだ使い始めていない人：${T.members.filter(mb=>!P[mb.user_id]).map(mb=>esc(mb.name)).join('、')}</div>`:''}
+    <div class="sub" style="margin-top:6px">スタッフが入力すると、自動でここに反映されます。</div></div>`;
+  if(view.member){const r=T.states[view.member],u=new Date(r.updated_at);
+    h+=memberCut({name:nm(view.member)},Object.assign({},P[view.member],{at:u.getTime()}),view.member,false).replace('送信時点の残り出勤日','今日より後の残り出勤日').replace(' 時点</span>',' 更新</span>').replace(/<div style="text-align:right;margin:-4px 0 12px">[\s\S]*?<\/div>$/,'');}
+  h+=`<div class="card"><div class="iname">メンバーの管理</div>${T.members.map(mb=>`<div class="drow"><div><b>${esc(mb.name)}</b> <span class="sub">${mb.role==='manager'?'店長':'スタッフ'}</span></div><div class="flex">${mb.user_id===CL.user.id?'<span class="sub">あなた</span>':`<button class="mini" data-a="crole" data-id="${mb.user_id}" data-v="${mb.role==='manager'?'staff':'manager'}">${mb.role==='manager'?'スタッフにする':'店長にする'}</button><button class="mini" data-a="cremove" data-id="${mb.user_id}" style="color:var(--bad)">${view.cdel===mb.user_id?'本当に外す':'外す'}</button>`}</div></div>`).join('')}
+    <button class="btn ghost" data-a="cinvite">スタッフを招待する（店舗コード ${esc(CL.shop.code||'')}）</button></div>`;
+  return h;
+}
+async function cloudMgrAction(a,t){
+  const c=CL.client,id=t.dataset.id;
+  try{
+    if(a==='crefresh'){t.textContent='更新中…';await cloudLoadTeam(true);return;}
+    if(a==='cdist'){const cfg=buildCfg(false);const {error}=await c.rpc('share_cfg',{new_cfg:cfg});if(error)throw error;
+      modal('<h3>全員に配りました</h3><p class="sub">スタッフが次にアプリを開いたとき、自動で同じ設定になります。</p><button class="btn" data-x="no">OK</button>',(e,cl)=>{if(e.target.closest('[data-x]'))cl();});return;}
+    if(a==='crole'){const {error}=await c.rpc('set_member_role',{target:id,new_role:t.dataset.v});if(error)throw error;await cloudLoadTeam(true);return;}
+    if(a==='cremove'){if(view.cdel!==id){view.cdel=id;render();return;}const {error}=await c.rpc('remove_member',{target:id});if(error)throw error;view.cdel=null;await cloudLoadTeam(true);return;}
+    if(a==='cinvite'){const url=new URL('../cloud/',location.href).href+'#join='+CL.shop.code;const txt=`【目標達成マネージャー】${CL.shop.name}への招待です。\nChromeで開いて「はじめての人はこちら」から登録してください。店舗コード：${CL.shop.code}\n${url}`;
+      if(navigator.share){try{await navigator.share({text:txt});return;}catch(e){if(e&&e.name==='AbortError')return;}}
+      const ok=await copyText(txt);modal(`<h3>${ok?'コピーしました':'下の文をコピーしてください'}</h3><p class="sub">LINEなどでスタッフに送ってください。</p><textarea class="tin" rows="5" readonly>${esc(txt)}</textarea><button class="btn" data-x="no">閉じる</button>`,(e,cl)=>{if(e.target.closest('[data-x]'))cl();});return;}
+    if(a==='crename'){modal(`<h3>名前を変える</h3><input id="rn" class="tin" value="${esc(CL.member.name)}"><div class="mrow2"><button class="btn ghost" data-x="no">やめる</button><button class="btn" data-x="ok">変更</button></div>`,async(e,cl,w)=>{const x=e.target.closest('[data-x]');if(!x)return;if(x.dataset.x!=='ok'){cl();return;}
+      const nn=w.querySelector('#rn').value.trim();if(!nn)return;const {error}=await c.rpc('set_my_name',{new_name:nn});if(error){cl();modal(`<h3>変更できませんでした</h3><p class="sub">${esc(jaErr(error))}</p><button class="btn" data-x="no">閉じる</button>`,(e2,c2)=>{if(e2.target.closest('[data-x]'))c2();});return;}
+      CL.member.name=nn;S.me.name=nn;changed();cl();render();});return;}
+  }catch(err){modal(`<h3>うまくいきませんでした</h3><p class="sub">${esc(jaErr(err))}</p><button class="btn" data-x="no">閉じる</button>`,(e,cl)=>{if(e.target.closest('[data-x]'))cl();});}
+}
 function pickerView(){
   const L=SH.order.filter(id=>SH.profiles[id]);
   return `<div class="pick"><div class="pickhead"><div class="ptl">目標達成マネージャー</div><div class="psub">共用端末　あなたの名前を選んでください</div></div>
@@ -611,6 +790,7 @@ function backupRestore(){
 // ---- 画面 ----
 function render(){
   if(SHARED&&!CUR){$app.innerHTML=pickerView();return;}
+  if(CLOUD&&!CL.ok){$app.innerHTML=cloudGate();return;}
   const ym=view.ym,[y,mo]=ym.split('-');
   const m=monthOf(ym);
   let body='';
@@ -620,6 +800,7 @@ function render(){
   else if(view.tab==='cal')body=calView(ym,m);
   else if(view.tab==='member'&&MGR)body=memberView(ym);
   else if(view.tab==='member'&&SHARED)body=sharedMemberView(ym);
+  else if(view.tab==='member'&&CLOUD&&isCloudMgr())body=cloudMemberView(ym);
   else body=setView(ym,m);
   const n=daysIn(ym),offs=m.off.length;
   $app.innerHTML=`
@@ -635,7 +816,7 @@ function render(){
     <button data-tab="cut" class="${view.tab==='cut'?'on':''}"><span>🚩</span>足切り</button>
     <button data-tab="graph" class="${view.tab==='graph'?'on':''}"><span>📊</span>グラフ</button>
     <button data-tab="cal" class="${view.tab==='cal'?'on':''}"><span>📅</span>カレンダー</button>
-    ${MGR||SHARED?`<button data-tab="member" class="${view.tab==='member'?'on':''}"><span>👥</span>メンバー</button>`:''}
+    ${MGR||SHARED||(CLOUD&&isCloudMgr())?`<button data-tab="member" class="${view.tab==='member'?'on':''}"><span>👥</span>メンバー</button>`:''}
     <button data-tab="set" class="${view.tab==='set'?'on':''}"><span>⚙️</span>項目設定</button>
   </nav>`;
 }
@@ -712,7 +893,7 @@ function calView(ym,m){
 
 function setView(ym,m){
   const mo=Number(ym.split('-')[1]);
-  let h=SHARED?'':`<div class="card"><div class="iname">あなたの名前</div><div class="sub">店長の画面に表示されます</div><div class="field"><input value="${esc(S.me.name)}" data-a="myname" placeholder="例：山田"></div></div>`;
+  let h=CLOUD?cloudAccountCard():SHARED?'':`<div class="card"><div class="iname">あなたの名前</div><div class="sub">店長の画面に表示されます</div><div class="field"><input value="${esc(S.me.name)}" data-a="myname" placeholder="例：山田"></div></div>`;
   h+=`<div class="card"><div class="iname">項目</div><div class="sub">「設定」から足切り・目標・ポイントを決められます。足切りと目標は「毎月同じ」か「月ごと」を選べ、月ごとの値は上の ‹ › で月を切り替えて入力します。</div>`;
   if(!S.items.length)h+=`<div class="empty">項目がありません</div>`;
   S.items.forEach((it,i)=>{
@@ -744,7 +925,8 @@ function setView(ym,m){
   h+=`<div class="card"><div class="iname">ポイントの足切り</div><div class="sub">「今日の成果」のポイントの、月の足切りラインです（全月共通）。使わないなら空欄にしてください。</div><div class="field"><div class="flex"><input type="number" inputmode="numeric" value="${S.ptCut??''}" data-a="ptcut" placeholder="例：600"><span class="sub">pt</span></div></div></div>`;
   h+=`<div class="card"><div class="iname">項目の例</div><div class="sub" style="margin:4px 0 6px">タップで追加できます</div><div class="flex" style="flex-wrap:wrap">`+
     [['新規契約','件'],['機種変更','台'],['光回線','件'],['でんき','件'],['PayPayカード','枚'],['アクセサリー','円']].map(([a,b])=>`<button class="mini" style="padding:0 10px" data-a="preset" data-n="${a}" data-u="${b}">${a}</button>`).join('')+`</div></div>`;
-  h+=`<div class="card"><div class="iname">みんなに設定を共有</div><div class="sub" style="margin-top:4px">今の項目・種類・ポイント・足切りが入ったリンクを作ります。受け取った人はリンクを開いて「読み込む」を押すだけで同じ設定になります（実績・名前・休みは送られません）。</div>
+  if(CLOUD)h+=cloudCfgCard();
+  else h+=`<div class="card"><div class="iname">みんなに設定を共有</div><div class="sub" style="margin-top:4px">今の項目・種類・ポイント・足切りが入ったリンクを作ります。受け取った人はリンクを開いて「読み込む」を押すだけで同じ設定になります（実績・名前・休みは送られません）。</div>
     <label class="flex" style="margin-top:10px;font-size:14px"><input type="checkbox" id="cfggoal" style="width:20px;height:20px">個人目標の数字も入れる</label>
     <button class="btn" data-a="sharecfg">🔗 設定の共有リンクを作る</button></div>`;
   h+=`<div class="card"><div class="iname">データをファイルで共有</div><div class="sub" style="margin-top:4px">${mo}月の実績（集計・日別・成果の記録）をファイルにして、LINEやメールで送ったり保存したりできます。別の月は上の ‹ › で切り替えてください。</div>
@@ -755,7 +937,7 @@ function setView(ym,m){
   return h;
 }
 let delAsk=null,openId=null;
-function sendCard(){if(SHARED)return '';const mo=Number(view.ym.slice(5));return `<div class="card"><div class="iname">店長に送る</div><div class="sub" style="margin-top:4px">${mo}月の実績をLINEなどで店長に送ります${S.me.name?`（名前：${esc(S.me.name)}）`:''}。仕事終わりに送るのがおすすめです。</div><button class="btn" data-a="send">📤 ${mo}月の実績を店長に送る</button></div>`;}
+function sendCard(){if(SHARED)return '';if(CLOUD)return cloudSyncCard();const mo=Number(view.ym.slice(5));return `<div class="card"><div class="iname">店長に送る</div><div class="sub" style="margin-top:4px">${mo}月の実績をLINEなどで店長に送ります${S.me.name?`（名前：${esc(S.me.name)}）`:''}。仕事終わりに送るのがおすすめです。</div><button class="btn" data-a="send">📤 ${mo}月の実績を店長に送る</button></div>`;}
 const GC={done:'#ef4444',near:'#facc15',far:'#22c55e'};
 function subStats(ym,it,total){
   const sb=subsOf(it);if(!sb.length)return [];
@@ -860,6 +1042,8 @@ $app.addEventListener('click',e=>{
   if(a==='cmode'){const it=findItem(id);if(!it)return;it.cut.mode=t.dataset.v;changed();render();return;}
   if(a==='sadd'){const it=findItem(id);if(!it)return;if(!Array.isArray(it.subs))it.subs=[];it.subs.push({id:uid(),name:'',pt:it.subs.length?'':(it.pt??'')});changed();render();return;}
   if(a==='sdel'){const it=findItem(id),sid=t.dataset.s;if(!it)return;if(delAsk===sid){it.subs=subsOf(it).filter(x=>x.id!==sid);delAsk=null;changed();}else delAsk=sid;render();return;}
+  if(CLOUD&&['cstage','reload','clogout','clogin','csignup','cjoin'].includes(a)){cloudAction(a,t);return;}
+  if(CLOUD&&['crefresh','cdist','crole','cremove','cinvite','crename'].includes(a)){cloudMgrAction(a,t);return;}
   if(a==='switch'){leaveProfile();return;}
   if(a==='pickp'){const pr=SH.profiles[id];if(!pr)return;if(pr.pin)pinModal(esc(pr.name)+'さん','暗証番号を入れてください。',v=>{if(v!==pr.pin)return false;enterProfile(id);});else enterProfile(id);return;}
   if(a==='addp'){addProfile();return;}
@@ -907,7 +1091,7 @@ $app.addEventListener('change',e=>{
 });
 const _r=render;render=function(){_r();updPrev();};
 if(SHARED&&CUR&&S.pendingCfg){const c=S.pendingCfg;delete S.pendingCfg;applyCfg(c);}
-render();cfgFromHash();reportFromHash();
+if(CLOUD)cloudBoot();else{render();cfgFromHash();reportFromHash();}
 })();
 </script>
 </body>
