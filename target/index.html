@@ -117,11 +117,22 @@ textarea.tin{font-size:12px;word-break:break-all}
 .mrow2{display:grid;grid-template-columns:1fr 1fr;gap:8px}
 .ck{display:flex;flex-direction:column;align-items:center;font-size:10px;color:var(--bad);font-weight:700;gap:1px;min-width:38px}
 .ck input{width:22px;height:22px;margin:0;accent-color:var(--bad)}
+.omrbtns{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:10px}.omrbtns .mini{height:40px;font-weight:700}.omrbtns .omrread{background:var(--ink);color:#fff;border-color:var(--ink)}
+.omrov{position:fixed;inset:0;z-index:40;background:var(--bg);overflow:auto}
+.omrbar{position:sticky;top:0;display:flex;justify-content:space-between;align-items:center;background:var(--ink);color:#fff;padding:12px 14px;z-index:2}
+.omrbar button{background:rgba(255,255,255,.15);color:#fff;border:0;border-radius:10px;height:34px;padding:0 12px;font-size:14px}
+.omrbody{padding:12px 12px 40px}
+.omrimg{width:100%;border:1px solid var(--line);border-radius:8px;margin:10px 0;background:#fff}
+#omrdate{width:100%;height:42px;border:1px solid var(--line);border-radius:10px;padding:0 10px;font-size:16px}
+#printArea{display:none}
+@media print{@page{size:A4;margin:0}body{background:#fff;padding:0}body>*{display:none!important}#printArea{display:block!important}#printArea img{width:210mm;height:297mm;display:block}}
 .notice{background:#fff7ed;color:#9a3412;border-radius:10px;padding:9px 11px;font-size:12.5px;margin-bottom:12px}
 </style>
 </head>
 <body>
 <div id="app"></div>
+<div id="printArea"></div>
+<script src="omr.js"></script>
 <script id="appjs">
 (function(){
 const $app=document.getElementById('app');
@@ -187,6 +198,7 @@ function logBlock(k){
       <button class="mini" data-a="addlog" data-k="${k}" style="height:44px;padding:0 14px;background:var(--acc);color:#fff;border:0;font-weight:700">追加</button>
     </div>
     <div id="lprev" class="sub" style="margin-top:6px"></div>
+    <div class="omrbtns"><button class="mini" data-a="omrsheet">🖨 マークシートを作る</button><button class="mini omrread" data-a="omrread" data-k="${k}">📷 写真で読み取る</button></div>
     <div style="margin-top:6px">${rows||'<div class="sub" style="padding:8px 0">まだ記録がありません</div>'}</div>
   </div>`;
 }
@@ -328,6 +340,69 @@ async function cfgFromHash(){
   });
 }
 window.addEventListener('hashchange',cfgFromHash);
+// ---- マークシート ----
+function omrRows(){const rows=[];S.items.forEach(it=>{const sb=subsOf(it),yen=isYen(it,'cut');
+  if(sb.length)sb.forEach(x=>rows.push({i:it.id,s:x.id,label:(it.name||'名前なし')+'（'+(x.name||'種類')+'）',unit:it.unit||'',yen}));
+  else rows.push({i:it.id,label:it.name||'名前なし',unit:it.unit||'',yen});});return rows;}
+function overlay(html){const w=document.createElement('div');w.className='omrov';w.innerHTML='<div class="omrbar"><b>マークシート</b><button data-x="close">✕ 閉じる</button></div><div class="omrbody">'+html+'</div>';document.body.appendChild(w);w.querySelector('[data-x=close]').onclick=()=>w.remove();return w;}
+function omrSheet(){
+  if(!window.OMR){modal('<h3>読み込み中です</h3><p class="sub">少し待ってからもう一度押してください。</p><button class="btn" data-x="no">閉じる</button>',(e,c)=>{if(e.target.closest('[data-x]'))c();});return;}
+  const rows=omrRows();if(!rows.length){modal('<h3>項目がありません</h3><p class="sub">先に項目設定で項目を作ってください。</p><button class="btn" data-x="no">閉じる</button>',(e,c)=>{if(e.target.closest('[data-x]'))c();});return;}
+  const L=OMR.layout(rows),cv=document.createElement('canvas');OMR.drawSheet(cv,L,{name:S.me.name});
+  const url=cv.toDataURL('image/png');
+  const w=overlay(`<p class="sub">今の項目・種類に合わせたシートです（シートID ${L.id}）。印刷して1日1枚使ってください。項目や種類を変えたら、作り直してください。</p>
+    <img src="${url}" class="omrimg" alt="マークシート">
+    <button class="btn" data-x="print">🖨 印刷する</button>
+    <a class="btn ghost" style="display:flex;align-items:center;justify-content:center;text-decoration:none" download="marksheet-${L.id}.png" href="${url}">画像として保存（ネットプリント用）</a>
+    ${L.truncated?'<div class="notice" style="margin-top:10px">項目が多いため、シートに入りきらない分があります。</div>':''}`);
+  w.querySelector('[data-x=print]').onclick=()=>{const pa=document.getElementById('printArea');pa.innerHTML=`<img src="${url}">`;setTimeout(()=>{try{window.print();}catch(e){}},100);};
+}
+let omrDay=null;
+function omrPick(k){omrDay=k||todayKey;let inp=document.getElementById('omrfile');if(!inp){inp=document.createElement('input');inp.type='file';inp.accept='image/*';inp.id='omrfile';inp.style.display='none';document.body.appendChild(inp);
+  inp.addEventListener('change',()=>{const f=inp.files&&inp.files[0];inp.value='';if(f)omrProcess(f);});}inp.click();}
+function omrProcess(file){
+  const rows=omrRows(),L=OMR.layout(rows);
+  const w=overlay('<div class="empty">読み取り中…</div>');
+  const url=URL.createObjectURL(file),img=new Image();
+  img.onload=()=>{setTimeout(()=>{let res;try{res=OMR.read(img,L);}catch(e){res={ok:false,reason:'読み取り中にエラーが起きました。撮り直してください。'};}URL.revokeObjectURL(url);w.remove();
+    if(!res.ok){overlay(`<div class="notice">${esc(res.reason)}</div><button class="btn" data-x="again">📷 撮り直す</button><p class="sub" style="margin-top:12px;line-height:1.7">うまくいくコツ：<br>・明るい所で、影が入らないように<br>・シートをなるべく真上から<br>・四すみの黒い四角が4つとも写るように</p>`).querySelector('[data-x=again]').onclick=function(){this.closest('.omrov').remove();omrPick(omrDay);};return;}
+    omrResult(res);},30);};
+  img.onerror=()=>{w.remove();modal('<h3>画像を開けませんでした</h3><button class="btn" data-x="no">閉じる</button>',(e,c)=>{if(e.target.closest('[data-x]'))c();});};
+  img.src=url;
+}
+function omrResult(res){
+  const rs=res.rows.map(r=>({...r}));
+  const w=overlay('<div id="omrres"></div>');const box=w.querySelector('#omrres');
+  const draw=()=>{const k=omrDay,mm=monthOf(k.slice(0,7)),exist=((mm.logs||{})[k]||[]).length,tot=rs.reduce((a,r)=>{const it=S.items.find(x=>x.id===r.i);return a+(it?r.count*logPt(it,r):0)},0);
+    box.innerHTML=`${res.idMatch?'':'<div class="notice">このシートを作ったあとに項目や種類が変わっているようです。数がずれていないか、よく確認してください。</div>'}
+    <div class="sub">読み取った結果です。緑の丸＝塗りつぶしと判定、オレンジ＝うすくて迷った所です。違っていたら＋−で直してください。</div>
+    <div class="field"><label>この日の成果として入れる</label><input type="date" id="omrdate" value="${k}"></div>
+    ${exist?`<div class="notice" style="margin-top:8px">この日はすでに${exist}件の成果が入っています。反映すると、それに<b>足されます</b>。</div>`:''}
+    <div class="card" style="padding:4px 12px;margin-top:10px">${rs.map((r,i)=>`<div class="drow" style="${r.unsure?'background:#fffbeb;':''}">
+      <div style="flex:1;min-width:0"><b>${esc(r.label)}</b>${r.unsure?'<div class="sub" style="color:#b45309">うすい丸があります。確認してください</div>':''}
+      ${r.yen&&r.count>0?`<div class="flex" style="margin-top:4px"><input type="number" inputmode="numeric" class="omry" data-i="${i}" value="${r.amount||''}" placeholder="金額（円）" style="width:130px;height:34px;border:1px solid var(--line);border-radius:8px;padding:0 8px;font-size:15px"><span class="sub">円</span></div>`:''}</div>
+      <div class="flex"><button class="mini" data-x="dec" data-i="${i}">−</button><b style="min-width:2.4em;text-align:center;font-size:18px">${r.count}</b><button class="mini" data-x="inc" data-i="${i}">＋</button></div></div>`).join('')}</div>
+    <div class="between" style="margin-top:6px"><span class="sub">合計 ${rs.reduce((a,r)=>a+r.count,0)}件</span><b style="color:var(--acc)">${fmt(tot)}pt</b></div>
+    <button class="btn" data-x="apply">この内容で反映する</button>
+    <button class="btn ghost" data-x="again">📷 撮り直す</button>
+    <details style="margin-top:12px"><summary class="sub">読み取った画像を見る</summary><div id="omrprev"></div></details>`;
+    const pv=box.querySelector('#omrprev');res.preview.style.width='100%';res.preview.style.marginTop='8px';pv.appendChild(res.preview);
+  };
+  draw();
+  box.addEventListener('change',e=>{if(e.target.id==='omrdate'&&e.target.value){omrDay=e.target.value;draw();}if(e.target.classList.contains('omry'))rs[+e.target.dataset.i].amount=Number(e.target.value)||0;});
+  box.addEventListener('click',e=>{const x=e.target.closest('[data-x]');if(!x)return;const i=+x.dataset.i;
+    if(x.dataset.x==='inc'){rs[i].count++;draw();}
+    else if(x.dataset.x==='dec'){rs[i].count=Math.max(0,rs[i].count-1);draw();}
+    else if(x.dataset.x==='again'){w.remove();omrPick(omrDay);}
+    else if(x.dataset.x==='apply'){
+      const miss=rs.findIndex(r=>r.yen&&r.count>0&&!(r.amount>0));if(miss>=0){const el=box.querySelector(`.omry[data-i="${miss}"]`);if(el){el.style.borderColor='var(--bad)';el.focus();}return;}
+      const k=omrDay,m=ensure(k.slice(0,7));m.logs=m.logs||{};let n=0;
+      rs.forEach(r=>{if(!r.count||!S.items.some(x=>x.id===r.i))return;const rec={id:uid(),i:r.i,q:r.count};if(r.s&&subsOf(S.items.find(x=>x.id===r.i)).some(v=>v.id===r.s))rec.s=r.s;if(r.yen&&r.amount>0)rec.y=r.amount;
+        (m.logs[k]=m.logs[k]||[]).push(rec);setEntry(m,k,r.i,Number((m.entries[k]||{})[r.i]||0)+r.count);n+=r.count;});
+      changed();w.remove();view.ym=k.slice(0,7);render();
+      modal(`<h3>反映しました</h3><p class="sub">${Number(k.slice(5,7))}/${Number(k.slice(8))} の成果に ${n}件 を追加しました。</p><button class="btn" data-x="no">OK</button>`,(e2,c)=>{if(e2.target.closest('[data-x]'))c();});
+    }});
+}
 function backupRestore(){
   modal(`<h3>バックアップから戻す</h3><p class="sub">コピーしておいたバックアップの文字を貼り付けてください。<b>今このスマホにあるデータは置き換わります。</b></p><textarea id="bk" class="tin" rows="4" placeholder="TGTBK:..."></textarea><div class="mrow2"><button class="btn ghost" data-x="no">やめる</button><button class="btn" data-x="ok">戻す</button></div><p id="bkmsg" class="sub" style="color:var(--bad)"></p>`,async(e,close,w)=>{
     const x=e.target.closest('[data-x]');if(!x)return;if(x.dataset.x!=='ok'){close();return;}
@@ -579,6 +654,8 @@ $app.addEventListener('click',e=>{
   if(a==='cmode'){const it=findItem(id);if(!it)return;it.cut.mode=t.dataset.v;changed();render();return;}
   if(a==='sadd'){const it=findItem(id);if(!it)return;if(!Array.isArray(it.subs))it.subs=[];it.subs.push({id:uid(),name:'',pt:it.subs.length?'':(it.pt??'')});changed();render();return;}
   if(a==='sdel'){const it=findItem(id),sid=t.dataset.s;if(!it)return;if(delAsk===sid){it.subs=subsOf(it).filter(x=>x.id!==sid);delAsk=null;changed();}else delAsk=sid;render();return;}
+  if(a==='omrsheet'){omrSheet();return;}
+  if(a==='omrread'){omrPick(t.dataset.k);return;}
   if(a==='sharecfg'){shareCfg(!!(document.getElementById('cfggoal')||{}).checked);return;}
   if(a==='send'){sendToBoss();return;}
   if(a==='bkcopy'){backupCopy();return;}
