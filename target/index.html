@@ -68,6 +68,13 @@ nav button.on{color:var(--acc);font-weight:700}
 .gbar i{display:block;height:100%;border-radius:8px}
 .gpct{position:absolute;right:8px;top:0;line-height:26px;font-size:12px;font-weight:800;color:var(--ink)}
 .gcut,.gideal{position:absolute;top:0;bottom:0;width:2px}.gcut{background:var(--bad)}.gideal{background:var(--ink);opacity:.55}
+.gwrap{position:relative;margin:6px 0 4px}
+.gwrap>.gbar{margin:0}
+.gwrap>.gcut,.gwrap>.ggoal{position:absolute;top:-3px;height:32px;width:2px;border-radius:1px}
+.gwrap>.gcut{background:var(--bad)}.gwrap>.ggoal{background:var(--ink)}
+.glab{position:relative;margin-top:3px}
+.gl{position:absolute;font-size:10.5px;white-space:nowrap;line-height:14px}
+.gcutl{color:var(--bad);font-weight:700}.ggoall{color:var(--ink)}
 .dot{display:inline-block;width:9px;height:9px;border-radius:3px;margin-right:3px;vertical-align:middle}
 nav button{font-size:11px}
 .ihead{display:flex;width:100%;justify-content:space-between;align-items:center;gap:8px;text-align:left;background:none;border:0;border-top:1px solid var(--line);padding:12px 2px;margin-top:4px;font-size:15px;color:var(--ink)}
@@ -375,6 +382,17 @@ function setView(ym,m){
 let delAsk=null,openId=null;
 function sendCard(){const mo=Number(view.ym.slice(5));return `<div class="card"><div class="iname">店長に送る</div><div class="sub" style="margin-top:4px">${mo}月の実績をLINEなどで店長に送ります${S.me.name?`（名前：${esc(S.me.name)}）`:''}。仕事終わりに送るのがおすすめです。</div><button class="btn" data-a="send">📤 ${mo}月の実績を店長に送る</button></div>`;}
 const GC={done:'#ef4444',near:'#facc15',far:'#22c55e'};
+function gBar(base,g,c,cu,color){
+  // 線（足切り・個人目標）と、その下のラベル
+  const same=c&&!c.yen&&(!g||!g.yen);
+  const sc=Math.max(base.T,same?c.T:0,base.tot)*1.08||1;
+  const lines=[];
+  if(c&&same)lines.push({x:c.T/sc*100,cls:'gcut',txt:`足切り ${fmt(c.T)}${cu}`});
+  if(g)lines.push({x:g.T/sc*100,cls:'ggoal',txt:'個人目標'});
+  const two=lines.length===2&&Math.abs(lines[0].x-lines[1].x)<34;
+  const lab=lines.map((l,i)=>{const tf=l.x>82?'translateX(-100%)':l.x<18?'translateX(0)':'translateX(-50%)';return `<span class="gl ${l.cls}l" style="left:${l.x}%;top:${two&&i===1?16:0}px;transform:${tf}">${l.txt}</span>`;}).join('');
+  return `<div class="gwrap"><div class="gbar"><i style="width:${Math.min(100,base.tot/sc*100)}%;background:${color}"></i></div>${lines.map(l=>`<b class="${l.cls}" style="left:${l.x}%"></b>`).join('')}<div class="glab" style="height:${two?32:lines.length?16:0}px">${lab}</div></div>`;
+}
 function graphView(ym,m){
   if(!S.items.length)return `<div class="card empty">目標の項目がありません。<button class="btn" data-tab="set">項目を追加する</button></div>`;
   const isCur=ym===curYM;
@@ -383,19 +401,17 @@ function graphView(ym,m){
     const r=calc(ym,it),g=r.t.goal,c=r.t.cut,base=g||c,u=esc(it.unit||'');
     if(!base){rows+=`<div class="gr"><div class="between"><b>${esc(it.name||'名前なし')}</b><span class="sub">目標未設定</span></div><div class="gbar"></div></div>`;continue;}
     const rate=base.rate,st=rate>=1?'done':rate>=0.7?'near':'far';cnt[st]++;const bu=base.yen?'円':u,cu=uOf(it,'cut');
-    const w=Math.min(100,rate*100),cutPos=g&&c&&!c.yen&&g.T?Math.min(100,c.T/g.T*100):null,ideal=isCur?Math.min(100,r.ideal*100):null;
     rows+=`<div class="gr">
-      <div class="between"><b>${esc(it.name||'名前なし')}</b><span><b style="font-size:17px">${fmt(base.tot)}</b><span class="sub"> / ${fmt(base.T)}${bu}</span></span></div>
-      <div class="gbar"><i style="width:${w}%;background:${GC[st]}"></i><span class="gpct">${Math.floor(rate*1000)/10}%</span>
-        ${cutPos!==null?`<b class="gcut" style="left:${cutPos}%"></b>`:''}${ideal!==null?`<b class="gideal" style="left:${ideal}%"></b>`:''}</div>
-      <div class="sub">${st==='done'?'達成！':`あと ${fmt(base.left)}${bu}`}${c&&g?`　足切り ${c.yen?`売上${fmt(c.tot)}円/`:''}${fmt(c.T)}${cu}${c.done?'（クリア）':`（あと${fmt(c.left)}${cu}）`}`:''}</div>
+      <div class="between"><b>${esc(it.name||'名前なし')}</b><span><b style="font-size:17px">${fmt(base.tot)}</b><span class="sub"> / ${fmt(base.T)}${bu}</span>　<b style="font-size:13px">${Math.floor(rate*1000)/10}%</b></span></div>
+      ${gBar(base,g,c,cu,GC[st])}
+      <div class="sub">${g?(g.done?'個人目標 達成！':`個人目標まであと ${fmt(g.left)}${u}`):''}${c?`${g?'　':''}${c.done?'足切りクリア':`足切りまであと ${fmt(c.left)}${cu}`}${c.yen?`（売上${fmt(c.tot)}円）`:''}`:''}</div>
     </div>`;
   }
   return `<div class="card">
     <div class="between" style="align-items:center"><div class="iname">達成状況</div>
       <div class="flex sub" style="gap:10px"><span><i class="dot" style="background:${GC.done}"></i>達成 ${cnt.done}</span><span><i class="dot" style="background:${GC.near}"></i>もう少し ${cnt.near}</span><span><i class="dot" style="background:${GC.far}"></i>まだまだ ${cnt.far}</span></div></div>
     <div style="margin-top:8px">${rows}</div>
-    <div class="sub" style="margin-top:10px;line-height:1.7">赤＝達成（100%以上）／黄＝もう少し（70%以上）／緑＝まだまだ（70%未満）<br>縦線：<span style="color:var(--bad);font-weight:700">赤</span>＝足切り、<b>黒</b>＝今日までに進んでいたい位置</div>
+    <div class="sub" style="margin-top:10px;line-height:1.7">赤＝達成（100%以上）／黄＝もう少し（70%以上）／緑＝まだまだ（70%未満）<br>縦線：<span style="color:var(--bad);font-weight:700">赤</span>＝足切り、<b>黒</b>＝個人目標</div>
   </div>${sendCard()}`;
 }
 

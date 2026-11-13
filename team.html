@@ -27,6 +27,13 @@ main{padding:12px}
 .gbar i{display:block;height:100%;border-radius:7px}
 .gpct{position:absolute;right:7px;top:0;line-height:22px;font-size:11.5px;font-weight:800}
 .gcut,.gideal{position:absolute;top:0;bottom:0;width:2px}.gcut{background:var(--bad)}.gideal{background:var(--ink);opacity:.55}
+.gwrap{position:relative;margin:5px 0 3px}
+.gwrap>.gbar{margin:0}
+.gwrap>.gcut,.gwrap>.ggoal{position:absolute;top:-3px;height:28px;width:2px;border-radius:1px}
+.gwrap>.gcut{background:var(--bad)}.gwrap>.ggoal{background:var(--ink)}
+.glab{position:relative;margin-top:3px}
+.gl{position:absolute;font-size:10.5px;white-space:nowrap;line-height:14px}
+.gcutl{color:var(--bad);font-weight:700}.ggoall{color:var(--ink)}
 .dot{display:inline-block;width:9px;height:9px;border-radius:3px;margin-right:3px;vertical-align:middle}
 .tag{display:inline-block;font-size:11px;font-weight:700;padding:2px 7px;border-radius:20px;background:#f1f5f9;color:var(--sub)}
 .tag.old{background:#fee2e2;color:var(--bad)}
@@ -87,11 +94,17 @@ function staffCard(id,s,p){
     var cy=!!it.cy,base=it.g!=null?it.g:it.c,bt=(it.g==null&&cy)?(it.ty||0):it.t,bu=(it.g==null&&cy)?'円':it.u;
     if(base==null){rows+='<div class="gr"><div class="between"><b>'+esc(it.n)+'</b><span class="sub">'+fmt(it.t)+esc(it.u)+'（目標なし）</span></div></div>';return}
     var rate=base?bt/base:0,st=rate>=1?'done':rate>=0.7?'near':'far';cnt[st]++;
-    var cut=(it.g!=null&&it.c!=null&&it.g&&!cy)?Math.min(100,it.c/it.g*100):null;
-    rows+='<div class="gr"><div class="between"><b>'+esc(it.n)+'</b><span><b>'+fmt(bt)+'</b><span class="sub"> / '+fmt(base)+esc(bu)+'</span></span></div>'+
-      '<div class="gbar"><i style="width:'+Math.min(100,rate*100)+'%;background:'+GC[st]+'"></i><span class="gpct">'+Math.floor(rate*1000)/10+'%</span>'+
-      (cut!=null?'<b class="gcut" style="left:'+cut+'%"></b>':'')+(ideal!=null&&p.ym===nowYM()?'<b class="gideal" style="left:'+ideal+'%"></b>':'')+'</div>'+
-      (it.c!=null&&it.g!=null?(function(){var ct=cy?(it.ty||0):it.t,cu=cy?'円':it.u;return '<div class="sub">足切り '+(cy?'売上'+fmt(ct)+'円/':'')+fmt(it.c)+esc(cu)+(ct>=it.c?'（クリア）':'（あと'+fmt(it.c-ct)+esc(cu)+'）')+'</div>'})():'')+'</div>';
+    var same=it.c!=null&&!cy,sc=Math.max(base,same?it.c:0,bt)*1.08||1,L=[];
+    if(same)L.push({x:it.c/sc*100,c:'gcut',t:'足切り '+fmt(it.c)+esc(it.u)});
+    if(it.g!=null)L.push({x:it.g/sc*100,c:'ggoal',t:'個人目標'});
+    var two=L.length===2&&Math.abs(L[0].x-L[1].x)<34;
+    var lab=L.map(function(l,i){var tf=l.x>82?'translateX(-100%)':l.x<18?'translateX(0)':'translateX(-50%)';return '<span class="gl '+l.c+'l" style="left:'+l.x+'%;top:'+(two&&i===1?16:0)+'px;transform:'+tf+'">'+l.t+'</span>'}).join('');
+    var ct=cy?(it.ty||0):it.t,cu=cy?'円':it.u,msg=[];
+    if(it.g!=null)msg.push(it.t>=it.g?'個人目標 達成！':'個人目標まであと '+fmt(it.g-it.t)+esc(it.u));
+    if(it.c!=null)msg.push((ct>=it.c?'足切りクリア':'足切りまであと '+fmt(it.c-ct)+esc(cu))+(cy?'（売上'+fmt(ct)+'円）':''));
+    rows+='<div class="gr"><div class="between"><b>'+esc(it.n)+'</b><span><b>'+fmt(bt)+'</b><span class="sub"> / '+fmt(base)+esc(bu)+'</span>　<b style="font-size:12.5px">'+Math.floor(rate*1000)/10+'%</b></span></div>'+
+      '<div class="gwrap"><div class="gbar"><i style="width:'+Math.min(100,bt/sc*100)+'%;background:'+GC[st]+'"></i></div>'+L.map(function(l){return '<b class="'+l.c+'" style="left:'+l.x+'%"></b>'}).join('')+'<div class="glab" style="height:'+(two?32:L.length?16:0)+'px">'+lab+'</div></div>'+
+      '<div class="sub">'+msg.join('　')+'</div></div>';
   });
   var a=ago(p.at);
   return '<div class="card"><div class="hd"><div><div class="name">'+esc(s.name||'名前なし')+'</div><span class="tag'+(a.old?' old':'')+'">'+a.txt+'</span></div><div style="text-align:right"><div class="pts">'+fmt(p.pts||0)+'<small>pt</small></div>'+
@@ -119,7 +132,7 @@ function render(){
   }else h+='<div class="card empty">この月のデータはまだありません。<br>スタッフが目標管理アプリの「店長に送る」で送ったリンクを開くか、下に貼り付けると取り込めます。</div>';
   h+='<div class="card"><div class="name" style="font-size:15px">実績を取り込む</div><div class="sub" style="margin-top:4px">スタッフから届いたメッセージ（リンク）をそのまま貼り付けてください。</div><textarea id="imp" rows="3" placeholder="【実績報告】… https://…/team.html#d=…"></textarea><button class="btn" data-a="imp">取り込む</button></div>';
   h+='<div class="card"><div class="name" style="font-size:15px">スタッフ用アプリのリンク</div><div class="sub" style="margin-top:4px">スタッフに送ってホーム画面に追加してもらってください。</div><textarea readonly rows="2">'+esc(new URL('target/',location.href).href)+'</textarea><button class="btn ghost" data-a="copylink">リンクをコピー</button></div>';
-  h+='<p class="sub" style="text-align:center">データはこのスマホの中だけに保存されます。<br>赤＝達成／黄＝もう少し（70%以上）／緑＝まだまだ　縦線：赤＝足切り、黒＝今日までの目安</p></main>';
+  h+='<p class="sub" style="text-align:center">データはこのスマホの中だけに保存されます。<br>赤＝達成／黄＝もう少し（70%以上）／緑＝まだまだ　縦線：赤＝足切り、黒＝個人目標</p></main>';
   app.innerHTML=h;
 }
 app.addEventListener('click',function(e){
