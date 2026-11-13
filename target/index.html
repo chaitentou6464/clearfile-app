@@ -119,22 +119,26 @@ if(S.acts){const map={};
     else{S.items.push({id:a.id,name:a.name,unit:a.unit,pt:a.pt,cut:{fixed:true,value:''},goal:{fixed:true,value:''}});map[a.id]={id:a.id,linked:false};}}
   for(const ym in S.months){const m=S.months[ym];for(const k in (m.logs||{}))for(const r of m.logs[k]){if(r.a){const x=map[r.a];if(x){r.i=x.id;if(!x.linked){m.entries[k]=m.entries[k]||{};m.entries[k][x.id]=Number(m.entries[k][x.id]||0)+r.q;}}delete r.a;}}}
   delete S.acts;}
-let lastAct=null,lastQty=1;
+let lastAct=null,lastQty=1,lastSub=null;
 const ptOf=it=>Number(it&&it.pt||0);
-function monthPts(ym){const m=monthOf(ym);let t=0;for(const k in (m.logs||{}))for(const r of m.logs[k]){const it=S.items.find(x=>x.id===r.i);if(it)t+=r.q*ptOf(it);}return t;}
+const subsOf=it=>(it&&Array.isArray(it.subs))?it.subs:[];
+function logPt(it,r){const sb=subsOf(it).find(x=>x.id===r.s);return sb?Number(sb.pt||0):ptOf(it);}
+function logName(it,r){const sb=subsOf(it).find(x=>x.id===r.s);return esc(it.name)+(sb?`（${esc(sb.name||'種類')}）`:'');}
+function monthPts(ym){const m=monthOf(ym);let t=0;for(const k in (m.logs||{}))for(const r of m.logs[k]){const it=S.items.find(x=>x.id===r.i);if(it)t+=r.q*logPt(it,r);}return t;}
 function logBlock(k){
   const ym=k.slice(0,7),m=monthOf(ym),L=(m.logs||{})[k]||[];
   const[,mm,dd]=k.split('-');const isToday=k===todayKey,ttl=isToday?'今日の成果':Number(mm)+'月'+Number(dd)+'日の成果';
   if(!S.items.length)return `<div class="card"><div class="iname">${ttl}</div><div class="sub" style="margin-top:6px">項目設定で項目（例：PayPayカード）と1件あたりのポイントを設定すると、ここで記録できます。</div><button class="btn ghost" data-tab="set">項目を設定する</button></div>`;
   let tot=0;
-  const rows=L.map(r=>{const it=S.items.find(x=>x.id===r.i);if(!it)return '';const p=r.q*ptOf(it);tot+=p;
-    return `<div class="drow"><div><b>${esc(it.name)}</b> ${r.q}${esc(it.unit||'')}</div><div class="flex"><span class="sub">${r.q}×${fmt(ptOf(it))}pt＝</span><b>${fmt(p)}pt</b><button class="mini" data-a="dellog" data-k="${k}" data-r="${r.id}">✕</button></div></div>`}).join('');
+  const rows=L.map(r=>{const it=S.items.find(x=>x.id===r.i);if(!it)return '';const pp=logPt(it,r),p=r.q*pp;tot+=p;
+    return `<div class="drow"><div><b>${logName(it,r)}</b> ${r.q}${esc(it.unit||'')}</div><div class="flex"><span class="sub">${r.q}×${fmt(pp)}pt＝</span><b>${fmt(p)}pt</b><button class="mini" data-a="dellog" data-k="${k}" data-r="${r.id}">✕</button></div></div>`}).join('');
   const sel=S.items.some(a=>a.id===lastAct)?lastAct:S.items[0].id;
   return `<div class="card">
     <div class="between" style="align-items:center"><div class="iname">${ttl}</div><div style="text-align:right"><div class="big" style="font-size:26px;color:var(--acc)">${fmt(tot)}<small>pt</small></div></div></div>
     <div class="sub" style="text-align:right">${Number(ym.slice(5))}月の合計 ${fmt(monthPts(ym))}pt</div>
     <div class="flex" style="margin-top:10px">
       <select id="la" class="sel" style="flex:2">${S.items.map(a=>`<option value="${a.id}" ${a.id===sel?'selected':''}>${esc(a.name||'名前なし')}</option>`).join('')}</select>
+      ${(()=>{const it=S.items.find(x=>x.id===sel),sb=subsOf(it);if(!sb.length)return '';const ss=sb.some(x=>x.id===lastSub)?lastSub:sb[0].id;return `<select id="ls" class="sel" style="flex:2">${sb.map(x=>`<option value="${x.id}" ${x.id===ss?'selected':''}>${esc(x.name||'種類')}</option>`).join('')}</select>`;})()}
       <select id="lq" class="sel" style="flex:1">${Array.from({length:10},(_,i)=>`<option value="${i+1}" ${i+1===lastQty?'selected':''}>${i+1}</option>`).join('')}</select>
       <button class="mini" data-a="addlog" data-k="${k}" style="height:44px;padding:0 14px;background:var(--acc);color:#fff;border:0;font-weight:700">追加</button>
     </div>
@@ -142,7 +146,7 @@ function logBlock(k){
     <div style="margin-top:6px">${rows||'<div class="sub" style="padding:8px 0">まだ記録がありません</div>'}</div>
   </div>`;
 }
-function updPrev(){const it=S.items.find(x=>x.id===(document.getElementById('la')||{}).value),q=Number((document.getElementById('lq')||{}).value||1),e=document.getElementById('lprev');if(it&&e)e.textContent=`${it.name} ${q}${it.unit||''} × ${fmt(ptOf(it))}pt ＝ ${fmt(q*ptOf(it))}pt（実績にも＋${q}）`;}
+function updPrev(){const it=S.items.find(x=>x.id===(document.getElementById('la')||{}).value),q=Number((document.getElementById('lq')||{}).value||1),e=document.getElementById('lprev');if(!it||!e)return;const r={s:(document.getElementById('ls')||{}).value},pp=logPt(it,r),sb=subsOf(it).find(x=>x.id===r.s);e.textContent=`${it.name}${sb?'（'+(sb.name||'種類')+'）':''} ${q}${it.unit||''} × ${fmt(pp)}pt ＝ ${fmt(q*pp)}pt（実績にも＋${q}）`;}
 function monthOf(ym){return S.months[ym]||{off:[],entries:{},t:{},_tmp:true};}
 function ensure(ym){const m=monthOf(ym);if(m._tmp){delete m._tmp;S.months[ym]=m;}m.t=m.t||{};return m;}
 function daysIn(ym){const[y,m]=ym.split('-').map(Number);return new Date(y,m,0).getDate();}
@@ -332,7 +336,7 @@ function setView(ym,m){
   if(!S.items.length)h+=`<div class="empty">項目がありません</div>`;
   S.items.forEach((it,i)=>{
     const sm=KINDS.map(([k,l])=>{const v=tval(ym,it,k);return v===null?'':`${l} ${fmt(v)}${esc(it.unit||'')}`}).filter(Boolean).join('・')||'目標未設定';
-    const ptS=it.pt===''||it.pt==null?'':`・1${esc(it.unit||'件')} ${fmt(Number(it.pt))}pt`;
+    const ptS=subsOf(it).length?'・'+subsOf(it).map(x=>`${esc(x.name||'種類')} ${fmt(Number(x.pt||0))}pt`).join('／'):(it.pt===''||it.pt==null?'':`・1${esc(it.unit||'件')} ${fmt(Number(it.pt))}pt`);
     h+=`<button class="ihead" data-a="toggle" data-id="${it.id}"><span><b>${esc(it.name||'名前なし')}</b><span class="sub">${sm}${ptS}</span></span><span class="chev">${openId===it.id?'閉じる ▲':'設定 ▼'}</span></button>`;
     if(openId!==it.id)return;
     h+=`<div class="ibody">
@@ -343,7 +347,12 @@ function setView(ym,m){
       h+=`<div class="field"><label>${label}　<span class="seg"><button class="${c.fixed?'on':''}" data-a="fixed" data-k="${k}" data-v="1" data-id="${it.id}">毎月同じ</button><button class="${c.fixed?'':'on'}" data-a="fixed" data-k="${k}" data-v="0" data-id="${it.id}">月ごと</button></span></label>
         <div class="flex"><input type="number" inputmode="decimal" value="${v??''}" data-a="tval" data-k="${k}" data-id="${it.id}" placeholder="${c.fixed?'未設定（使わないなら空欄）':mo+'月の'+label+'を入力'}"><span class="sub" style="white-space:nowrap">${c.fixed?'全月共通':mo+'月分'}</span></div></div>`;
     }
-    h+=`<div class="field"><label>ポイント（今日の成果で使います）</label><div class="flex"><span class="sub" style="white-space:nowrap">1${esc(it.unit||'件')}につき</span><input type="number" inputmode="decimal" value="${it.pt??''}" data-a="ipt" data-id="${it.id}" placeholder="0"><span class="sub">pt</span></div></div>`;
+    const sbs=subsOf(it);
+    h+=`<div class="field"><label>ポイント（今日の成果で使います）</label>`;
+    if(!sbs.length)h+=`<div class="flex"><span class="sub" style="white-space:nowrap">1${esc(it.unit||'件')}につき</span><input type="number" inputmode="decimal" value="${it.pt??''}" data-a="ipt" data-id="${it.id}" placeholder="0"><span class="sub">pt</span></div>`;
+    else{h+=`<div class="sub" style="margin-bottom:4px">種類ごとに1${esc(it.unit||'件')}あたりのポイントを決めます</div>`;
+      sbs.forEach(x=>{h+=`<div class="flex" style="margin-top:6px"><input value="${esc(x.name)}" data-a="sname" data-id="${it.id}" data-s="${x.id}" placeholder="例：端末あり" style="flex:2"><input type="number" inputmode="decimal" value="${x.pt??''}" data-a="spt" data-id="${it.id}" data-s="${x.id}" placeholder="0" style="flex:1"><span class="sub">pt</span><button class="mini" data-a="sdel" data-id="${it.id}" data-s="${x.id}" style="color:var(--bad)">${delAsk===x.id?'削除':'✕'}</button></div>`;});}
+    h+=`<button class="mini" data-a="sadd" data-id="${it.id}" style="margin-top:8px;padding:0 12px;height:36px;color:var(--acc);font-weight:700">＋ 種類を追加（例：端末あり／端末なし）</button></div>`;
     h+=`<div class="flex" style="margin-top:8px;justify-content:flex-end">
         <button class="mini" data-a="up" data-id="${it.id}" ${i===0?'disabled':''}>↑</button>
         <button class="mini" data-a="down" data-id="${it.id}" ${i===S.items.length-1?'disabled':''}>↓</button>
@@ -396,11 +405,13 @@ $app.addEventListener('click',e=>{
   const a=t.dataset.a,id=t.dataset.id;
   if(a==='prev'||a==='next'){const[y,mo]=view.ym.split('-').map(Number);const d=new Date(y,mo-1+(a==='next'?1:-1),1);view.ym=`${d.getFullYear()}-${pad(d.getMonth()+1)}`;render();return;}
   if(a==='inc'||a==='dec'){const m=ensure(view.ym);const cur=Number((m.entries[todayKey]||{})[id]||0);setEntry(m,todayKey,id,Math.max(0,cur+(a==='inc'?1:-1)));changed();render();return;}
-  if(a==='addlog'){const k=t.dataset.k,m=ensure(k.slice(0,7)),iid=document.getElementById('la').value,q=Number(document.getElementById('lq').value);if(!S.items.some(x=>x.id===iid))return;lastAct=iid;lastQty=q;
-    m.logs=m.logs||{};(m.logs[k]=m.logs[k]||[]).push({id:uid(),i:iid,q});
+  if(a==='addlog'){const k=t.dataset.k,m=ensure(k.slice(0,7)),iid=document.getElementById('la').value,q=Number(document.getElementById('lq').value),ls=document.getElementById('ls'),sid=ls?ls.value:null;if(!S.items.some(x=>x.id===iid))return;lastAct=iid;lastQty=q;if(sid)lastSub=sid;
+    m.logs=m.logs||{};const rec={id:uid(),i:iid,q};if(sid)rec.s=sid;(m.logs[k]=m.logs[k]||[]).push(rec);
     setEntry(m,k,iid,Number((m.entries[k]||{})[iid]||0)+q);changed();render();return;}
   if(a==='dellog'){const k=t.dataset.k,m=ensure(k.slice(0,7)),L=(m.logs||{})[k]||[],i=L.findIndex(r=>r.id===t.dataset.r);if(i<0)return;const r=L[i];L.splice(i,1);if(!L.length)delete m.logs[k];
     setEntry(m,k,r.i,Math.max(0,Number((m.entries[k]||{})[r.i]||0)-r.q));changed();render();return;}
+  if(a==='sadd'){const it=findItem(id);if(!it)return;if(!Array.isArray(it.subs))it.subs=[];it.subs.push({id:uid(),name:'',pt:it.subs.length?'':(it.pt??'')});changed();render();return;}
+  if(a==='sdel'){const it=findItem(id),sid=t.dataset.s;if(!it)return;if(delAsk===sid){it.subs=subsOf(it).filter(x=>x.id!==sid);delAsk=null;changed();}else delAsk=sid;render();return;}
   if(a==='send'){sendToBoss();return;}
   if(a==='bkcopy'){backupCopy();return;}
   if(a==='bkrestore'){backupRestore();return;}
@@ -414,16 +425,18 @@ $app.addEventListener('click',e=>{
 });
 $app.addEventListener('change',e=>{
   const t=e.target;
-  if(t.id==='la'||t.id==='lq'){lastAct=document.getElementById('la').value;lastQty=Number(document.getElementById('lq').value);updPrev();return;}
+  if(t.id==='la'){lastAct=t.value;lastQty=Number(document.getElementById('lq').value);lastSub=null;render();return;}
+  if(t.id==='ls'||t.id==='lq'){const ls=document.getElementById('ls');if(ls)lastSub=ls.value;lastQty=Number(document.getElementById('lq').value);updPrev();return;}
   const a=t.dataset.a,id=t.dataset.id;if(!a)return;
   if(a==='myname'){S.me.name=t.value.trim();changed();return;}
   const m=ensure(view.ym);
   if(a==='setToday')setEntry(m,todayKey,id,t.value===''?'':Math.max(0,Number(t.value)));
   else if(a==='setDay')setEntry(m,view.sel,id,t.value===''?'':Math.max(0,Number(t.value)));
   else{const it=findItem(id);if(!it)return;if(a==='iname')it.name=t.value;if(a==='iunit')it.unit=t.value;if(a==='ipt')it.pt=t.value===''?'':Number(t.value);
+    if(a==='sname'||a==='spt'){const x=subsOf(it).find(v=>v.id===t.dataset.s);if(x){if(a==='sname')x.name=t.value;else x.pt=t.value===''?'':Number(t.value);}}
     if(a==='tval'){const k=t.dataset.k,v=t.value===''?'':Number(t.value);if(it[k].fixed)it[k].value=v;else{m.t[it.id]=m.t[it.id]||{};m.t[it.id][k]=v;}}}
   changed();
-  if(a==='setToday'||a==='setDay'||a==='tval'||a==='ipt')render();
+  if(a==='setToday'||a==='setDay'||a==='tval'||a==='ipt'||a==='spt'||a==='sname')render();
 });
 const _r=render;render=function(){_r();updPrev();};
 render();
