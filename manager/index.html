@@ -1,0 +1,828 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>目標達成マネージャー（店長用）</title>
+<link rel="manifest" href="manifest.webmanifest?v=2">
+<meta name="theme-color" content="#1c2230">
+<link rel="apple-touch-icon" href="icon-192.png">
+<style id="appcss">
+:root{--bg:#f4f5f7;--card:#fff;--ink:#1c2230;--sub:#6b7280;--line:#e5e7eb;--acc:#2563eb;--ok:#16a34a;--warn:#ea580c;--bad:#dc2626;--off:#9ca3af}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+body{margin:0;background:var(--bg);color:var(--ink);font-family:-apple-system,"Hiragino Sans","Noto Sans JP",sans-serif;font-size:15px;padding-bottom:84px}
+header{position:sticky;top:0;z-index:5;background:var(--ink);color:#fff;padding:12px 14px 10px}
+.mrow{display:flex;align-items:center;justify-content:space-between}
+.mrow button{background:rgba(255,255,255,.12);color:#fff;border:0;border-radius:10px;width:40px;height:36px;font-size:18px}
+.mtitle{font-size:19px;font-weight:700}
+.sub{color:var(--sub);font-size:12.5px}
+header .sub{color:#cbd5e1;text-align:center;margin-top:4px}
+.save{font-size:11px;text-align:center;color:#94a3b8;margin-top:2px;min-height:14px}
+main{padding:12px}
+.card{background:var(--card);border-radius:14px;padding:14px;margin-bottom:12px;box-shadow:0 1px 2px rgba(0,0,0,.05)}
+.iname{font-weight:700;font-size:16px}
+.big{font-size:34px;font-weight:800;line-height:1.1}
+.big small{font-size:14px;font-weight:600;color:var(--sub);margin-left:3px}
+.flex{display:flex;align-items:center;gap:8px}
+.between{display:flex;justify-content:space-between;align-items:flex-end;gap:8px}
+.bar{height:10px;background:var(--line);border-radius:6px;overflow:hidden;margin:10px 0 6px;position:relative}
+.bar i{display:block;height:100%;background:var(--acc);border-radius:6px}
+.bar b{position:absolute;top:-2px;bottom:-2px;width:2px;background:var(--ink);opacity:.5}
+.stats{display:grid;grid-template-columns:repeat(3,1fr);gap:6px;margin-top:8px}
+.stat{background:var(--bg);border-radius:10px;padding:7px 8px}
+.stat div:first-child{font-size:11px;color:var(--sub)}
+.stat div:last-child{font-weight:700;font-size:14.5px}
+.step{display:flex;align-items:center;gap:6px;margin-top:10px}
+.step button{width:44px;height:44px;border-radius:12px;border:1px solid var(--line);background:#fff;font-size:22px;color:var(--ink)}
+.step input{flex:1;height:44px;border-radius:12px;border:1px solid var(--line);text-align:center;font-size:18px;font-weight:700;min-width:0}
+.tag{display:inline-block;font-size:11.5px;font-weight:700;padding:3px 8px;border-radius:20px;background:#e0e7ff;color:var(--acc)}
+.tag.ok{background:#dcfce7;color:var(--ok)}.tag.warn{background:#ffedd5;color:var(--warn)}.tag.bad{background:#fee2e2;color:var(--bad)}
+nav{position:fixed;bottom:0;left:0;right:0;background:#fff;border-top:1px solid var(--line);display:flex;padding-bottom:env(safe-area-inset-bottom)}
+nav button{flex:1;border:0;background:none;padding:10px 0 12px;font-size:12px;color:var(--sub)}
+nav button span{display:block;font-size:20px}
+nav button.on{color:var(--acc);font-weight:700}
+.cal{display:grid;grid-template-columns:repeat(7,1fr);gap:4px}
+.cal .h{text-align:center;font-size:11px;color:var(--sub);padding:2px 0}
+.cal .d{aspect-ratio:1;border-radius:10px;background:var(--bg);border:2px solid transparent;display:flex;flex-direction:column;align-items:center;justify-content:center;font-size:14px;font-weight:600;padding:0}
+.cal .d.off{background:#e5e7eb;color:var(--off)}
+.cal .d.today{border-color:var(--acc)}
+.cal .d.sel{background:var(--acc);color:#fff}
+.cal .d em{font-style:normal;font-size:9px;font-weight:700;margin-top:1px}
+.cal .d.has em{color:var(--ok)}.cal .d.sel em{color:#fff}
+.btn{display:block;width:100%;height:46px;border-radius:12px;border:0;background:var(--acc);color:#fff;font-size:15px;font-weight:700;margin-top:10px}
+.btn.ghost{background:#fff;color:var(--ink);border:1px solid var(--line)}
+.btn.danger{background:#fff;color:var(--bad);border:1px solid #fecaca}
+.field{margin-top:10px}
+.field label{display:block;font-size:12px;color:var(--sub);margin-bottom:4px}
+.field input{width:100%;height:42px;border-radius:10px;border:1px solid var(--line);padding:0 10px;font-size:16px}
+.row2{display:grid;grid-template-columns:2fr 1fr;gap:8px}
+.mini{border:1px solid var(--line);background:#fff;border-radius:8px;height:32px;min-width:36px;font-size:14px}
+.empty{text-align:center;color:var(--sub);padding:28px 10px}
+.drow{display:flex;justify-content:space-between;align-items:center;padding:8px 0;border-bottom:1px solid var(--line)}
+.drow:last-child{border:0}
+.drow input{width:110px;height:38px;border-radius:10px;border:1px solid var(--line);text-align:center;font-size:16px}
+.seg{display:inline-flex;border:1px solid var(--line);border-radius:8px;overflow:hidden;vertical-align:middle;margin-left:4px}.seg button{border:0;background:#fff;font-size:11.5px;padding:4px 9px;color:var(--sub)}.seg button.on{background:var(--acc);color:#fff;font-weight:700}
+.sel{height:44px;border-radius:12px;border:1px solid var(--line);background:#fff;font-size:16px;padding:0 8px;min-width:0}
+.gr{padding:10px 0;border-bottom:1px solid var(--line)}.gr:last-child{border:0}
+.gbar{position:relative;height:26px;background:var(--bg);border-radius:8px;margin:6px 0 4px;overflow:hidden}
+.gbar i{display:block;height:100%;border-radius:8px}
+.gpct{position:absolute;right:8px;top:0;line-height:26px;font-size:12px;font-weight:800;color:var(--ink)}
+.gcut,.gideal{position:absolute;top:0;bottom:0;width:2px}.gcut{background:var(--bad)}.gideal{background:var(--ink);opacity:.55}
+.gwrap{position:relative;margin:6px 0 4px}
+.gwrap>.gbar{margin:0}
+.gwrap>.gcut,.gwrap>.ggoal{position:absolute;top:-3px;height:32px;width:2px;border-radius:1px}
+.gwrap>.gcut{background:var(--bad)}.gwrap>.ggoal{background:var(--ink)}
+.glab{position:relative;margin-top:3px}
+.gl{position:absolute;font-size:10.5px;white-space:nowrap;line-height:14px}
+.gcutl{color:var(--bad);font-weight:700}.ggoall{color:var(--ink)}
+.sbars{margin:2px 0 6px;padding:6px 8px;background:#f8fafc;border-radius:8px}
+.sbr{display:grid;grid-template-columns:7.5em 1fr auto;align-items:center;gap:8px;font-size:12px;padding:2px 0}
+.sbn{white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+.sbc{font-style:normal;font-size:9.5px;color:#fff;background:var(--bad);border-radius:4px;padding:0 3px;margin-right:3px;vertical-align:1px}
+.sbt{height:8px;background:var(--line);border-radius:4px;overflow:hidden}
+.sbt i{display:block;height:100%;background:#94a3b8;border-radius:4px}.sbt i.on{background:#f87171}.sbt i.oth{background:#cbd5e1}
+.sbq{font-weight:700;white-space:nowrap}.sbq small{font-weight:400;color:var(--sub)}
+.ptc{margin-top:8px;background:#f8fafc;border-radius:10px;padding:8px 10px}
+.ptn{font-size:18px}
+.ptbar{height:8px;background:var(--line);border-radius:4px;overflow:hidden;margin:5px 0 4px}.ptbar i{display:block;height:100%;border-radius:4px}
+.offbtn{border:1px solid var(--line);background:#fff;border-radius:10px;height:36px;padding:0 14px;font-size:14px;font-weight:700;color:var(--ink)}
+.offbtn.on{background:var(--bad);border-color:var(--bad);color:#fff}
+.omcard{box-shadow:0 0 0 2px var(--bad)}
+.omhint{margin-top:10px;background:#fef2f2;color:#991b1b;border-radius:10px;padding:8px 10px;font-size:12.5px}
+.cuthead{text-align:center}
+.cuttop{display:flex;justify-content:center;align-items:flex-end;gap:14px}
+.cutdiv{width:1px;align-self:stretch;background:var(--line)}
+.cutpt{display:flex;justify-content:space-between;align-items:baseline;margin-top:12px;padding-top:10px;border-top:1px solid var(--line);font-size:13px;color:var(--sub)}
+.cutpt b{font-size:22px;color:var(--ink)}.cutpt.ok b{color:var(--ok)}
+.cuthead.all{background:#f0fdf4;box-shadow:0 0 0 2px var(--ok)}
+.cutbig{font-size:40px;white-space:nowrap;font-weight:800;line-height:1.1;margin:2px 0 6px}.cutbig small{font-size:16px;color:var(--sub);font-weight:700}
+.cutsum{display:flex;justify-content:center;gap:6px;flex-wrap:wrap;font-weight:700}
+.cb{display:inline-block;font-size:12px;font-weight:700;padding:3px 9px;border-radius:20px;white-space:nowrap}
+.cb.ok{background:#dcfce7;color:var(--ok)}.cb.pace{background:#e0e7ff;color:var(--acc)}.cb.bad{background:#fee2e2;color:var(--bad)}
+.crow{padding:10px 0;border-bottom:1px solid var(--line)}.crow:last-child{border:0}
+.cnum{font-size:20px}
+.cbar{height:8px;background:var(--line);border-radius:4px;overflow:hidden;margin:5px 0 4px}
+.cbar i{display:block;height:100%;border-radius:4px}.cbar i.ok{background:var(--ok)}.cbar i.pace{background:var(--acc)}.cbar i.bad,.cbar i.ng{background:var(--bad)}
+.dot{display:inline-block;width:9px;height:9px;border-radius:3px;margin-right:3px;vertical-align:middle}
+nav button{font-size:11px}
+.ihead{display:flex;width:100%;justify-content:space-between;align-items:center;gap:8px;text-align:left;background:none;border:0;border-top:1px solid var(--line);padding:12px 2px;margin-top:4px;font-size:15px;color:var(--ink)}
+.ihead>span:first-child{display:flex;flex-direction:column;gap:2px;min-width:0}
+.chev{font-size:12px;color:var(--acc);white-space:nowrap;font-weight:700}
+.ibody{background:#f8fafc;border-radius:12px;padding:2px 10px 10px;margin-bottom:6px}
+.modal{position:fixed;inset:0;background:rgba(15,23,42,.45);z-index:50;display:flex;align-items:center;justify-content:center;padding:18px}
+.mbox{background:#fff;border-radius:16px;padding:18px;width:100%;max-width:420px}
+.mbox h3{margin:0 0 6px;font-size:17px}
+.tin{width:100%;border:1px solid var(--line);border-radius:10px;padding:10px;font-size:15px;margin-top:10px;font-family:inherit}
+textarea.tin{font-size:12px;word-break:break-all}
+.mrow2{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.ck{display:flex;flex-direction:column;align-items:center;font-size:10px;color:var(--bad);font-weight:700;gap:1px;min-width:38px}
+.ck input{width:22px;height:22px;margin:0;accent-color:var(--bad)}
+.omrbtns{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:10px}.omrbtns .mini{height:40px;font-weight:700}.omrbtns .omrread{background:var(--ink);color:#fff;border-color:var(--ink)}
+.omrov{position:fixed;inset:0;z-index:40;background:var(--bg);overflow:auto}
+.omrbar{position:sticky;top:0;display:flex;justify-content:space-between;align-items:center;background:var(--ink);color:#fff;padding:12px 14px;z-index:2}
+.omrbar button{background:rgba(255,255,255,.15);color:#fff;border:0;border-radius:10px;height:34px;padding:0 12px;font-size:14px}
+.omrbody{padding:12px 12px 40px}
+.omrimg{width:100%;border:1px solid var(--line);border-radius:8px;margin:10px 0;background:#fff}
+#omrdate{width:100%;height:42px;border:1px solid var(--line);border-radius:10px;padding:0 10px;font-size:16px}
+#printArea{display:none}
+@media print{@page{size:A4;margin:0}body{background:#fff;padding:0}body>*{display:none!important}#printArea{display:block!important}#printArea img{width:210mm;height:297mm;display:block}}
+.mgrb{display:inline-block;font-size:11px;font-weight:700;background:#facc15;color:#1c2230;border-radius:6px;padding:2px 6px;margin-right:6px;vertical-align:3px}
+.chips{display:flex;gap:8px;overflow-x:auto;padding:10px 2px 4px;-webkit-overflow-scrolling:touch}
+.chip{flex:none;display:flex;flex-direction:column;align-items:flex-start;gap:2px;border:1px solid var(--line);background:#fff;border-radius:12px;padding:8px 14px;font-size:15px;color:var(--ink)}
+.chip small{font-size:11px;color:var(--sub)}
+.chip.on{background:var(--ink);border-color:var(--ink);color:#fff}.chip.on small{color:#cbd5e1}
+.okmsg{background:#dcfce7;color:#166534;border-radius:10px;padding:10px 12px;font-size:13.5px;margin-bottom:12px;font-weight:700}
+.tag.bad{background:#fee2e2;color:var(--bad)}
+.notice{background:#fff7ed;color:#9a3412;border-radius:10px;padding:9px 11px;font-size:12.5px;margin-bottom:12px}
+</style>
+</head>
+<body>
+<div id="app"></div>
+<div id="printArea"></div>
+<script src="../target/omr.js"></script>
+<script id="appjs">
+(function(){
+const $app=document.getElementById('app');
+const LS='target_v1';
+let S;
+try{S=JSON.parse(localStorage.getItem(LS)||'null')}catch(e){S=null}
+if(!S||typeof S!=='object')S={months:{}};
+if(!S.months)S.months={};
+
+const pad=n=>String(n).padStart(2,'0');
+const now=new Date();
+const todayKey=`${now.getFullYear()}-${pad(now.getMonth()+1)}-${pad(now.getDate())}`;
+const curYM=todayKey.slice(0,7);
+let view={ym:curYM,tab:'today',sel:todayKey};
+const MGR=/\/manager\//.test(location.pathname); // 店長用アプリ（manager/）として開いているか
+const fmt=n=>(Math.round(n*100)/100).toLocaleString('ja-JP');
+const uid=()=>Math.random().toString(36).slice(2,9);
+const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+
+// ---- データ構造 ----
+// S.items: 全月共通の項目 [{id,name,unit,cut:{fixed,value},goal:{fixed,value}}]
+// S.months[ym]: {off:[], entries:{日付:{id:値}}, t:{id:{cut,goal}}}  ※月ごとの目標はtに入る
+if(!S.items){ // 旧形式からの移行
+  S.items=[];const keys=Object.keys(S.months).sort();const last=keys.length?S.months[keys[keys.length-1]]:null;
+  if(last&&last.items)S.items=last.items.map(i=>({id:i.id,name:i.name,unit:i.unit,cut:{fixed:true,value:''},goal:{fixed:false,value:''}}));
+  for(const k of keys){const m=S.months[k];m.t=m.t||{};(m.items||[]).forEach(i=>{m.t[i.id]={goal:i.target}});delete m.items;}
+}
+const KINDS=[['cut','足切り'],['goal','目標']];
+// 旧「成果項目」→ 目標の項目のポイント設定に統合
+if(S.acts){const map={};
+  for(const a of S.acts){const it=a.link&&S.items.find(i=>i.id===a.link);
+    if(it){if(it.pt===undefined||it.pt==='')it.pt=a.pt;map[a.id]={id:it.id,linked:true};}
+    else{S.items.push({id:a.id,name:a.name,unit:a.unit,pt:a.pt,cut:{fixed:true,value:''},goal:{fixed:true,value:''}});map[a.id]={id:a.id,linked:false};}}
+  for(const ym in S.months){const m=S.months[ym];for(const k in (m.logs||{}))for(const r of m.logs[k]){if(r.a){const x=map[r.a];if(x){r.i=x.id;if(!x.linked){m.entries[k]=m.entries[k]||{};m.entries[k][x.id]=Number(m.entries[k][x.id]||0)+r.q;}}delete r.a;}}}
+  delete S.acts;}
+let lastAct=null,lastQty=1,lastSub=null;
+const ptOf=it=>Number(it&&it.pt||0);
+const subsOf=it=>(it&&Array.isArray(it.subs))?it.subs:[];
+function logPt(it,r){const sb=subsOf(it).find(x=>x.id===r.s);return sb?Number(sb.pt||0):ptOf(it);}
+const cutSet=it=>{const ids=subsOf(it).filter(x=>x.cut).map(x=>x.id);return ids.length?ids:null;};
+const cutNames=it=>cutSet(it)?subsOf(it).filter(x=>x.cut).map(x=>x.name||'種類').join('・'):'';
+const isYen=(it,k)=>k==='cut'&&it&&it.cut&&it.cut.mode==='yen';
+const uOf=(it,k)=>isYen(it,k)?'円':esc(it.unit||'');
+function logName(it,r){const sb=subsOf(it).find(x=>x.id===r.s);return esc(it.name)+(sb?`（${esc(sb.name||'種類')}）`:'');}
+if(S.ptCut===undefined)S.ptCut=600;
+function ptCutOf(){return S.ptCut===''||S.ptCut==null?null:Number(S.ptCut);}
+function monthPts(ym,before){const m=monthOf(ym);let t=0;for(const k in (m.logs||{})){if(before&&k>=before)continue;for(const r of m.logs[k]){const it=S.items.find(x=>x.id===r.i);if(it)t+=r.q*logPt(it,r);}}return t;}
+function logBlock(k){
+  const ym=k.slice(0,7),m=monthOf(ym),L=(m.logs||{})[k]||[];
+  const[,mm,dd]=k.split('-');const isToday=k===todayKey,ttl=isToday?'今日の成果':Number(mm)+'月'+Number(dd)+'日の成果';
+  if(!S.items.length)return `<div class="card"><div class="iname">${ttl}</div><div class="sub" style="margin-top:6px">項目設定で項目（例：PayPayカード）と1件あたりのポイントを設定すると、ここで記録できます。</div><button class="btn ghost" data-tab="set">項目を設定する</button></div>`;
+  let tot=0;
+  const rows=L.map(r=>{const it=S.items.find(x=>x.id===r.i);if(!it)return '';const pp=logPt(it,r),p=r.q*pp;tot+=p;
+    return `<div class="drow"><div><b>${logName(it,r)}</b> ${r.q}${esc(it.unit||'')}${r.y?`<span class="sub">（${fmt(r.y)}円）</span>`:''}</div><div class="flex"><span class="sub">${r.q}×${fmt(pp)}pt＝</span><b>${fmt(p)}pt</b><button class="mini" data-a="dellog" data-k="${k}" data-r="${r.id}">✕</button></div></div>`}).join('');
+  const sel=S.items.some(a=>a.id===lastAct)?lastAct:S.items[0].id;
+  return `<div class="card">
+    <div class="between" style="align-items:center"><div class="iname">${ttl}</div><div style="text-align:right"><div class="big" style="font-size:26px;color:var(--acc)">${fmt(tot)}<small>pt</small></div></div></div>
+    ${ptLine(ym)}
+    <div class="flex" style="margin-top:10px;flex-wrap:wrap">
+      <select id="la" class="sel" style="flex:2">${S.items.map(a=>`<option value="${a.id}" ${a.id===sel?'selected':''}>${esc(a.name||'名前なし')}</option>`).join('')}</select>
+      ${(()=>{const it=S.items.find(x=>x.id===sel),sb=subsOf(it);if(!sb.length)return '';const ss=sb.some(x=>x.id===lastSub)?lastSub:sb[0].id;return `<select id="ls" class="sel" style="flex:2">${sb.map(x=>`<option value="${x.id}" ${x.id===ss?'selected':''}>${esc(x.name||'種類')}</option>`).join('')}</select>`;})()}
+      ${isYen(S.items.find(x=>x.id===sel),'cut')?`<input id="ly" class="sel" type="number" inputmode="numeric" placeholder="金額（円）" style="flex:2;width:0">`:''}
+      <select id="lq" class="sel" style="flex:1">${Array.from({length:10},(_,i)=>`<option value="${i+1}" ${i+1===lastQty?'selected':''}>${i+1}</option>`).join('')}</select>
+      <button class="mini" data-a="addlog" data-k="${k}" style="height:44px;padding:0 14px;background:var(--acc);color:#fff;border:0;font-weight:700">追加</button>
+    </div>
+    <div id="lprev" class="sub" style="margin-top:6px"></div>
+    <div class="omrbtns"><button class="mini" data-a="omrsheet">🖨 マークシートを作る</button><button class="mini omrread" data-a="omrread" data-k="${k}">📷 写真で読み取る</button></div>
+    <div style="margin-top:6px">${rows||'<div class="sub" style="padding:8px 0">まだ記録がありません</div>'}</div>
+  </div>`;
+}
+function ptLine(ym){
+  const tot=monthPts(ym),pc=ptCutOf(),mo=Number(ym.slice(5));
+  if(pc===null)return `<div class="sub" style="text-align:right">${mo}月の合計 ${fmt(tot)}pt</div>`;
+  const done=tot>=pc,rate=pc?tot/pc:0;let daily='';
+  if(ym===curYM&&!done){const m=monthOf(ym);let rem=0;for(let d=1;d<=daysIn(ym);d++){const k=dkey(ym,d);if(k>=todayKey&&!m.off.includes(k))rem++;}
+    if(rem){const need=Math.max(0,Math.ceil((pc-monthPts(ym,todayKey))/rem));daily=`今日の目安 <b>${fmt(need)}pt</b>`;}}
+  return `<div class="ptc"><div class="between"><span class="sub">${mo}月の合計</span><span><b class="ptn">${fmt(tot)}</b><span class="sub"> / ${fmt(pc)}pt</span></span></div>
+    <div class="ptbar"><i style="width:${Math.min(100,rate*100)}%;background:${done?'var(--ok)':'var(--bad)'}"></i></div>
+    <div class="between sub"><span>${done?'<b style="color:var(--ok)">ポイント足切りクリア！</b>':`足切りまであと <b>${fmt(pc-tot)}pt</b>`}</span><span>${daily}</span></div></div>`;
+}
+function updPrev(){const it=S.items.find(x=>x.id===(document.getElementById('la')||{}).value),q=Number((document.getElementById('lq')||{}).value||1),e=document.getElementById('lprev');if(!it||!e)return;const r={s:(document.getElementById('ls')||{}).value},pp=logPt(it,r),sb=subsOf(it).find(x=>x.id===r.s);e.textContent=`${it.name}${sb?'（'+(sb.name||'種類')+'）':''} ${q}${it.unit||''} × ${fmt(pp)}pt ＝ ${fmt(q*pp)}pt（実績にも＋${q}）`;}
+function monthOf(ym){return S.months[ym]||{off:[],entries:{},t:{},_tmp:true};}
+function ensure(ym){const m=monthOf(ym);if(m._tmp){delete m._tmp;S.months[ym]=m;}m.t=m.t||{};return m;}
+function daysIn(ym){const[y,m]=ym.split('-').map(Number);return new Date(y,m,0).getDate();}
+function dkey(ym,d){return `${ym}-${pad(d)}`;}
+function dow(k){return new Date(k.slice(0,4),k.slice(5,7)-1,k.slice(8)).getDay();}
+function tval(ym,it,kind){
+  const c=it[kind];if(!c)return null;
+  const v=c.fixed?c.value:((monthOf(ym).t||{})[it.id]||{})[kind];
+  return v===''||v===undefined||v===null?null:Number(v);
+}
+
+function calc(ym,item){
+  const m=monthOf(ym),n=daysIn(ym);
+  const work=[];for(let d=1;d<=n;d++){const k=dkey(ym,d);if(!m.off.includes(k))work.push(k);}
+  let total=0,before=0,todayV=0;
+  for(const k in m.entries){const v=Number(m.entries[k][item.id]||0);total+=v;if(ym===curYM){if(k<todayKey)before+=v;else if(k===todayKey)todayV=v;}}
+  let yT=0,yB=0,yToday=0,fT=0,fB=0,fToday=0;const cs=cutSet(item);
+  for(const k in (m.logs||{}))for(const x of m.logs[k]){if(x.i!==item.id)continue;if(cs&&!cs.includes(x.s))continue;
+    const y=x.y||0;yT+=y;fT+=x.q;if(ym===curYM){if(k<todayKey){yB+=y;fB+=x.q;}else if(k===todayKey){yToday+=y;fToday+=x.q;}}}
+  const r={total,work:work.length,todayV,yT,yToday,fT,cs:!!cs,t:{}};
+  const remain=work.filter(k=>k>=todayKey).length,elapsed=work.filter(k=>k<=todayKey).length;
+  if(ym===curYM){r.remain=remain;r.proj=elapsed?total/elapsed*work.length:0;r.ideal=work.length?elapsed/work.length:0;}
+  for(const[kind]of KINDS){
+    const T=tval(ym,item,kind);if(T===null)continue;
+    const yen=isYen(item,kind),flt=kind==='cut'&&!!cs&&!yen;
+    const tot=yen?yT:flt?fT:total,bef=yen?yB:flt?fB:before;
+    const o={T,yen,flt,tot,now:yen?yToday:flt?fToday:todayV,rate:T?tot/T:0,left:Math.max(0,T-tot),done:tot>=T,proj:elapsed?tot/elapsed*work.length:0};
+    if(ym===curYM)o.daily=remain?Math.max(0,Math.ceil((T-bef)/remain)):null;
+    else if(ym>curYM)o.daily=work.length?Math.ceil(T/work.length):null;
+    r.t[kind]=o;
+  }
+  return r;
+}
+
+// ---- 保存（このスマホの中）----
+let saveMsg='';
+function setMsg(t){saveMsg=t;const e=document.getElementById('savemsg');if(e)e.textContent=t;}
+function changed(){
+  S.savedAt=Date.now();
+  try{localStorage.setItem(LS,JSON.stringify(S));setMsg('このスマホに保存しました');}
+  catch(e){setMsg('保存できませんでした（空き容量を確認してください）');}
+}
+try{if(navigator.storage&&navigator.storage.persist)navigator.storage.persist();}catch(e){}
+if(!S.me)S.me={id:Math.random().toString(36).slice(2,12),name:''};
+
+// ---- 店長に送る・バックアップ（データを短い文字列にする）----
+function b64u(u8){let s='';for(let i=0;i<u8.length;i+=0x8000)s+=String.fromCharCode.apply(null,u8.subarray(i,i+0x8000));return btoa(s).replace(/\+/g,'-').replace(/\//g,'_').replace(/=+$/,'');}
+async function enc(obj){
+  const bytes=new TextEncoder().encode(JSON.stringify(obj));
+  if(window.CompressionStream){try{const st=new Blob([bytes]).stream().pipeThrough(new CompressionStream('deflate-raw'));return 'z'+b64u(new Uint8Array(await new Response(st).arrayBuffer()));}catch(e){}}
+  return 'j'+b64u(bytes);
+}
+async function dec(code){
+  code=String(code).trim();const kind=code[0];let b=code.slice(1).replace(/-/g,'+').replace(/_/g,'/');while(b.length%4)b+='=';
+  const bin=atob(b),u8=new Uint8Array(bin.length);for(let i=0;i<bin.length;i++)u8[i]=bin.charCodeAt(i);
+  let txt;if(kind==='z'){const st=new Blob([u8]).stream().pipeThrough(new DecompressionStream('deflate-raw'));txt=await new Response(st).text();}else txt=new TextDecoder().decode(u8);
+  return JSON.parse(txt);
+}
+function payload(ym){
+  const m=monthOf(ym),n=daysIn(ym);let work=0,el=0;
+  for(let d=1;d<=n;d++){const k=dkey(ym,d);if(m.off.includes(k))continue;work++;if(k<=todayKey)el++;}
+  const items=S.items.map(it=>{const r=calc(ym,it);return{n:it.name||'名前なし',u:it.unit||'',c:r.t.cut?r.t.cut.T:null,cy:isYen(it,'cut')?1:0,ty:r.yT,ct:r.t.cut?r.t.cut.tot:null,cn:cutNames(it),sb:subStats(ym,it,r.total),g:r.t.goal?r.t.goal.T:null,t:r.total,p:ptOf(it)};});
+  return{v:1,id:S.me.id,name:S.me.name,ym,at:Date.now(),items,pts:monthPts(ym),pc:ptCutOf(),work,el};
+}
+function modal(html,onClick){
+  const w=document.createElement('div');w.className='modal';w.innerHTML='<div class="mbox">'+html+'</div>';document.body.appendChild(w);
+  const close=()=>w.remove();
+  w.addEventListener('click',e=>{if(e.target===w){close();return;}onClick&&onClick(e,close,w);});
+  return w;
+}
+async function copyText(t){try{await navigator.clipboard.writeText(t);return true;}catch(e){return false;}}
+async function sendToBoss(){
+  if(!S.me.name){
+    modal(`<h3>あなたの名前</h3><p class="sub">店長の画面に表示される名前です。</p><input id="nm" class="tin" placeholder="例：山田"><div class="mrow2"><button class="btn ghost" data-x="no">やめる</button><button class="btn" data-x="ok">決定</button></div>`,(e,close,w)=>{
+      const x=e.target.closest('[data-x]');if(!x)return;
+      if(x.dataset.x==='ok'){const v=w.querySelector('#nm').value.trim();if(!v)return;S.me.name=v;changed();close();render();sendToBoss();}else close();
+    });setTimeout(()=>{const i=document.getElementById('nm');i&&i.focus();},50);return;
+  }
+  const ym=view.ym,code=await enc(payload(ym));
+  const url=new URL('../manager/',location.href).href+'#d='+code;
+  const now=new Date(),txt=`【実績報告】${S.me.name}　${Number(ym.slice(5))}月分（${now.getMonth()+1}/${now.getDate()} ${pad(now.getHours())}:${pad(now.getMinutes())}時点）\n${url}`;
+  if(navigator.share){try{await navigator.share({text:txt});return;}catch(e){if(e&&e.name==='AbortError')return;}}
+  const ok=await copyText(txt);
+  modal(`<h3>${ok?'コピーしました':'下の文をコピーしてください'}</h3><p class="sub">LINEなどに貼り付けて店長に送ってください。</p><textarea class="tin" rows="5" readonly>${esc(txt)}</textarea><button class="btn" data-x="no">閉じる</button>`,(e,close)=>{if(e.target.closest('[data-x]'))close();});
+}
+async function backupCopy(){
+  const code='TGTBK:'+await enc(S);const ok=await copyText(code);
+  modal(`<h3>${ok?'バックアップをコピーしました':'下の文字をすべてコピーしてください'}</h3><p class="sub">LINEの自分だけのトークやメモ帳に貼って保管してください。機種変更のときは「バックアップから戻す」に貼り付けます。</p><textarea class="tin" rows="4" readonly>${esc(code)}</textarea><button class="btn" data-x="no">閉じる</button>`,(e,close)=>{if(e.target.closest('[data-x]'))close();});
+}
+// ---- 設定の共有（項目・種類・ポイント・足切り）----
+async function shareCfg(withGoal){
+  const items=S.items.map(it=>({id:it.id,name:it.name||'',unit:it.unit||'',pt:it.pt??'',subs:subsOf(it).map(x=>({id:x.id,name:x.name||'',pt:x.pt??'',cut:!!x.cut})),
+    cut:{fixed:!!it.cut.fixed,value:it.cut.fixed?it.cut.value:'',mode:it.cut.mode||'cnt'},goal:{fixed:!!it.goal.fixed,value:withGoal&&it.goal.fixed?it.goal.value:''}}));
+  const t={};for(const ym in S.months){if(ym<curYM)continue;const mt=S.months[ym].t||{};for(const id in mt){const o={};if(mt[id].cut!==undefined&&mt[id].cut!=='')o.cut=mt[id].cut;if(withGoal&&mt[id].goal!==undefined&&mt[id].goal!=='')o.goal=mt[id].goal;if(Object.keys(o).length){(t[ym]=t[ym]||{})[id]=o;}}}
+  const code=await enc({v:1,kind:'cfg',from:S.me.name||'',withGoal:!!withGoal,ptCut:S.ptCut??'',items,t});
+  const url=location.origin+location.pathname+'#cfg='+code;
+  const txt=`【目標管理アプリ】設定入りのリンクです。\nChromeで開いて「読み込む」を押し、ホーム画面に追加してください。\n${url}`;
+  if(navigator.share){try{await navigator.share({text:txt});return;}catch(e){if(e&&e.name==='AbortError')return;}}
+  const ok=await copyText(txt);
+  modal(`<h3>${ok?'コピーしました':'下の文をコピーしてください'}</h3><p class="sub">LINEなどでみんなに送ってください。</p><textarea class="tin" rows="5" readonly>${esc(txt)}</textarea><button class="btn" data-x="no">閉じる</button>`,(e,close)=>{if(e.target.closest('[data-x]'))close();});
+}
+function applyCfg(c){
+  const byName={};S.items.forEach(i=>{if(i.name)byName[i.name]=i;});
+  const idMap={};
+  S.items=c.items.map(x=>{const ex=byName[x.name];const id=ex?ex.id:x.id;idMap[x.id]=id;
+    const subs=x.subs.map(sb=>{const es=ex&&subsOf(ex).find(v=>v.name===sb.name);return{id:es?es.id:sb.id,name:sb.name,pt:sb.pt,cut:sb.cut};});
+    const goal=c.withGoal?x.goal:(ex&&ex.goal?ex.goal:{fixed:x.goal.fixed,value:''});
+    return{id,name:x.name,unit:x.unit,pt:x.pt,subs,cut:x.cut,goal};});
+  S.ptCut=c.ptCut;
+  for(const ym in (c.t||{})){const m=ensure(ym);for(const oid in c.t[ym]){const id=idMap[oid]||oid;m.t[id]=Object.assign(m.t[id]||{},c.t[ym][oid]);}}
+  changed();
+}
+async function cfgFromHash(){
+  const mm=location.hash.match(/[#&]cfg=([A-Za-z0-9_\-]+)/);if(!mm)return;
+  try{history.replaceState(null,'',location.pathname)}catch(e){}
+  let c;try{c=await dec(mm[1]);if(!c||c.kind!=='cfg'||!Array.isArray(c.items))throw 0;}catch(e){modal(`<h3>読み込めませんでした</h3><p class="sub">リンクが途中で切れているかもしれません。届いたメッセージのリンクをもう一度開いてください。</p><button class="btn" data-x="no">閉じる</button>`,(e2,close)=>{if(e2.target.closest('[data-x]'))close();});return;}
+  const inLine=/\bLine\//i.test(navigator.userAgent);
+  modal(`<h3>設定を読み込みますか？</h3><p class="sub">${c.from?esc(c.from)+'さんから共有された':'共有された'}設定です。</p>
+    <ul class="sub" style="padding-left:18px;line-height:1.7;margin:6px 0">${c.items.map(x=>`<li>${esc(x.name)}${x.subs.length?'（'+x.subs.map(s=>esc(s.name)).join('・')+'）':''}</li>`).join('')}${c.ptCut!==''&&c.ptCut!=null?`<li>ポイントの足切り ${fmt(Number(c.ptCut))}pt</li>`:''}</ul>
+    <p class="sub">項目・ポイント・足切り${c.withGoal?'・個人目標':''}がこの設定に置き換わります。入力済みの実績や休みの日はそのまま残ります。</p>
+    ${inLine?'<div class="notice" style="margin-top:8px">LINEの中で開いています。このままだとLINEの中にしか保存されません。右上のメニューから「ブラウザで開く」を選んでから読み込んでください。</div>':''}
+    <div class="mrow2"><button class="btn ghost" data-x="no">やめる</button><button class="btn" data-x="ok">読み込む</button></div>`,(e,close)=>{
+    const x=e.target.closest('[data-x]');if(!x)return;if(x.dataset.x==='ok'){applyCfg(c);view.tab='set';render();}close();
+    if(x.dataset.x==='ok')modal(`<h3>読み込みました</h3><p class="sub">あとは「あなたの名前」と、必要なら個人目標を入れてください。カレンダーの「休み入力」で休みの日も入れておくと、毎日の目安が正確になります。</p><button class="btn" data-x="no">OK</button>`,(e2,c2)=>{if(e2.target.closest('[data-x]'))c2();});
+  });
+}
+window.addEventListener('hashchange',cfgFromHash);
+// ---- マークシート ----
+function omrRows(){const rows=[];S.items.forEach(it=>{const sb=subsOf(it),yen=isYen(it,'cut');
+  if(sb.length)sb.forEach(x=>rows.push({i:it.id,s:x.id,label:(it.name||'名前なし')+'（'+(x.name||'種類')+'）',unit:it.unit||'',yen}));
+  else rows.push({i:it.id,label:it.name||'名前なし',unit:it.unit||'',yen});});return rows;}
+function overlay(html){const w=document.createElement('div');w.className='omrov';w.innerHTML='<div class="omrbar"><b>マークシート</b><button data-x="close">✕ 閉じる</button></div><div class="omrbody">'+html+'</div>';document.body.appendChild(w);w.querySelector('[data-x=close]').onclick=()=>w.remove();return w;}
+function omrSheet(){
+  if(!window.OMR){modal('<h3>読み込み中です</h3><p class="sub">少し待ってからもう一度押してください。</p><button class="btn" data-x="no">閉じる</button>',(e,c)=>{if(e.target.closest('[data-x]'))c();});return;}
+  const rows=omrRows();if(!rows.length){modal('<h3>項目がありません</h3><p class="sub">先に項目設定で項目を作ってください。</p><button class="btn" data-x="no">閉じる</button>',(e,c)=>{if(e.target.closest('[data-x]'))c();});return;}
+  const L=OMR.layout(rows),cv=document.createElement('canvas');OMR.drawSheet(cv,L,{name:S.me.name});
+  const url=cv.toDataURL('image/png');
+  const w=overlay(`<p class="sub">今の項目・種類に合わせたシートです（シートID ${L.id}）。印刷して1日1枚使ってください。項目や種類を変えたら、作り直してください。</p>
+    <img src="${url}" class="omrimg" alt="マークシート">
+    <button class="btn" data-x="print">🖨 印刷する</button>
+    <a class="btn ghost" style="display:flex;align-items:center;justify-content:center;text-decoration:none" download="marksheet-${L.id}.png" href="${url}">画像として保存（ネットプリント用）</a>
+    ${L.truncated?'<div class="notice" style="margin-top:10px">項目が多いため、シートに入りきらない分があります。</div>':''}`);
+  w.querySelector('[data-x=print]').onclick=()=>{const pa=document.getElementById('printArea');pa.innerHTML=`<img src="${url}">`;setTimeout(()=>{try{window.print();}catch(e){}},100);};
+}
+let omrDay=null;
+function omrPick(k){omrDay=k||todayKey;let inp=document.getElementById('omrfile');if(!inp){inp=document.createElement('input');inp.type='file';inp.accept='image/*';inp.id='omrfile';inp.style.display='none';document.body.appendChild(inp);
+  inp.addEventListener('change',()=>{const f=inp.files&&inp.files[0];inp.value='';if(f)omrProcess(f);});}inp.click();}
+function omrProcess(file){
+  const rows=omrRows(),L=OMR.layout(rows);
+  const w=overlay('<div class="empty">読み取り中…</div>');
+  const url=URL.createObjectURL(file),img=new Image();
+  img.onload=()=>{setTimeout(()=>{let res;try{res=OMR.read(img,L);}catch(e){res={ok:false,reason:'読み取り中にエラーが起きました。撮り直してください。'};}URL.revokeObjectURL(url);w.remove();
+    if(!res.ok){overlay(`<div class="notice">${esc(res.reason)}</div><button class="btn" data-x="again">📷 撮り直す</button><p class="sub" style="margin-top:12px;line-height:1.7">うまくいくコツ：<br>・明るい所で、影が入らないように<br>・シートをなるべく真上から<br>・四すみの黒い四角が4つとも写るように</p>`).querySelector('[data-x=again]').onclick=function(){this.closest('.omrov').remove();omrPick(omrDay);};return;}
+    omrResult(res);},30);};
+  img.onerror=()=>{w.remove();modal('<h3>画像を開けませんでした</h3><button class="btn" data-x="no">閉じる</button>',(e,c)=>{if(e.target.closest('[data-x]'))c();});};
+  img.src=url;
+}
+function omrResult(res){
+  const rs=res.rows.map(r=>({...r}));
+  const w=overlay('<div id="omrres"></div>');const box=w.querySelector('#omrres');
+  const draw=()=>{const k=omrDay,mm=monthOf(k.slice(0,7)),exist=((mm.logs||{})[k]||[]).length,tot=rs.reduce((a,r)=>{const it=S.items.find(x=>x.id===r.i);return a+(it?r.count*logPt(it,r):0)},0);
+    box.innerHTML=`${res.idMatch?'':'<div class="notice">このシートを作ったあとに項目や種類が変わっているようです。数がずれていないか、よく確認してください。</div>'}
+    <div class="sub">読み取った結果です。緑の丸＝塗りつぶしと判定、オレンジ＝うすくて迷った所です。違っていたら＋−で直してください。</div>
+    <div class="field"><label>この日の成果として入れる</label><input type="date" id="omrdate" value="${k}"></div>
+    ${exist?`<div class="notice" style="margin-top:8px">この日はすでに${exist}件の成果が入っています。反映すると、それに<b>足されます</b>。</div>`:''}
+    <div class="card" style="padding:4px 12px;margin-top:10px">${rs.map((r,i)=>`<div class="drow" style="${r.unsure?'background:#fffbeb;':''}">
+      <div style="flex:1;min-width:0"><b>${esc(r.label)}</b>${r.unsure?'<div class="sub" style="color:#b45309">うすい丸があります。確認してください</div>':''}
+      ${r.yen&&r.count>0?`<div class="flex" style="margin-top:4px"><input type="number" inputmode="numeric" class="omry" data-i="${i}" value="${r.amount||''}" placeholder="金額（円）" style="width:130px;height:34px;border:1px solid var(--line);border-radius:8px;padding:0 8px;font-size:15px"><span class="sub">円</span></div>`:''}</div>
+      <div class="flex"><button class="mini" data-x="dec" data-i="${i}">−</button><b style="min-width:2.4em;text-align:center;font-size:18px">${r.count}</b><button class="mini" data-x="inc" data-i="${i}">＋</button></div></div>`).join('')}</div>
+    <div class="between" style="margin-top:6px"><span class="sub">合計 ${rs.reduce((a,r)=>a+r.count,0)}件</span><b style="color:var(--acc)">${fmt(tot)}pt</b></div>
+    <button class="btn" data-x="apply">この内容で反映する</button>
+    <button class="btn ghost" data-x="again">📷 撮り直す</button>
+    <details style="margin-top:12px"><summary class="sub">読み取った画像を見る</summary><div id="omrprev"></div></details>`;
+    const pv=box.querySelector('#omrprev');res.preview.style.width='100%';res.preview.style.marginTop='8px';pv.appendChild(res.preview);
+  };
+  draw();
+  box.addEventListener('change',e=>{if(e.target.id==='omrdate'&&e.target.value){omrDay=e.target.value;draw();}if(e.target.classList.contains('omry'))rs[+e.target.dataset.i].amount=Number(e.target.value)||0;});
+  box.addEventListener('click',e=>{const x=e.target.closest('[data-x]');if(!x)return;const i=+x.dataset.i;
+    if(x.dataset.x==='inc'){rs[i].count++;draw();}
+    else if(x.dataset.x==='dec'){rs[i].count=Math.max(0,rs[i].count-1);draw();}
+    else if(x.dataset.x==='again'){w.remove();omrPick(omrDay);}
+    else if(x.dataset.x==='apply'){
+      const miss=rs.findIndex(r=>r.yen&&r.count>0&&!(r.amount>0));if(miss>=0){const el=box.querySelector(`.omry[data-i="${miss}"]`);if(el){el.style.borderColor='var(--bad)';el.focus();}return;}
+      const k=omrDay,m=ensure(k.slice(0,7));m.logs=m.logs||{};let n=0;
+      rs.forEach(r=>{if(!r.count||!S.items.some(x=>x.id===r.i))return;const rec={id:uid(),i:r.i,q:r.count};if(r.s&&subsOf(S.items.find(x=>x.id===r.i)).some(v=>v.id===r.s))rec.s=r.s;if(r.yen&&r.amount>0)rec.y=r.amount;
+        (m.logs[k]=m.logs[k]||[]).push(rec);setEntry(m,k,r.i,Number((m.entries[k]||{})[r.i]||0)+r.count);n+=r.count;});
+      changed();w.remove();view.ym=k.slice(0,7);render();
+      modal(`<h3>反映しました</h3><p class="sub">${Number(k.slice(5,7))}/${Number(k.slice(8))} の成果に ${n}件 を追加しました。</p><button class="btn" data-x="no">OK</button>`,(e2,c)=>{if(e2.target.closest('[data-x]'))c();});
+    }});
+}
+// ---- データをファイルで共有（Excel / CSV）----
+function exportTables(ym){
+  const m=monthOf(ym),n=daysIn(ym),logs=m.logs||{};
+  const ptOfItem=id=>{let t=0;for(const k in logs)for(const r of logs[k])if(r.i===id){const it=S.items.find(x=>x.id===id);if(it)t+=r.q*logPt(it,r);}return t;};
+  const subQ=(id,sid)=>{let q=0;for(const k in logs)for(const r of logs[k])if(r.i===id&&r.s===sid)q+=r.q;return q;};
+  const pct=v=>v==null?'':Math.round(v*1000)/10+'%';
+  const sum=[['項目','種類','単位','実績','足切り','足切り達成率','個人目標','個人目標達成率','ポイント']];
+  S.items.forEach(it=>{const r=calc(ym,it),c=r.t.cut,g=r.t.goal,u=it.unit||'';
+    sum.push([it.name||'名前なし','（合計）',u,r.total,c?(c.yen?c.T+'円':c.T):'',c?pct(c.rate):'',g?g.T:'',g?pct(g.rate):'',ptOfItem(it.id)]);
+    subsOf(it).forEach(x=>sum.push(['',(x.name||'種類')+(x.cut?'（足切り対象）':''),u,subQ(it.id,x.id),'','','','','']));});
+  const pc=ptCutOf(),tp=monthPts(ym);
+  sum.push([]);sum.push(['ポイント合計','','pt',tp,pc==null?'':pc,pc?pct(tp/pc):'','','','']);
+  sum.push(['出勤日数','','日',n-m.off.length,'','','','','']);
+  const cols=[];S.items.forEach(it=>{cols.push({h:it.name||'名前なし',f:k=>Number((m.entries[k]||{})[it.id]||0)});subsOf(it).forEach(x=>cols.push({h:(it.name||'')+'（'+(x.name||'種類')+'）',f:k=>(logs[k]||[]).filter(r=>r.i===it.id&&r.s===x.id).reduce((a,r)=>a+r.q,0)}));});
+  const day=[['日付','曜日','休み',...cols.map(c=>c.h),'ポイント']];
+  for(let d=1;d<=n;d++){const k=dkey(ym,d);let p=0;(logs[k]||[]).forEach(r=>{const it=S.items.find(x=>x.id===r.i);if(it)p+=r.q*logPt(it,r);});
+    day.push([k,'日月火水木金土'[dow(k)],m.off.includes(k)?'休':'',...cols.map(c=>c.f(k)),p]);}
+  day.push(['合計','','',...cols.map(c=>{let t=0;for(let d=1;d<=n;d++)t+=c.f(dkey(ym,d));return t;}),tp]);
+  const rec=[['日付','項目','種類','数','単位','ポイント','金額（円）']];
+  Object.keys(logs).sort().forEach(k=>logs[k].forEach(r=>{const it=S.items.find(x=>x.id===r.i);if(!it)return;const sb=subsOf(it).find(x=>x.id===r.s);rec.push([k,it.name,sb?sb.name:'',r.q,it.unit||'',r.q*logPt(it,r),r.y||'']);}));
+  return{sum,day,rec};
+}
+function loadXLSX(){return new Promise((ok,ng)=>{if(window.XLSX)return ok(window.XLSX);const sc=document.createElement('script');sc.src='../target/xlsx.full.min.js';sc.onload=()=>ok(window.XLSX);sc.onerror=ng;document.head.appendChild(sc);});}
+async function shareFile(blob,name){
+  const file=new File([blob],name,{type:blob.type});
+  if(navigator.canShare&&navigator.canShare({files:[file]})){try{await navigator.share({files:[file],title:name});return;}catch(e){if(e&&e.name==='AbortError')return;}}
+  const url=URL.createObjectURL(blob),a=document.createElement('a');a.href=url;a.download=name;document.body.appendChild(a);a.click();a.remove();setTimeout(()=>URL.revokeObjectURL(url),4000);
+  modal(`<h3>ダウンロードしました</h3><p class="sub">「${esc(name)}」をダウンロードフォルダに保存しました。ファイルアプリから開いたり、LINEなどで送ったりできます。</p><button class="btn" data-x="no">OK</button>`,(e,c)=>{if(e.target.closest('[data-x]'))c();});
+}
+async function exportData(fmt){
+  const ym=view.ym,T=exportTables(ym),base=`実績_${(S.me.name||'名前なし').replace(/[\\/:*?"<>|]/g,'')}_${ym}`;
+  if(fmt==='csv'){
+    const q=v=>{v=v==null?'':String(v);return /[",\n]/.test(v)?'"'+v.replace(/"/g,'""')+'"':v;};
+    const lines=[[`${Number(ym.slice(5))}月の集計`],...T.sum,[],['日別'],...T.day,[],['成果の記録'],...T.rec];
+    const csv='﻿'+lines.map(r=>r.map(q).join(',')).join('\r\n');
+    return shareFile(new Blob([csv],{type:'text/csv'}),base+'.csv');
+  }
+  let X;try{X=await loadXLSX();}catch(e){modal('<h3>Excelの準備ができませんでした</h3><p class="sub">ネットにつながっているか確認して、もう一度押してください。</p><button class="btn" data-x="no">閉じる</button>',(e2,c)=>{if(e2.target.closest('[data-x]'))c();});return;}
+  const wb=X.utils.book_new();
+  const add=(rows,nm,w)=>{const ws=X.utils.aoa_to_sheet(rows);ws['!cols']=w;X.utils.book_append_sheet(wb,ws,nm);};
+  add(T.sum,'集計',[{wch:16},{wch:20},{wch:6},{wch:8},{wch:10},{wch:12},{wch:10},{wch:14},{wch:10}]);
+  add(T.day,'日別',[{wch:12},{wch:5},{wch:5},...T.day[0].slice(3).map(h=>({wch:Math.max(8,String(h).length*2)}))]);
+  add(T.rec,'成果の記録',[{wch:12},{wch:16},{wch:12},{wch:6},{wch:6},{wch:9},{wch:11}]);
+  const out=X.write(wb,{bookType:'xlsx',type:'array'});
+  return shareFile(new Blob([out],{type:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'}),base+'.xlsx');
+}
+// ---- 店長用：店舗メンバー（スタッフから届いた報告。クリアファイルの「スタッフ実績」と同じ保存場所）----
+const TL='team_v1';
+function loadTeam(){let T;try{T=JSON.parse(localStorage.getItem(TL)||'null')}catch(e){T=null}return T&&T.staff?T:{staff:{}};}
+function saveTeam(T){try{localStorage.setItem(TL,JSON.stringify(T))}catch(e){}}
+async function importReport(raw){
+  const mm=String(raw).match(/[#&?]d=([A-Za-z0-9_\-]+)/),code=mm?mm[1]:String(raw).trim();
+  const p=await dec(code);if(!p||p.v!==1||!p.id||!p.ym||!Array.isArray(p.items))throw new Error('bad');
+  const T=loadTeam(),st=T.staff[p.id]||(T.staff[p.id]={name:'',months:{}});if(p.name)st.name=p.name;
+  const cur=st.months[p.ym];let msg;
+  if(cur&&cur.at>p.at)msg=`${st.name||'スタッフ'}さんの${Number(p.ym.slice(5))}月分は、もっと新しいデータが入っています`;
+  else{st.months[p.ym]=p;msg=`${st.name||'スタッフ'}さんの${Number(p.ym.slice(5))}月分を取り込みました`;}
+  saveTeam(T);view.member=p.id;view.ym=p.ym;view.tab='member';view.mmsg=msg;return msg;
+}
+async function reportFromHash(){
+  if(!MGR||!/[#&]d=/.test(location.hash))return;const h=location.hash;try{history.replaceState(null,'',location.pathname)}catch(e){}
+  try{await importReport(h);}catch(e){view.tab='member';view.mmsg='';view.merr='リンクが途中で切れているようです。届いたメッセージを全部コピーして、メンバータブの「報告を取り込む」に貼り付けてください。';}
+  render();
+}
+window.addEventListener('hashchange',reportFromHash);
+function memberView(ym){
+  const T=loadTeam(),ids=Object.keys(T.staff),mo=Number(ym.slice(5));
+  const withM=ids.filter(id=>T.staff[id].months[ym]).sort((a,b)=>(T.staff[b].months[ym].pts||0)-(T.staff[a].months[ym].pts||0));
+  const others=ids.filter(id=>!T.staff[id].months[ym]);
+  if(!view.member||!T.staff[view.member]||!T.staff[view.member].months[ym])view.member=withM[0]||null;
+  let h='';
+  if(/\bLine\//i.test(navigator.userAgent))h+=`<div class="notice">LINEの中で開いています。ここで取り込んだデータはLINEの中にしか残りません。右上のメニューから「ブラウザで開く」を選んで、もう一度リンクを開いてください。</div>`;
+  if(view.mmsg)h+=`<div class="okmsg">✓ ${esc(view.mmsg)}</div>`;
+  if(view.merr)h+=`<div class="notice">${esc(view.merr)}</div>`;
+  view.mmsg='';view.merr='';
+  h+=`<div class="card"><div class="between" style="align-items:center"><div class="iname">店舗メンバー</div><span class="sub">${withM.length}人が${mo}月分を報告済み</span></div>
+    ${withM.length?`<div class="chips">${withM.map(id=>{const p=T.staff[id].months[ym],d=new Date(p.at);return `<button class="chip ${id===view.member?'on':''}" data-a="mem" data-id="${id}"><b>${esc(T.staff[id].name||'名前なし')}</b><small>${fmt(p.pts||0)}pt・${d.getMonth()+1}/${d.getDate()}</small></button>`;}).join('')}</div>`:`<div class="sub" style="margin-top:8px;line-height:1.7">${mo}月の報告はまだありません。スタッフに目標管理アプリの「店長に送る」で送ってもらい、届いたリンクをChromeで開いてください。</div>`}
+    ${others.length?`<div class="sub" style="margin-top:8px">${mo}月の報告がまだの人：${others.map(id=>esc(T.staff[id].name||'名前なし')).join('、')}</div>`:''}
+  </div>`;
+  if(view.member)h+=memberCut(T.staff[view.member],T.staff[view.member].months[ym],view.member);
+  h+=`<div class="card"><div class="iname">報告を取り込む</div><div class="sub" style="margin-top:4px">スタッフから届いたメッセージ（リンク）をそのまま貼り付けてください。届いたリンクをタップして開いても取り込めます。</div>
+    <textarea id="mimp" class="tin" rows="3" placeholder="【実績報告】… https://…#d=…"></textarea><button class="btn" data-a="mimp">取り込む</button></div>`;
+  h+=`<p class="sub" style="text-align:center;margin-bottom:12px">数字はスタッフが送った時点のものです。データはこのスマホの中だけに保存されます。</p>`;
+  return h;
+}
+function memberCut(st,p,id){
+  const ym=p.ym,isCur=ym===curYM,past=ym<curYM,work=p.work||0,el=p.el||0,left=Math.max(0,work-el);
+  const d=new Date(p.at),age=(Date.now()-p.at)/36e5;
+  const rows=[];
+  if(p.pc!=null){const tot=p.pts||0;rows.push({pt:1,n:'ポイント',T:p.pc,tot,u:'pt'});}
+  p.items.forEach(it=>{if(it.c==null)return;const tot=it.cy?(it.ty||0):(it.ct!=null?it.ct:it.t);
+    rows.push({n:it.n,sub:it.cy?((it.cn?it.cn+'の':'')+'売上合計'):(it.cn?it.cn+'のみ':''),T:it.c,tot,u:it.cy?'円':it.u});});
+  rows.forEach(x=>{x.done=x.tot>=x.T;x.left=Math.max(0,x.T-x.tot);x.proj=isCur&&el?x.tot/el*work:null;x.per=isCur&&!x.done&&left>0?Math.ceil(x.left/left):null;
+    x.st=x.done?'ok':(isCur&&x.proj!=null&&x.proj>=x.T)?'pace':(past?'ng':'bad');});
+  const cnt={ok:0,pace:0,bad:0,ng:0};rows.forEach(x=>cnt[x.st]++);
+  const SC={ok:'var(--ok)',pace:'var(--acc)',bad:'var(--bad)',ng:'var(--bad)'},ptR=rows.find(r=>r.pt);
+  let h=`<div class="card cuthead ${rows.length&&cnt.ok===rows.length?'all':''}">
+    <div class="between" style="align-items:center;margin-bottom:6px"><b style="font-size:17px">${esc(st.name||'名前なし')}さんの足切り</b><span class="tag ${age>24?'bad':''}">${d.getMonth()+1}/${d.getDate()} ${pad(d.getHours())}:${pad(d.getMinutes())} 時点</span></div>
+    ${rows.length?`<div class="cuttop">
+      <div><div class="sub">${Number(ym.slice(5))}月の足切り</div><div class="cutbig">${cnt.ok}<small> / ${rows.length} クリア</small></div></div>
+      ${ptR?`<div class="cutdiv"></div><div><div class="sub">合計ポイント</div><div class="cutbig" style="color:${SC[ptR.st]}">${fmt(ptR.tot)}<small> / ${fmt(ptR.T)}pt</small></div></div>`:''}
+    </div>
+    <div class="cutsum">${cnt.ok===rows.length?'🎉 全部クリア！':`<span class="cb ok">クリア ${cnt.ok}</span>${isCur?`<span class="cb pace">ペースOK ${cnt.pace}</span><span class="cb bad">ペース不足 ${cnt.bad}</span>`:`<span class="cb bad">未達 ${cnt.ng+cnt.bad}</span>`}`}</div>
+    ${ptR?`<div class="ptbar" style="margin:12px 0 0"><i style="width:${ptR.T?Math.min(100,ptR.tot/ptR.T*100):0}%;background:${SC[ptR.st]}"></i></div><div class="between sub" style="margin-top:3px"><span>${ptR.proj!=null&&!ptR.done?`着地予測 ${fmt(Math.round(ptR.proj))}pt`:''}</span><span>${ptR.done?'<b style="color:var(--ok)">ポイント足切りクリア！</b>':`あと <b style="color:var(--ink)">${fmt(ptR.left)}pt</b>`}</span></div>`:''}
+    ${isCur?`<div class="sub" style="margin-top:6px">送信時点の残り出勤日 ${left}日</div>`:''}`:'<div class="sub">この人は足切りが設定されていません。</div>'}
+  </div>`;
+  const list=rows.filter(x=>!x.pt),order={bad:0,ng:0,pace:1,ok:2};list.sort((a,b)=>order[a.st]-order[b.st]);
+  if(list.length)h+='<div class="card" style="padding:6px 14px">'+list.map(x=>{const rate=x.T?Math.min(100,x.tot/x.T*100):0;
+    const badge=x.st==='ok'?'<span class="cb ok">✓ クリア</span>':x.st==='pace'?'<span class="cb pace">ペースOK</span>':x.st==='ng'?'<span class="cb bad">未達</span>':'<span class="cb bad">ペース不足</span>';
+    return `<div class="crow"><div class="between"><div><b>${esc(x.n)}</b>${x.sub?`<span class="sub">　${esc(x.sub)}</span>`:''}</div>${badge}</div>
+      <div class="between" style="margin-top:4px"><span><b class="cnum">${fmt(x.tot)}</b><span class="sub"> / ${fmt(x.T)}${esc(x.u)}</span></span><span class="sub">${x.done?'':`あと <b style="color:var(--ink)">${fmt(x.left)}${esc(x.u)}</b>`}</span></div>
+      <div class="cbar"><i class="${x.st}" style="width:${rate}%"></i></div>
+      ${isCur&&!x.done?`<div class="sub">${x.per!=null?`残りの出勤日で1日 <b style="color:var(--ink)">${fmt(x.per)}${esc(x.u)}</b> ペース`:''}${x.proj!=null?`　着地予測 ${fmt(Math.round(x.proj))}${esc(x.u)}`:''}</div>`:''}</div>`;}).join('')+'</div>';
+  h+=`<div style="text-align:right;margin:-4px 0 12px"><button class="mini" data-a="memdel" data-id="${id}" style="color:var(--bad);padding:0 10px">${view.mdel===id?'本当に削除（全月分）':'このメンバーを削除'}</button></div>`;
+  return h;
+}
+function backupRestore(){
+  modal(`<h3>バックアップから戻す</h3><p class="sub">コピーしておいたバックアップの文字を貼り付けてください。<b>今このスマホにあるデータは置き換わります。</b></p><textarea id="bk" class="tin" rows="4" placeholder="TGTBK:..."></textarea><div class="mrow2"><button class="btn ghost" data-x="no">やめる</button><button class="btn" data-x="ok">戻す</button></div><p id="bkmsg" class="sub" style="color:var(--bad)"></p>`,async(e,close,w)=>{
+    const x=e.target.closest('[data-x]');if(!x)return;if(x.dataset.x!=='ok'){close();return;}
+    try{const v=w.querySelector('#bk').value.trim().replace(/^TGTBK:/,'');const d=await dec(v);if(!d||!d.months)throw 0;S=d;if(!S.me)S.me={id:Math.random().toString(36).slice(2,12),name:''};changed();close();render();}
+    catch(err){w.querySelector('#bkmsg').textContent='読み込めませんでした。全部コピーできているか確認してください。';}
+  });
+}
+
+// ---- 画面 ----
+function render(){
+  const ym=view.ym,[y,mo]=ym.split('-');
+  const m=monthOf(ym);
+  let body='';
+  if(view.tab==='today')body=todayView(ym,m);
+  else if(view.tab==='cut')body=cutView(ym,m);
+  else if(view.tab==='graph')body=graphView(ym,m);
+  else if(view.tab==='cal')body=calView(ym,m);
+  else if(view.tab==='member'&&MGR)body=memberView(ym);
+  else body=setView(ym,m);
+  const n=daysIn(ym),offs=m.off.length;
+  $app.innerHTML=`
+  <header>
+    <div class="mrow"><button data-a="prev">‹</button><div class="mtitle">${MGR?'<span class="mgrb">店長用</span>':''}${y}年${Number(mo)}月</div><button data-a="next">›</button></div>
+    <div class="sub">営業日 ${n-offs}日（休み ${offs}日）${ym===curYM?` ／ 今日から残り ${calcRemain(ym,m)}日`:''}</div>
+    <div class="save" id="savemsg">${esc(saveMsg)}</div>
+  </header>
+  <main>${body}</main>
+  <nav>
+    <button data-tab="today" class="${view.tab==='today'?'on':''}"><span>🎯</span>成果</button>
+    <button data-tab="cut" class="${view.tab==='cut'?'on':''}"><span>🚩</span>足切り</button>
+    <button data-tab="graph" class="${view.tab==='graph'?'on':''}"><span>📊</span>グラフ</button>
+    <button data-tab="cal" class="${view.tab==='cal'?'on':''}"><span>📅</span>カレンダー</button>
+    ${MGR?`<button data-tab="member" class="${view.tab==='member'?'on':''}"><span>👥</span>メンバー</button>`:''}
+    <button data-tab="set" class="${view.tab==='set'?'on':''}"><span>⚙️</span>項目設定</button>
+  </nav>`;
+}
+function calcRemain(ym,m){let c=0;for(let d=1;d<=daysIn(ym);d++){const k=dkey(ym,d);if(k>=todayKey&&!m.off.includes(k))c++;}return c;}
+
+function todayView(ym,m){
+  if(!S.items.length)return (ym===curYM&&!m.off.includes(todayKey)?logBlock(todayKey):'')+`<div class="card empty">まだ目標の項目がありません。<br>「項目設定」から追加してください。<button class="btn" data-tab="set">項目を追加する</button></div>`;
+  const isCur=ym===curYM,past=ym<curYM;
+  let h='';
+  const unset=S.items.filter(it=>KINDS.some(([k])=>it[k]&&!it[k].fixed&&tval(ym,it,k)===null));
+  if(unset.length)h+=`<div class="notice">この月の目標がまだ入っていない項目があります（${unset.map(i=>esc(i.name||'名前なし')).join('、')}）。<button class="btn ghost" data-tab="set" style="height:38px;margin-top:6px">この月の目標を入れる</button></div>`;
+  if(isCur&&!m.off.includes(todayKey))h+=logBlock(todayKey);
+  if(isCur&&m.off.includes(todayKey))h+=`<div class="notice">今日は休みに設定されています。目標は次の出勤日からの残り日数で計算しています。</div>`;
+  for(const it of S.items){
+    const r=calc(ym,it),u=esc(it.unit||''),g=r.t.goal,c=r.t.cut,main_=g||c,cu=uOf(it,'cut'),mu=main_&&main_.yen?'円':u;
+    let tag='';
+    if(g&&g.done)tag='<span class="tag ok">目標達成！</span>';
+    else if(c&&c.done)tag='<span class="tag">足切りクリア</span>';
+    else if(c&&isCur)tag=c.proj>=c.T?'<span class="tag warn">足切りペースOK</span>':'<span class="tag bad">足切り未達ペース</span>';
+    else if(c&&past)tag='<span class="tag bad">足切り未達</span>';
+    let mid='';
+    if(isCur){
+      const d=main_?main_.daily:null,nowV=main_?main_.now:r.todayV,done=d!==null&&d>0&&nowV>=d;
+      const lines=[];
+      if(c&&!c.done&&c.daily!==null)lines.push(`足切りまで：今日 <b>${fmt(c.daily)}${cu}</b>（残り${fmt(c.left)}${cu}）`);
+      if(g&&!g.done&&g.daily!==null)lines.push(`目標まで：今日 <b>${fmt(g.daily)}${u}</b>（残り${fmt(g.left)}${u}）`);
+      mid=`<div class="between"><div><div class="sub">今日の${g?'目標':'足切り目標'}</div><div class="big">${d===null?'—':fmt(d)}<small>${mu}</small></div></div>
+      <div style="text-align:right"><div class="sub">今日の${main_&&main_.yen?'売上':'実績'}</div><div class="big" style="color:${done?'var(--ok)':'var(--ink)'}">${fmt(nowV)}<small>${mu}</small></div></div></div>
+      ${lines.length?`<div class="sub" style="margin-top:6px;line-height:1.7">${lines.join('<br>')}</div>`:''}
+      ${m.off.includes(todayKey)?'':`<div class="step"><button data-a="dec" data-id="${it.id}">−</button><input type="number" inputmode="decimal" value="${r.todayV||''}" placeholder="0" data-a="setToday" data-id="${it.id}"><button data-a="inc" data-id="${it.id}">＋</button></div>`}`;
+    }else if(!past&&main_){
+      mid=`<div class="sub">1日あたりの目安</div><div class="big">${main_.daily===null?'—':fmt(main_.daily)}<small>${mu}</small></div>${g&&c?`<div class="sub">足切りなら1日 ${fmt(c.daily)}${cu}</div>`:''}`;
+    }
+    const pct=main_?Math.min(100,main_.rate*100):0;
+    const cutPos=c&&g&&!c.yen&&g.T?Math.min(100,c.T/g.T*100):null;
+    h+=`<div class="card">
+      <div class="between" style="align-items:center;margin-bottom:8px"><div class="iname">${esc(it.name||'名前なし')}</div>${tag}</div>
+      ${mid}
+      <div class="bar"><i style="width:${pct}%"></i>${cutPos!==null?`<b style="left:${cutPos}%;background:var(--bad);opacity:.8"></b>`:''}${isCur?`<b style="left:${Math.min(100,r.ideal*100)}%"></b>`:''}</div>
+      <div class="stats">
+        <div class="stat"><div>月の実績</div><div>${fmt(r.total)}${u}</div></div>
+        <div class="stat"><div>足切り</div><div>${c?`${fmt(c.T)}${cu}`:'—'}${c?`<span class="sub"> ${Math.floor(c.rate*1000)/10}%</span>`:''}</div></div>
+        <div class="stat"><div>目標</div><div>${g?`${fmt(g.T)}${u}`:'—'}${g?`<span class="sub"> ${Math.floor(g.rate*1000)/10}%</span>`:''}</div></div>
+      </div>
+      ${c&&c.flt?`<div class="sub" style="margin-top:6px">足切り（${subsOf(it).filter(x=>x.cut).map(x=>esc(x.name||'種類')).join('・')}のみ）：<b>${fmt(c.tot)}${cu}</b> / ${fmt(c.T)}${cu}${c.done?'（クリア）':`（あと${fmt(c.left)}${cu}）`}</div>`:''}
+      ${c&&c.yen?`<div class="sub" style="margin-top:6px">足切り（金額）：売上合計 <b>${fmt(c.tot)}円</b> / ${fmt(c.T)}円${c.done?'（クリア）':`（あと${fmt(c.left)}円）`}</div>`:''}
+      ${isCur?`<div class="sub" style="margin-top:6px">着地予測：<b>${fmt(Math.round(r.proj*10)/10)}${u}</b>${c&&c.yen?`／売上 <b>${fmt(Math.round(c.proj))}円</b>`:''}</div>`:''}
+    </div>`;
+  }
+  if(isCur)h+=`<div class="sub" style="text-align:center;margin-bottom:12px">バーの赤線＝足切りライン、黒線＝今日までに進んでいたい位置</div>`+sendCard();
+  return h;
+}
+
+function calView(ym,m){
+  const n=daysIn(ym),first=dow(dkey(ym,1));
+  if(view.sel.slice(0,7)!==ym)view.sel=ym===curYM?todayKey:dkey(ym,1);
+  let g='<div class="cal">'+['日','月','火','水','木','金','土'].map(w=>`<div class="h">${w}</div>`).join('');
+  for(let i=0;i<first;i++)g+='<div></div>';
+  for(let d=1;d<=n;d++){
+    const k=dkey(ym,d),off=m.off.includes(k),e=m.entries[k],has=e&&Object.values(e).some(v=>Number(v));
+    g+=`<button class="d ${off?'off':''} ${k===todayKey?'today':''} ${k===view.sel?'sel':''} ${has?'has':''}" data-a="pick" data-k="${k}">${d}<em>${off?'休':has?'●':''}</em></button>`;
+  }
+  g+='</div>';
+  const k=view.sel,off=m.off.includes(k),[,mm,dd]=k.split('-');
+  let det=`<div class="between" style="align-items:center"><div class="iname">${Number(mm)}月${Number(dd)}日（${'日月火水木金土'[dow(k)]}）</div><button class="mini" data-a="toggleOff" style="padding:0 10px">${off?'出勤日に戻す':'休みにする'}</button></div>`;
+  if(off)det+=`<div class="sub" style="margin-top:8px">休みの日は残り日数に含めません。</div>`;
+  else if(!S.items.length)det+=`<div class="sub" style="margin-top:8px">項目を追加すると、ここで実績を入力できます。</div>`;
+  else det+='<div style="margin-top:6px">'+S.items.map(it=>`<div class="drow"><div>${esc(it.name)}</div><div class="flex"><input type="number" inputmode="decimal" placeholder="0" value="${(m.entries[k]||{})[it.id]??''}" data-a="setDay" data-id="${it.id}"><span class="sub">${esc(it.unit||'')}</span></div></div>`).join('')+'</div>';
+  const om=!!view.offMode,offN=m.off.length;
+  const head=`<div class="between" style="align-items:center;margin-bottom:10px"><div><div class="iname">シフト</div><div class="sub">出勤 ${n-offN}日・休み ${offN}日</div></div><button class="offbtn ${om?'on':''}" data-a="offmode">${om?'✓ 入力完了':'休み入力'}</button></div>`;
+  const hint=om?`<div class="omhint">休みの日をタップしてください。もう一度タップすると出勤に戻ります。終わったら右上の「入力完了」を押してください。</div>`:`<div class="sub" style="margin-top:8px">日付をタップ → その日の実績の入力・修正ができます。休みは右上の「休み入力」から。</div>`;
+  return `<div class="card ${om?'omcard':''}">${head}${g}${hint}</div>${om?'':`<div class="card">${det}</div>${off?'':logBlock(k)}`}`;
+}
+
+function setView(ym,m){
+  const mo=Number(ym.split('-')[1]);
+  let h=`<div class="card"><div class="iname">あなたの名前</div><div class="sub">店長の画面に表示されます</div><div class="field"><input value="${esc(S.me.name)}" data-a="myname" placeholder="例：山田"></div></div>`;
+  h+=`<div class="card"><div class="iname">項目</div><div class="sub">「設定」から足切り・目標・ポイントを決められます。足切りと目標は「毎月同じ」か「月ごと」を選べ、月ごとの値は上の ‹ › で月を切り替えて入力します。</div>`;
+  if(!S.items.length)h+=`<div class="empty">項目がありません</div>`;
+  S.items.forEach((it,i)=>{
+    const sm=KINDS.map(([k,l])=>{const v=tval(ym,it,k);return v===null?'':`${l} ${fmt(v)}${uOf(it,k)}`}).filter(Boolean).join('・')||'目標未設定';
+    const ptS=subsOf(it).length?'・'+subsOf(it).map(x=>`${esc(x.name||'種類')}${x.cut?'(足切り)':''} ${fmt(Number(x.pt||0))}pt`).join('／'):(it.pt===''||it.pt==null?'':`・1${esc(it.unit||'件')} ${fmt(Number(it.pt))}pt`);
+    h+=`<button class="ihead" data-a="toggle" data-id="${it.id}"><span><b>${esc(it.name||'名前なし')}</b><span class="sub">${sm}${ptS}</span></span><span class="chev">${openId===it.id?'閉じる ▲':'設定 ▼'}</span></button>`;
+    if(openId!==it.id)return;
+    h+=`<div class="ibody">
+      <div class="row2"><div class="field"><label>項目名</label><input value="${esc(it.name)}" data-a="iname" data-id="${it.id}" placeholder="例：新規契約"></div>
+      <div class="field"><label>単位</label><input value="${esc(it.unit||'')}" data-a="iunit" data-id="${it.id}" placeholder="件"></div></div>`;
+    for(const[k,label]of KINDS){
+      const c=it[k],v=c.fixed?c.value:((m.t||{})[it.id]||{})[k];
+      h+=`<div class="field"><label>${label}　<span class="seg"><button class="${c.fixed?'on':''}" data-a="fixed" data-k="${k}" data-v="1" data-id="${it.id}">毎月同じ</button><button class="${c.fixed?'':'on'}" data-a="fixed" data-k="${k}" data-v="0" data-id="${it.id}">月ごと</button></span>${k==='cut'?`<span class="seg"><button class="${isYen(it,k)?'':'on'}" data-a="cmode" data-v="cnt" data-id="${it.id}">${esc(it.unit||'件')}</button><button class="${isYen(it,k)?'on':''}" data-a="cmode" data-v="yen" data-id="${it.id}">合計円</button></span>`:''}</label>
+        <div class="flex"><input type="number" inputmode="decimal" value="${v??''}" data-a="tval" data-k="${k}" data-id="${it.id}" placeholder="${c.fixed?'未設定（使わないなら空欄）':mo+'月の'+label+'を入力'}"><span class="sub" style="white-space:nowrap">${uOf(it,k)}・${c.fixed?'全月共通':mo+'月分'}</span></div>${isYen(it,k)?'<div class="sub" style="margin-top:4px">「今日の成果」で追加するときに入れた金額の合計で判定します</div>':''}</div>`;
+    }
+    const sbs=subsOf(it);
+    h+=`<div class="field"><label>ポイント（今日の成果で使います）</label>`;
+    if(!sbs.length)h+=`<div class="flex"><span class="sub" style="white-space:nowrap">1${esc(it.unit||'件')}につき</span><input type="number" inputmode="decimal" value="${it.pt??''}" data-a="ipt" data-id="${it.id}" placeholder="0"><span class="sub">pt</span></div>`;
+    else{h+=`<div class="sub" style="margin-bottom:4px">種類ごとに1${esc(it.unit||'件')}あたりのポイントを決めます。<b>「足切り」にチェックした種類だけ</b>足切りに数えます（チェックなしなら全部数えます）。</div>`;
+      sbs.forEach(x=>{h+=`<div class="flex" style="margin-top:6px"><label class="ck"><input type="checkbox" data-a="scut" data-id="${it.id}" data-s="${x.id}" ${x.cut?'checked':''}><span>足切り</span></label><input value="${esc(x.name)}" data-a="sname" data-id="${it.id}" data-s="${x.id}" placeholder="例：端末あり" style="flex:2"><input type="number" inputmode="decimal" value="${x.pt??''}" data-a="spt" data-id="${it.id}" data-s="${x.id}" placeholder="0" style="flex:1"><span class="sub">pt</span><button class="mini" data-a="sdel" data-id="${it.id}" data-s="${x.id}" style="color:var(--bad)">${delAsk===x.id?'削除':'✕'}</button></div>`;});}
+    h+=`<button class="mini" data-a="sadd" data-id="${it.id}" style="margin-top:8px;padding:0 12px;height:36px;color:var(--acc);font-weight:700">＋ 種類を追加（例：端末あり／端末なし）</button></div>`;
+    h+=`<div class="flex" style="margin-top:8px;justify-content:flex-end">
+        <button class="mini" data-a="up" data-id="${it.id}" ${i===0?'disabled':''}>↑</button>
+        <button class="mini" data-a="down" data-id="${it.id}" ${i===S.items.length-1?'disabled':''}>↓</button>
+        <button class="mini" data-a="askdel" data-id="${it.id}" style="color:var(--bad);padding:0 10px">${delAsk===it.id?'本当に削除':'削除'}</button>
+      </div></div>`;
+  });
+  h+=`<button class="btn" data-a="add">＋ 項目を追加</button></div>`;
+  h+=`<div class="card"><div class="iname">ポイントの足切り</div><div class="sub">「今日の成果」のポイントの、月の足切りラインです（全月共通）。使わないなら空欄にしてください。</div><div class="field"><div class="flex"><input type="number" inputmode="numeric" value="${S.ptCut??''}" data-a="ptcut" placeholder="例：600"><span class="sub">pt</span></div></div></div>`;
+  h+=`<div class="card"><div class="iname">項目の例</div><div class="sub" style="margin:4px 0 6px">タップで追加できます</div><div class="flex" style="flex-wrap:wrap">`+
+    [['新規契約','件'],['機種変更','台'],['光回線','件'],['でんき','件'],['PayPayカード','枚'],['アクセサリー','円']].map(([a,b])=>`<button class="mini" style="padding:0 10px" data-a="preset" data-n="${a}" data-u="${b}">${a}</button>`).join('')+`</div></div>`;
+  h+=`<div class="card"><div class="iname">みんなに設定を共有</div><div class="sub" style="margin-top:4px">今の項目・種類・ポイント・足切りが入ったリンクを作ります。受け取った人はリンクを開いて「読み込む」を押すだけで同じ設定になります（実績・名前・休みは送られません）。</div>
+    <label class="flex" style="margin-top:10px;font-size:14px"><input type="checkbox" id="cfggoal" style="width:20px;height:20px">個人目標の数字も入れる</label>
+    <button class="btn" data-a="sharecfg">🔗 設定の共有リンクを作る</button></div>`;
+  h+=`<div class="card"><div class="iname">データをファイルで共有</div><div class="sub" style="margin-top:4px">${mo}月の実績（集計・日別・成果の記録）をファイルにして、LINEやメールで送ったり保存したりできます。別の月は上の ‹ › で切り替えてください。</div>
+    <button class="btn" data-a="exp" data-f="xlsx">📗 Excelで共有（.xlsx）</button>
+    <button class="btn ghost" data-a="exp" data-f="csv">📄 スプレッドシートで共有（.csv）</button>
+    <div class="sub" style="margin-top:6px">スプレッドシートの場合は、共有先で「スプレッドシート」アプリを選ぶか、Googleドライブに保存して開いてください。</div></div>`;
+  h+=`<div class="card"><div class="iname">バックアップ</div><div class="sub" style="margin-top:4px">データはこのスマホの中だけに保存されています。ブラウザのデータを消したり機種変更したりすると消えるので、ときどきバックアップを取っておいてください。</div><button class="btn ghost" data-a="bkcopy">バックアップをコピー</button><button class="btn ghost" data-a="bkrestore">バックアップから戻す</button></div>`;
+  return h;
+}
+let delAsk=null,openId=null;
+function sendCard(){const mo=Number(view.ym.slice(5));return `<div class="card"><div class="iname">店長に送る</div><div class="sub" style="margin-top:4px">${mo}月の実績をLINEなどで店長に送ります${S.me.name?`（名前：${esc(S.me.name)}）`:''}。仕事終わりに送るのがおすすめです。</div><button class="btn" data-a="send">📤 ${mo}月の実績を店長に送る</button></div>`;}
+const GC={done:'#ef4444',near:'#facc15',far:'#22c55e'};
+function subStats(ym,it,total){
+  const sb=subsOf(it);if(!sb.length)return [];
+  const m=monthOf(ym),q={},y={};
+  for(const k in (m.logs||{}))for(const r of m.logs[k]){if(r.i!==it.id)continue;q[r.s]=(q[r.s]||0)+r.q;y[r.s]=(y[r.s]||0)+(r.y||0);}
+  const out=sb.map(x=>({n:x.name||'種類',q:q[x.id]||0,y:y[x.id]||0,c:x.cut?1:0}));
+  const sum=out.reduce((a,b)=>a+b.q,0);if(total>sum)out.push({n:'種類なし',q:total-sum,y:0,c:0,o:1});
+  return out;
+}
+function subBarsHtml(list,sc,u,yen){
+  if(!list||!list.length)return '';
+  return '<div class="sbars">'+list.map(x=>`<div class="sbr"><span class="sbn">${x.c?'<i class="sbc">足切り</i>':''}${esc(x.n)}</span><span class="sbt"><i style="width:${Math.min(100,x.q/sc*100)}%" class="${x.c?'on':''}${x.o?' oth':''}"></i></span><span class="sbq">${fmt(x.q)}${u}${yen&&x.y?`<small> ${fmt(x.y)}円</small>`:''}</span></div>`).join('')+'</div>';
+}
+function cutView(ym,m){
+  const isCur=ym===curYM,past=ym<curYM,mo=Number(ym.slice(5));
+  let work=0,el=0,rem=0;for(let d=1;d<=daysIn(ym);d++){const k=dkey(ym,d);if(m.off.includes(k))continue;work++;if(k<=todayKey)el++;if(k>=todayKey)rem++;}
+  const rows=[];
+  const pc=ptCutOf();
+  if(pc!==null){const tot=monthPts(ym),bef=monthPts(ym,todayKey);
+    rows.push({pt:1,n:'ポイント',sub:'今日の成果の合計',T:pc,tot,u:'pt',done:tot>=pc,left:Math.max(0,pc-tot),daily:isCur&&rem?Math.max(0,Math.ceil((pc-bef)/rem)):null,proj:isCur&&el?tot/el*work:null});}
+  for(const it of S.items){const r=calc(ym,it),c=r.t.cut;if(!c)continue;
+    rows.push({n:it.name||'名前なし',sub:c.yen?(cutSet(it)?cutNames(it)+'の売上合計':'売上合計'):(c.flt?cutNames(it)+'のみ':''),T:c.T,tot:c.tot,u:uOf(it,'cut'),done:c.done,left:c.left,daily:isCur?c.daily:null,proj:isCur?c.proj:null});}
+  if(!rows.length)return `<div class="card empty">足切りが設定されていません。<br>項目設定で、項目の足切りやポイントの足切りを入れてください。<button class="btn" data-tab="set">項目設定へ</button></div>`;
+  const st=x=>x.done?'ok':(isCur&&x.proj!=null&&x.proj>=x.T)?'pace':(past?'ng':'bad');
+  const cnt={ok:0,pace:0,bad:0,ng:0};rows.forEach(x=>cnt[st(x)]++);
+  const allOk=cnt.ok===rows.length;
+  const SC={ok:'var(--ok)',pace:'var(--acc)',bad:'var(--bad)',ng:'var(--bad)'},ptR=rows.find(r=>r.pt),ptC=ptR?SC[st(ptR)]:'var(--acc)';
+  let h=`<div class="card cuthead ${allOk?'all':''}">
+    <div class="cuttop">
+      <div><div class="sub">${mo}月の足切り</div><div class="cutbig">${cnt.ok}<small> / ${rows.length} クリア</small></div></div>
+      ${pc!==null?(()=>{const tot=monthPts(ym),ok=tot>=pc;return `<div class="cutdiv"></div><div><div class="sub">合計ポイント</div><div class="cutbig" style="color:${ptC}">${fmt(tot)}<small> / ${fmt(pc)}pt</small></div></div>`;})():''}
+    </div>
+    <div class="cutsum">${allOk?'🎉 全部クリア！':`<span class="cb ok">クリア ${cnt.ok}</span>${isCur?`<span class="cb pace">ペースOK ${cnt.pace}</span><span class="cb bad">ペース不足 ${cnt.bad}</span>`:`<span class="cb bad">未達 ${cnt.ng+cnt.bad}</span>`}`}</div>
+    ${pc!==null?(()=>{const tot=monthPts(ym),ok=tot>=pc;return `<div class="ptbar" style="margin:12px 0 0"><i style="width:${pc?Math.min(100,tot/pc*100):0}%;background:${ptC}"></i></div><div class="between sub" style="margin-top:3px"><span>${(()=>{const x=rows.find(r=>r.pt);return x&&!ok&&isCur?`今日の目安 <b style="color:var(--ink)">${x.daily==null?'—':fmt(x.daily)+'pt'}</b>${x.proj!=null?`　着地予測 ${fmt(Math.round(x.proj))}pt`:''}`:'';})()}</span><span>${ok?'<b style="color:var(--ok)">ポイント足切りクリア！</b>':`あと <b style="color:var(--ink)">${fmt(pc-tot)}pt</b>`}</span></div>`;})():''}
+    ${isCur?`<div class="sub" style="margin-top:6px">残り出勤日 ${rem}日（今日を含む）</div>`:''}
+  </div>`;
+  const order={bad:0,ng:0,pace:1,ok:2};
+  rows.sort((a,b)=>order[st(a)]-order[st(b)]);
+  const list=rows.filter(x=>!x.pt);
+  if(list.length)h+='<div class="card" style="padding:6px 14px">'+list.map(x=>{const s_=st(x),rate=x.T?Math.min(100,x.tot/x.T*100):0;
+    const badge=s_==='ok'?'<span class="cb ok">✓ クリア</span>':s_==='pace'?'<span class="cb pace">ペースOK</span>':s_==='ng'?'<span class="cb bad">未達</span>':'<span class="cb bad">ペース不足</span>';
+    return `<div class="crow">
+      <div class="between"><div><b>${esc(x.n)}</b>${x.sub?`<span class="sub">　${esc(x.sub)}</span>`:''}</div>${badge}</div>
+      <div class="between" style="margin-top:4px"><span><b class="cnum">${fmt(x.tot)}</b><span class="sub"> / ${fmt(x.T)}${x.u}</span></span><span class="sub">${x.done?'':`あと <b style="color:var(--ink)">${fmt(x.left)}${x.u}</b>`}</span></div>
+      <div class="cbar"><i class="${s_}" style="width:${rate}%"></i></div>
+      ${isCur&&!x.done?`<div class="sub">今日の目安 <b style="color:var(--ink)">${x.daily==null?'—':fmt(x.daily)+x.u}</b>${x.proj!=null?`　着地予測 ${fmt(Math.round(x.proj))}${x.u}`:''}</div>`:''}
+    </div>`;}).join('')+'</div>';
+  h+=`<div class="sub" style="text-align:center">ペースOK＝今のペースなら月末に足切りを超える見込み</div>`;
+  return h;
+}
+function gBar(base,g,c,cu,color,cn,subs,u){
+  // 線（足切り・個人目標）と、その下のラベル
+  const same=c&&!c.yen&&(!g||!g.yen);
+  const sc=Math.max(base.T,same?c.T:0,base.tot)*1.08||1;
+  const lines=[];
+  if(c&&same)lines.push({x:c.T/sc*100,cls:'gcut',txt:`足切り ${fmt(c.T)}${cu}${cn?`（${esc(cn)}）`:''}`});
+  if(g)lines.push({x:g.T/sc*100,cls:'ggoal',txt:'個人目標'});
+  const two=lines.length===2&&Math.abs(lines[0].x-lines[1].x)<34;
+  const lab=lines.map((l,i)=>{const tf=l.x>82?'translateX(-100%)':l.x<18?'translateX(0)':'translateX(-50%)';return `<span class="gl ${l.cls}l" style="left:${l.x}%;top:${two&&i===1?16:0}px;transform:${tf}">${l.txt}</span>`;}).join('');
+  return `<div class="gwrap"><div class="gbar"><i style="width:${Math.min(100,base.tot/sc*100)}%;background:${color}"></i></div>${lines.map(l=>`<b class="${l.cls}" style="left:${l.x}%"></b>`).join('')}<div class="glab" style="height:${two?32:lines.length?16:0}px">${lab}</div></div>${base.yen?'':subBarsHtml(subs,sc,u,c&&c.yen)}`;
+}
+function graphView(ym,m){
+  if(!S.items.length)return `<div class="card empty">目標の項目がありません。<button class="btn" data-tab="set">項目を追加する</button></div>`;
+  const isCur=ym===curYM;
+  let rows='',cnt={done:0,near:0,far:0};
+  for(const it of S.items){
+    const r=calc(ym,it),g=r.t.goal,c=r.t.cut,base=g||c,u=esc(it.unit||'');
+    if(!base){rows+=`<div class="gr"><div class="between"><b>${esc(it.name||'名前なし')}</b><span class="sub">目標未設定</span></div><div class="gbar"></div></div>`;continue;}
+    const rate=base.rate,st=rate>=1?'done':rate>=0.7?'near':'far';cnt[st]++;const bu=base.yen?'円':u,cu=uOf(it,'cut');
+    rows+=`<div class="gr">
+      <div class="between"><b>${esc(it.name||'名前なし')}</b><span><b style="font-size:17px">${fmt(base.tot)}</b><span class="sub"> / ${fmt(base.T)}${bu}</span>　<b style="font-size:13px">${Math.floor(rate*1000)/10}%</b></span></div>
+      ${gBar(base,g,c,cu,GC[st],c&&c.flt?cutNames(it):'',subStats(ym,it,r.total),u)}
+      <div class="sub">${g?(g.done?'個人目標 達成！':`個人目標まであと ${fmt(g.left)}${u}`):''}${c?`${g?'　':''}${c.done?'足切りクリア':`足切りまであと ${fmt(c.left)}${cu}`}${c.yen?`（${cutSet(it)?esc(cutNames(it))+'の':''}売上${fmt(c.tot)}円）`:c.flt?`（${esc(cutNames(it))} ${fmt(c.tot)}${cu}）`:''}`:''}</div>
+    </div>`;
+  }
+  return `<div class="card">
+    <div class="between" style="align-items:center"><div class="iname">達成状況</div>
+      <div class="flex sub" style="gap:10px"><span><i class="dot" style="background:${GC.done}"></i>達成 ${cnt.done}</span><span><i class="dot" style="background:${GC.near}"></i>もう少し ${cnt.near}</span><span><i class="dot" style="background:${GC.far}"></i>まだまだ ${cnt.far}</span></div></div>
+    <div style="margin-top:8px">${rows}</div>
+    <div class="sub" style="margin-top:10px;line-height:1.7">赤＝達成（100%以上）／黄＝もう少し（70%以上）／緑＝まだまだ（70%未満）<br>縦線：<span style="color:var(--bad);font-weight:700">赤</span>＝足切り、<b>黒</b>＝個人目標</div>
+  </div>${sendCard()}`;
+}
+
+// ---- 操作 ----
+function findItem(id){return S.items.find(i=>i.id===id);}
+function setEntry(m,k,id,v){
+  m.entries[k]=m.entries[k]||{};
+  if(v===''||v===null||isNaN(v)||Number(v)===0)delete m.entries[k][id];else m.entries[k][id]=Number(v);
+  if(!Object.keys(m.entries[k]).length)delete m.entries[k];
+}
+$app.addEventListener('click',e=>{
+  const t=e.target.closest('[data-a],[data-tab]');if(!t)return;
+  if(t.dataset.tab){view.tab=t.dataset.tab;view.offMode=false;delAsk=null;render();window.scrollTo(0,0);return;}
+  const a=t.dataset.a,id=t.dataset.id;
+  if(a==='prev'||a==='next'){const[y,mo]=view.ym.split('-').map(Number);const d=new Date(y,mo-1+(a==='next'?1:-1),1);view.ym=`${d.getFullYear()}-${pad(d.getMonth()+1)}`;render();return;}
+  if(a==='inc'||a==='dec'){const m=ensure(view.ym);const cur=Number((m.entries[todayKey]||{})[id]||0);setEntry(m,todayKey,id,Math.max(0,cur+(a==='inc'?1:-1)));changed();render();return;}
+  if(a==='addlog'){const k=t.dataset.k,m=ensure(k.slice(0,7)),iid=document.getElementById('la').value,q=Number(document.getElementById('lq').value),ls=document.getElementById('ls'),sid=ls?ls.value:null;if(!S.items.some(x=>x.id===iid))return;const ly=document.getElementById('ly'),yv=ly?Number(ly.value):0;if(ly&&!(yv>0)){ly.style.borderColor='var(--bad)';ly.focus();return;}lastAct=iid;lastQty=q;if(sid)lastSub=sid;
+    m.logs=m.logs||{};const rec={id:uid(),i:iid,q};if(sid)rec.s=sid;if(yv>0)rec.y=yv;(m.logs[k]=m.logs[k]||[]).push(rec);
+    setEntry(m,k,iid,Number((m.entries[k]||{})[iid]||0)+q);changed();render();return;}
+  if(a==='dellog'){const k=t.dataset.k,m=ensure(k.slice(0,7)),L=(m.logs||{})[k]||[],i=L.findIndex(r=>r.id===t.dataset.r);if(i<0)return;const r=L[i];L.splice(i,1);if(!L.length)delete m.logs[k];
+    setEntry(m,k,r.i,Math.max(0,Number((m.entries[k]||{})[r.i]||0)-r.q));changed();render();return;}
+  if(a==='cmode'){const it=findItem(id);if(!it)return;it.cut.mode=t.dataset.v;changed();render();return;}
+  if(a==='sadd'){const it=findItem(id);if(!it)return;if(!Array.isArray(it.subs))it.subs=[];it.subs.push({id:uid(),name:'',pt:it.subs.length?'':(it.pt??'')});changed();render();return;}
+  if(a==='sdel'){const it=findItem(id),sid=t.dataset.s;if(!it)return;if(delAsk===sid){it.subs=subsOf(it).filter(x=>x.id!==sid);delAsk=null;changed();}else delAsk=sid;render();return;}
+  if(a==='mem'){view.member=id;view.mdel=null;render();return;}
+  if(a==='memdel'){if(view.mdel===id){const T=loadTeam();delete T.staff[id];saveTeam(T);view.mdel=null;view.member=null;view.mmsg='削除しました';}else view.mdel=id;render();return;}
+  if(a==='mimp'){const v=(document.getElementById('mimp')||{}).value||'';if(!v.trim())return;importReport(v).then(render).catch(()=>{view.merr='読み込めませんでした。届いたメッセージを全部コピーして貼り付けてください。';render();});return;}
+  if(a==='exp'){exportData(t.dataset.f);return;}
+  if(a==='omrsheet'){omrSheet();return;}
+  if(a==='omrread'){omrPick(t.dataset.k);return;}
+  if(a==='sharecfg'){shareCfg(!!(document.getElementById('cfggoal')||{}).checked);return;}
+  if(a==='send'){sendToBoss();return;}
+  if(a==='bkcopy'){backupCopy();return;}
+  if(a==='bkrestore'){backupRestore();return;}
+  if(a==='toggle'){openId=openId===id?null:id;delAsk=null;render();return;}
+  if(a==='offmode'){view.offMode=!view.offMode;render();return;}
+  if(a==='pick'){if(view.offMode){const k=t.dataset.k,m=ensure(k.slice(0,7)),i=m.off.indexOf(k);if(i>=0)m.off.splice(i,1);else m.off.push(k);changed();render();return;}view.sel=t.dataset.k;render();return;}
+  if(a==='toggleOff'){const m=ensure(view.ym);const i=m.off.indexOf(view.sel);if(i>=0)m.off.splice(i,1);else m.off.push(view.sel);changed();render();return;}
+  if(a==='add'||a==='preset'){S.items.push({id:(openId=uid()),name:a==='preset'?t.dataset.n:'',unit:a==='preset'?t.dataset.u:'件',pt:'',cut:{fixed:true,value:''},goal:{fixed:false,value:''}});changed();render();return;}
+  if(a==='fixed'){const it=findItem(id);if(!it)return;it[t.dataset.k].fixed=t.dataset.v==='1';changed();render();return;}
+  if(a==='up'||a==='down'){const L=S.items;const i=L.findIndex(x=>x.id===id),j=a==='up'?i-1:i+1;if(j<0||j>=L.length)return;[L[i],L[j]]=[L[j],L[i]];changed();render();return;}
+  if(a==='askdel'){if(delAsk===id){S.items=S.items.filter(x=>x.id!==id);delAsk=null;changed();}else delAsk=id;render();return;}
+});
+$app.addEventListener('change',e=>{
+  const t=e.target;
+  if(t.id==='la'){lastAct=t.value;lastQty=Number(document.getElementById('lq').value);lastSub=null;render();return;}
+  if(t.id==='ls'||t.id==='lq'){const ls=document.getElementById('ls');if(ls)lastSub=ls.value;lastQty=Number(document.getElementById('lq').value);updPrev();return;}
+  const a=t.dataset.a,id=t.dataset.id;if(!a)return;
+  if(a==='myname'){S.me.name=t.value.trim();changed();return;}
+  if(a==='ptcut'){S.ptCut=t.value===''?'':Number(t.value);changed();return;}
+  const m=ensure(view.ym);
+  if(a==='setToday')setEntry(m,todayKey,id,t.value===''?'':Math.max(0,Number(t.value)));
+  else if(a==='setDay')setEntry(m,view.sel,id,t.value===''?'':Math.max(0,Number(t.value)));
+  else{const it=findItem(id);if(!it)return;if(a==='iname')it.name=t.value;if(a==='iunit')it.unit=t.value;if(a==='ipt')it.pt=t.value===''?'':Number(t.value);
+    if(a==='scut'){const x=subsOf(it).find(v=>v.id===t.dataset.s);if(x)x.cut=t.checked;}
+    if(a==='sname'||a==='spt'){const x=subsOf(it).find(v=>v.id===t.dataset.s);if(x){if(a==='sname')x.name=t.value;else x.pt=t.value===''?'':Number(t.value);}}
+    if(a==='tval'){const k=t.dataset.k,v=t.value===''?'':Number(t.value);if(it[k].fixed)it[k].value=v;else{m.t[it.id]=m.t[it.id]||{};m.t[it.id][k]=v;}}}
+  changed();
+  if(a==='setToday'||a==='setDay'||a==='tval'||a==='ipt'||a==='spt'||a==='sname'||a==='scut')render();
+});
+const _r=render;render=function(){_r();updPrev();};
+render();cfgFromHash();reportFromHash();
+})();
+</script>
+</body>
+</html>

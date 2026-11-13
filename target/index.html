@@ -126,13 +126,20 @@ textarea.tin{font-size:12px;word-break:break-all}
 #omrdate{width:100%;height:42px;border:1px solid var(--line);border-radius:10px;padding:0 10px;font-size:16px}
 #printArea{display:none}
 @media print{@page{size:A4;margin:0}body{background:#fff;padding:0}body>*{display:none!important}#printArea{display:block!important}#printArea img{width:210mm;height:297mm;display:block}}
+.mgrb{display:inline-block;font-size:11px;font-weight:700;background:#facc15;color:#1c2230;border-radius:6px;padding:2px 6px;margin-right:6px;vertical-align:3px}
+.chips{display:flex;gap:8px;overflow-x:auto;padding:10px 2px 4px;-webkit-overflow-scrolling:touch}
+.chip{flex:none;display:flex;flex-direction:column;align-items:flex-start;gap:2px;border:1px solid var(--line);background:#fff;border-radius:12px;padding:8px 14px;font-size:15px;color:var(--ink)}
+.chip small{font-size:11px;color:var(--sub)}
+.chip.on{background:var(--ink);border-color:var(--ink);color:#fff}.chip.on small{color:#cbd5e1}
+.okmsg{background:#dcfce7;color:#166534;border-radius:10px;padding:10px 12px;font-size:13.5px;margin-bottom:12px;font-weight:700}
+.tag.bad{background:#fee2e2;color:var(--bad)}
 .notice{background:#fff7ed;color:#9a3412;border-radius:10px;padding:9px 11px;font-size:12.5px;margin-bottom:12px}
 </style>
 </head>
 <body>
 <div id="app"></div>
 <div id="printArea"></div>
-<script src="omr.js"></script>
+<script src="../target/omr.js"></script>
 <script id="appjs">
 (function(){
 const $app=document.getElementById('app');
@@ -147,6 +154,7 @@ const now=new Date();
 const todayKey=`${now.getFullYear()}-${pad(now.getMonth()+1)}-${pad(now.getDate())}`;
 const curYM=todayKey.slice(0,7);
 let view={ym:curYM,tab:'today',sel:todayKey};
+const MGR=/\/manager\//.test(location.pathname); // 店長用アプリ（manager/）として開いているか
 const fmt=n=>(Math.round(n*100)/100).toLocaleString('ja-JP');
 const uid=()=>Math.random().toString(36).slice(2,9);
 const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
@@ -292,7 +300,7 @@ async function sendToBoss(){
     });setTimeout(()=>{const i=document.getElementById('nm');i&&i.focus();},50);return;
   }
   const ym=view.ym,code=await enc(payload(ym));
-  const url=new URL('../team.html',location.href).href+'#d='+code;
+  const url=new URL('../manager/',location.href).href+'#d='+code;
   const now=new Date(),txt=`【実績報告】${S.me.name}　${Number(ym.slice(5))}月分（${now.getMonth()+1}/${now.getDate()} ${pad(now.getHours())}:${pad(now.getMinutes())}時点）\n${url}`;
   if(navigator.share){try{await navigator.share({text:txt});return;}catch(e){if(e&&e.name==='AbortError')return;}}
   const ok=await copyText(txt);
@@ -425,7 +433,7 @@ function exportTables(ym){
   Object.keys(logs).sort().forEach(k=>logs[k].forEach(r=>{const it=S.items.find(x=>x.id===r.i);if(!it)return;const sb=subsOf(it).find(x=>x.id===r.s);rec.push([k,it.name,sb?sb.name:'',r.q,it.unit||'',r.q*logPt(it,r),r.y||'']);}));
   return{sum,day,rec};
 }
-function loadXLSX(){return new Promise((ok,ng)=>{if(window.XLSX)return ok(window.XLSX);const sc=document.createElement('script');sc.src='xlsx.full.min.js';sc.onload=()=>ok(window.XLSX);sc.onerror=ng;document.head.appendChild(sc);});}
+function loadXLSX(){return new Promise((ok,ng)=>{if(window.XLSX)return ok(window.XLSX);const sc=document.createElement('script');sc.src='../target/xlsx.full.min.js';sc.onload=()=>ok(window.XLSX);sc.onerror=ng;document.head.appendChild(sc);});}
 async function shareFile(blob,name){
   const file=new File([blob],name,{type:blob.type});
   if(navigator.canShare&&navigator.canShare({files:[file]})){try{await navigator.share({files:[file],title:name});return;}catch(e){if(e&&e.name==='AbortError')return;}}
@@ -449,6 +457,76 @@ async function exportData(fmt){
   const out=X.write(wb,{bookType:'xlsx',type:'array'});
   return shareFile(new Blob([out],{type:'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet'}),base+'.xlsx');
 }
+// ---- 店長用：店舗メンバー（スタッフから届いた報告。クリアファイルの「スタッフ実績」と同じ保存場所）----
+const TL='team_v1';
+function loadTeam(){let T;try{T=JSON.parse(localStorage.getItem(TL)||'null')}catch(e){T=null}return T&&T.staff?T:{staff:{}};}
+function saveTeam(T){try{localStorage.setItem(TL,JSON.stringify(T))}catch(e){}}
+async function importReport(raw){
+  const mm=String(raw).match(/[#&?]d=([A-Za-z0-9_\-]+)/),code=mm?mm[1]:String(raw).trim();
+  const p=await dec(code);if(!p||p.v!==1||!p.id||!p.ym||!Array.isArray(p.items))throw new Error('bad');
+  const T=loadTeam(),st=T.staff[p.id]||(T.staff[p.id]={name:'',months:{}});if(p.name)st.name=p.name;
+  const cur=st.months[p.ym];let msg;
+  if(cur&&cur.at>p.at)msg=`${st.name||'スタッフ'}さんの${Number(p.ym.slice(5))}月分は、もっと新しいデータが入っています`;
+  else{st.months[p.ym]=p;msg=`${st.name||'スタッフ'}さんの${Number(p.ym.slice(5))}月分を取り込みました`;}
+  saveTeam(T);view.member=p.id;view.ym=p.ym;view.tab='member';view.mmsg=msg;return msg;
+}
+async function reportFromHash(){
+  if(!MGR||!/[#&]d=/.test(location.hash))return;const h=location.hash;try{history.replaceState(null,'',location.pathname)}catch(e){}
+  try{await importReport(h);}catch(e){view.tab='member';view.mmsg='';view.merr='リンクが途中で切れているようです。届いたメッセージを全部コピーして、メンバータブの「報告を取り込む」に貼り付けてください。';}
+  render();
+}
+window.addEventListener('hashchange',reportFromHash);
+function memberView(ym){
+  const T=loadTeam(),ids=Object.keys(T.staff),mo=Number(ym.slice(5));
+  const withM=ids.filter(id=>T.staff[id].months[ym]).sort((a,b)=>(T.staff[b].months[ym].pts||0)-(T.staff[a].months[ym].pts||0));
+  const others=ids.filter(id=>!T.staff[id].months[ym]);
+  if(!view.member||!T.staff[view.member]||!T.staff[view.member].months[ym])view.member=withM[0]||null;
+  let h='';
+  if(/\bLine\//i.test(navigator.userAgent))h+=`<div class="notice">LINEの中で開いています。ここで取り込んだデータはLINEの中にしか残りません。右上のメニューから「ブラウザで開く」を選んで、もう一度リンクを開いてください。</div>`;
+  if(view.mmsg)h+=`<div class="okmsg">✓ ${esc(view.mmsg)}</div>`;
+  if(view.merr)h+=`<div class="notice">${esc(view.merr)}</div>`;
+  view.mmsg='';view.merr='';
+  h+=`<div class="card"><div class="between" style="align-items:center"><div class="iname">店舗メンバー</div><span class="sub">${withM.length}人が${mo}月分を報告済み</span></div>
+    ${withM.length?`<div class="chips">${withM.map(id=>{const p=T.staff[id].months[ym],d=new Date(p.at);return `<button class="chip ${id===view.member?'on':''}" data-a="mem" data-id="${id}"><b>${esc(T.staff[id].name||'名前なし')}</b><small>${fmt(p.pts||0)}pt・${d.getMonth()+1}/${d.getDate()}</small></button>`;}).join('')}</div>`:`<div class="sub" style="margin-top:8px;line-height:1.7">${mo}月の報告はまだありません。スタッフに目標管理アプリの「店長に送る」で送ってもらい、届いたリンクをChromeで開いてください。</div>`}
+    ${others.length?`<div class="sub" style="margin-top:8px">${mo}月の報告がまだの人：${others.map(id=>esc(T.staff[id].name||'名前なし')).join('、')}</div>`:''}
+  </div>`;
+  if(view.member)h+=memberCut(T.staff[view.member],T.staff[view.member].months[ym],view.member);
+  h+=`<div class="card"><div class="iname">報告を取り込む</div><div class="sub" style="margin-top:4px">スタッフから届いたメッセージ（リンク）をそのまま貼り付けてください。届いたリンクをタップして開いても取り込めます。</div>
+    <textarea id="mimp" class="tin" rows="3" placeholder="【実績報告】… https://…#d=…"></textarea><button class="btn" data-a="mimp">取り込む</button></div>`;
+  h+=`<p class="sub" style="text-align:center;margin-bottom:12px">数字はスタッフが送った時点のものです。データはこのスマホの中だけに保存されます。</p>`;
+  return h;
+}
+function memberCut(st,p,id){
+  const ym=p.ym,isCur=ym===curYM,past=ym<curYM,work=p.work||0,el=p.el||0,left=Math.max(0,work-el);
+  const d=new Date(p.at),age=(Date.now()-p.at)/36e5;
+  const rows=[];
+  if(p.pc!=null){const tot=p.pts||0;rows.push({pt:1,n:'ポイント',T:p.pc,tot,u:'pt'});}
+  p.items.forEach(it=>{if(it.c==null)return;const tot=it.cy?(it.ty||0):(it.ct!=null?it.ct:it.t);
+    rows.push({n:it.n,sub:it.cy?((it.cn?it.cn+'の':'')+'売上合計'):(it.cn?it.cn+'のみ':''),T:it.c,tot,u:it.cy?'円':it.u});});
+  rows.forEach(x=>{x.done=x.tot>=x.T;x.left=Math.max(0,x.T-x.tot);x.proj=isCur&&el?x.tot/el*work:null;x.per=isCur&&!x.done&&left>0?Math.ceil(x.left/left):null;
+    x.st=x.done?'ok':(isCur&&x.proj!=null&&x.proj>=x.T)?'pace':(past?'ng':'bad');});
+  const cnt={ok:0,pace:0,bad:0,ng:0};rows.forEach(x=>cnt[x.st]++);
+  const SC={ok:'var(--ok)',pace:'var(--acc)',bad:'var(--bad)',ng:'var(--bad)'},ptR=rows.find(r=>r.pt);
+  let h=`<div class="card cuthead ${rows.length&&cnt.ok===rows.length?'all':''}">
+    <div class="between" style="align-items:center;margin-bottom:6px"><b style="font-size:17px">${esc(st.name||'名前なし')}さんの足切り</b><span class="tag ${age>24?'bad':''}">${d.getMonth()+1}/${d.getDate()} ${pad(d.getHours())}:${pad(d.getMinutes())} 時点</span></div>
+    ${rows.length?`<div class="cuttop">
+      <div><div class="sub">${Number(ym.slice(5))}月の足切り</div><div class="cutbig">${cnt.ok}<small> / ${rows.length} クリア</small></div></div>
+      ${ptR?`<div class="cutdiv"></div><div><div class="sub">合計ポイント</div><div class="cutbig" style="color:${SC[ptR.st]}">${fmt(ptR.tot)}<small> / ${fmt(ptR.T)}pt</small></div></div>`:''}
+    </div>
+    <div class="cutsum">${cnt.ok===rows.length?'🎉 全部クリア！':`<span class="cb ok">クリア ${cnt.ok}</span>${isCur?`<span class="cb pace">ペースOK ${cnt.pace}</span><span class="cb bad">ペース不足 ${cnt.bad}</span>`:`<span class="cb bad">未達 ${cnt.ng+cnt.bad}</span>`}`}</div>
+    ${ptR?`<div class="ptbar" style="margin:12px 0 0"><i style="width:${ptR.T?Math.min(100,ptR.tot/ptR.T*100):0}%;background:${SC[ptR.st]}"></i></div><div class="between sub" style="margin-top:3px"><span>${ptR.proj!=null&&!ptR.done?`着地予測 ${fmt(Math.round(ptR.proj))}pt`:''}</span><span>${ptR.done?'<b style="color:var(--ok)">ポイント足切りクリア！</b>':`あと <b style="color:var(--ink)">${fmt(ptR.left)}pt</b>`}</span></div>`:''}
+    ${isCur?`<div class="sub" style="margin-top:6px">送信時点の残り出勤日 ${left}日</div>`:''}`:'<div class="sub">この人は足切りが設定されていません。</div>'}
+  </div>`;
+  const list=rows.filter(x=>!x.pt),order={bad:0,ng:0,pace:1,ok:2};list.sort((a,b)=>order[a.st]-order[b.st]);
+  if(list.length)h+='<div class="card" style="padding:6px 14px">'+list.map(x=>{const rate=x.T?Math.min(100,x.tot/x.T*100):0;
+    const badge=x.st==='ok'?'<span class="cb ok">✓ クリア</span>':x.st==='pace'?'<span class="cb pace">ペースOK</span>':x.st==='ng'?'<span class="cb bad">未達</span>':'<span class="cb bad">ペース不足</span>';
+    return `<div class="crow"><div class="between"><div><b>${esc(x.n)}</b>${x.sub?`<span class="sub">　${esc(x.sub)}</span>`:''}</div>${badge}</div>
+      <div class="between" style="margin-top:4px"><span><b class="cnum">${fmt(x.tot)}</b><span class="sub"> / ${fmt(x.T)}${esc(x.u)}</span></span><span class="sub">${x.done?'':`あと <b style="color:var(--ink)">${fmt(x.left)}${esc(x.u)}</b>`}</span></div>
+      <div class="cbar"><i class="${x.st}" style="width:${rate}%"></i></div>
+      ${isCur&&!x.done?`<div class="sub">${x.per!=null?`残りの出勤日で1日 <b style="color:var(--ink)">${fmt(x.per)}${esc(x.u)}</b> ペース`:''}${x.proj!=null?`　着地予測 ${fmt(Math.round(x.proj))}${esc(x.u)}`:''}</div>`:''}</div>`;}).join('')+'</div>';
+  h+=`<div style="text-align:right;margin:-4px 0 12px"><button class="mini" data-a="memdel" data-id="${id}" style="color:var(--bad);padding:0 10px">${view.mdel===id?'本当に削除（全月分）':'このメンバーを削除'}</button></div>`;
+  return h;
+}
 function backupRestore(){
   modal(`<h3>バックアップから戻す</h3><p class="sub">コピーしておいたバックアップの文字を貼り付けてください。<b>今このスマホにあるデータは置き換わります。</b></p><textarea id="bk" class="tin" rows="4" placeholder="TGTBK:..."></textarea><div class="mrow2"><button class="btn ghost" data-x="no">やめる</button><button class="btn" data-x="ok">戻す</button></div><p id="bkmsg" class="sub" style="color:var(--bad)"></p>`,async(e,close,w)=>{
     const x=e.target.closest('[data-x]');if(!x)return;if(x.dataset.x!=='ok'){close();return;}
@@ -466,11 +544,12 @@ function render(){
   else if(view.tab==='cut')body=cutView(ym,m);
   else if(view.tab==='graph')body=graphView(ym,m);
   else if(view.tab==='cal')body=calView(ym,m);
+  else if(view.tab==='member'&&MGR)body=memberView(ym);
   else body=setView(ym,m);
   const n=daysIn(ym),offs=m.off.length;
   $app.innerHTML=`
   <header>
-    <div class="mrow"><button data-a="prev">‹</button><div class="mtitle">${y}年${Number(mo)}月</div><button data-a="next">›</button></div>
+    <div class="mrow"><button data-a="prev">‹</button><div class="mtitle">${MGR?'<span class="mgrb">店長用</span>':''}${y}年${Number(mo)}月</div><button data-a="next">›</button></div>
     <div class="sub">営業日 ${n-offs}日（休み ${offs}日）${ym===curYM?` ／ 今日から残り ${calcRemain(ym,m)}日`:''}</div>
     <div class="save" id="savemsg">${esc(saveMsg)}</div>
   </header>
@@ -480,6 +559,7 @@ function render(){
     <button data-tab="cut" class="${view.tab==='cut'?'on':''}"><span>🚩</span>足切り</button>
     <button data-tab="graph" class="${view.tab==='graph'?'on':''}"><span>📊</span>グラフ</button>
     <button data-tab="cal" class="${view.tab==='cal'?'on':''}"><span>📅</span>カレンダー</button>
+    ${MGR?`<button data-tab="member" class="${view.tab==='member'?'on':''}"><span>👥</span>メンバー</button>`:''}
     <button data-tab="set" class="${view.tab==='set'?'on':''}"><span>⚙️</span>項目設定</button>
   </nav>`;
 }
@@ -704,6 +784,9 @@ $app.addEventListener('click',e=>{
   if(a==='cmode'){const it=findItem(id);if(!it)return;it.cut.mode=t.dataset.v;changed();render();return;}
   if(a==='sadd'){const it=findItem(id);if(!it)return;if(!Array.isArray(it.subs))it.subs=[];it.subs.push({id:uid(),name:'',pt:it.subs.length?'':(it.pt??'')});changed();render();return;}
   if(a==='sdel'){const it=findItem(id),sid=t.dataset.s;if(!it)return;if(delAsk===sid){it.subs=subsOf(it).filter(x=>x.id!==sid);delAsk=null;changed();}else delAsk=sid;render();return;}
+  if(a==='mem'){view.member=id;view.mdel=null;render();return;}
+  if(a==='memdel'){if(view.mdel===id){const T=loadTeam();delete T.staff[id];saveTeam(T);view.mdel=null;view.member=null;view.mmsg='削除しました';}else view.mdel=id;render();return;}
+  if(a==='mimp'){const v=(document.getElementById('mimp')||{}).value||'';if(!v.trim())return;importReport(v).then(render).catch(()=>{view.merr='読み込めませんでした。届いたメッセージを全部コピーして貼り付けてください。';render();});return;}
   if(a==='exp'){exportData(t.dataset.f);return;}
   if(a==='omrsheet'){omrSheet();return;}
   if(a==='omrread'){omrPick(t.dataset.k);return;}
@@ -738,7 +821,7 @@ $app.addEventListener('change',e=>{
   if(a==='setToday'||a==='setDay'||a==='tval'||a==='ipt'||a==='spt'||a==='sname'||a==='scut')render();
 });
 const _r=render;render=function(){_r();updPrev();};
-render();cfgFromHash();
+render();cfgFromHash();reportFromHash();
 })();
 </script>
 </body>

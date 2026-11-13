@@ -2,3 +2,8 @@
 
 10枚綴じのクリアファイルアプリ。書類の写真やPDFを表と裏に入れて、付箋も貼れます。
 ホーム画面に追加するとアプリとして使え、オフラインでも動きます。書類はスマホの中にだけ保存されます。
+
+## 目標達成マネージャー
+- `target/` … スタッフ用アプリ（https://chaitentou6464.github.io/clearfile-app/target/）
+- `manager/` … 店長・管理者用アプリ（https://chaitentou6464.github.io/clearfile-app/manager/）。`manager/index.html` は `target/index.html` のコピーで、違うのは `<title>` と apple-touch-icon だけ。パスに `/manager/` が入ると「メンバー」タブが出る。target を直したら manager にもコピーすること。
+- `team.html` … クリアファイルの本棚から開く「スタッフ実績」。manager と同じ保存場所（localStorage の `team_v1`）を使う。
