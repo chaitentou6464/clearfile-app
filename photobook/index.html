@@ -1,0 +1,714 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>Kindle写真集メーカー</title>
+<link rel="manifest" href="manifest.webmanifest">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<meta name="theme-color" content="#141210">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="写真集メーカー">
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link href="https://fonts.googleapis.com/css2?family=Shippori+Mincho:wght@500;700&family=Zen+Kaku+Gothic+New:wght@400;500;700&display=swap" rel="stylesheet">
+<style>
+:root{
+  --bg:#141210; --panel:#1e1b18; --panel2:#29251f; --line:#3a342c;
+  --text:#f1ebe2; --mute:#a99f90; --accent:#e8a64a; --accent2:#f4c47f; --danger:#e0675a;
+  --r:14px;
+}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{margin:0;background:var(--bg);color:var(--text);font-family:"Zen Kaku Gothic New",system-ui,sans-serif;font-size:15px}
+body{padding-top:env(safe-area-inset-top);padding-bottom:calc(70px + env(safe-area-inset-bottom))}
+button{font:inherit;color:inherit;border:0;background:none;cursor:pointer}
+input,select,textarea{font:inherit;color:var(--text);background:var(--panel2);border:1px solid var(--line);border-radius:10px;padding:10px 12px;width:100%}
+textarea{resize:vertical;min-height:70px}
+label.f{display:block;margin:14px 0 6px;color:var(--mute);font-size:13px}
+header{position:sticky;top:0;z-index:5;background:rgba(20,18,16,.92);backdrop-filter:blur(8px);display:flex;align-items:center;gap:10px;padding:12px 16px;border-bottom:1px solid var(--line)}
+header h1{font-family:"Shippori Mincho",serif;font-size:18px;margin:0;flex:1;white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+header .sub{color:var(--mute);font-size:12px}
+.btn{background:var(--panel2);border:1px solid var(--line);border-radius:999px;padding:9px 16px;font-weight:500;display:inline-flex;align-items:center;gap:6px;justify-content:center}
+.btn.pri{background:var(--accent);color:#1b1307;border-color:var(--accent);font-weight:700}
+.btn.dng{color:var(--danger);border-color:#5a2c27}
+.btn.wide{width:100%;padding:14px;border-radius:var(--r)}
+.btn:disabled{opacity:.45}
+main{padding:16px;max-width:760px;margin:0 auto}
+.tab{display:none}.tab.on{display:block}
+nav.bottom{position:fixed;left:0;right:0;bottom:0;z-index:6;display:flex;background:rgba(30,27,24,.97);border-top:1px solid var(--line);padding-bottom:env(safe-area-inset-bottom)}
+nav.bottom button{flex:1;padding:9px 0 10px;font-size:11px;color:var(--mute);display:flex;flex-direction:column;align-items:center;gap:3px}
+nav.bottom button svg{width:22px;height:22px}
+nav.bottom button.on{color:var(--accent2)}
+.empty{border:1.5px dashed var(--line);border-radius:var(--r);padding:36px 20px;text-align:center;color:var(--mute);line-height:1.8}
+.empty b{color:var(--text);display:block;font-size:16px;margin-bottom:4px}
+.grid{display:grid;grid-template-columns:repeat(3,1fr);gap:10px}
+@media(min-width:560px){.grid{grid-template-columns:repeat(4,1fr)}}
+.th{position:relative;border-radius:8px;overflow:hidden;background:#000;border:1px solid var(--line)}
+.th canvas{display:block;width:100%;height:auto}
+.th .no{position:absolute;left:6px;top:6px;background:rgba(0,0,0,.65);font-size:11px;padding:2px 7px;border-radius:99px}
+.th .mv{position:absolute;inset:auto 0 0 0;display:none;justify-content:space-between;padding:4px}
+.sorting .th .mv{display:flex}
+.mv button{background:rgba(0,0,0,.75);border-radius:8px;width:34px;height:30px;font-size:16px}
+.toolbar{display:flex;gap:8px;flex-wrap:wrap;margin-bottom:14px;align-items:center}
+.toolbar .sp{flex:1}
+.fab{position:fixed;right:18px;bottom:calc(84px + env(safe-area-inset-bottom));z-index:6;background:var(--accent);color:#1b1307;border-radius:999px;padding:14px 20px;font-weight:700;box-shadow:0 8px 24px rgba(0,0,0,.5);display:flex;gap:6px;align-items:center}
+.card{background:var(--panel);border:1px solid var(--line);border-radius:var(--r);padding:16px;margin-bottom:14px}
+.card h3{margin:0 0 4px;font-size:15px}
+.card p{margin:4px 0 0;color:var(--mute);font-size:13px;line-height:1.7}
+.seg{display:flex;background:var(--panel2);border:1px solid var(--line);border-radius:10px;padding:3px;gap:3px}
+.seg button{flex:1;padding:8px 4px;border-radius:8px;font-size:13px;color:var(--mute)}
+.seg button.on{background:var(--accent);color:#1b1307;font-weight:700}
+.row{display:flex;gap:10px;align-items:center}
+.row>*{flex:1}
+input[type=range]{padding:0;border:0;background:none;accent-color:var(--accent);height:30px}
+input[type=color]{padding:2px;height:42px}
+.sheet{position:fixed;inset:0;z-index:20;background:rgba(0,0,0,.6);display:none;align-items:flex-end;justify-content:center}
+.sheet.on{display:flex}
+.sheet .box{background:var(--panel);width:100%;max-width:760px;max-height:94vh;overflow:auto;border-radius:20px 20px 0 0;padding:14px 16px calc(20px + env(safe-area-inset-bottom));border-top:1px solid var(--line)}
+.sheet .hd{display:flex;align-items:center;gap:8px;margin-bottom:10px}
+.sheet .hd h2{flex:1;margin:0;font-size:16px}
+.pv{display:flex;justify-content:center;background:#0c0b0a;border-radius:12px;padding:10px}
+.pv canvas{max-width:100%;max-height:46vh;border-radius:4px;box-shadow:0 4px 20px rgba(0,0,0,.6)}
+.coverpv canvas{max-height:60vh}
+.modal{position:fixed;inset:0;z-index:40;background:rgba(0,0,0,.7);display:none;align-items:center;justify-content:center;padding:24px}
+.modal.on{display:flex}
+.modal .box{background:var(--panel);border:1px solid var(--line);border-radius:var(--r);padding:20px;max-width:360px;width:100%}
+.modal .box p{line-height:1.7;margin:0 0 16px;white-space:pre-line}
+.modal .acts{display:flex;gap:8px;justify-content:flex-end}
+.prog{height:8px;background:var(--panel2);border-radius:99px;overflow:hidden;margin-top:10px}
+.prog i{display:block;height:100%;background:var(--accent);width:0;transition:width .2s}
+#viewer{position:fixed;inset:0;z-index:30;background:#000;display:none;flex-direction:column}
+#viewer.on{display:flex}
+#viewer .vt{display:flex;align-items:center;padding:calc(10px + env(safe-area-inset-top)) 14px 10px;gap:10px;color:var(--mute);font-size:13px}
+#viewer .vt span{flex:1}
+#viewer .stage{flex:1;display:flex;align-items:center;justify-content:center;overflow:hidden;touch-action:pan-y}
+#viewer canvas{max-width:100%;max-height:100%}
+.toast{position:fixed;left:50%;bottom:calc(150px + env(safe-area-inset-bottom));transform:translateX(-50%);background:#000;border:1px solid var(--line);padding:10px 16px;border-radius:999px;z-index:50;font-size:13px;opacity:0;transition:opacity .25s;pointer-events:none;white-space:nowrap}
+.toast.on{opacity:1}
+.hint{color:var(--mute);font-size:12px;line-height:1.7;margin-top:8px}
+.steps{margin:6px 0 0;padding-left:20px;color:var(--mute);font-size:13px;line-height:1.9}
+.pick{display:grid;grid-template-columns:repeat(4,1fr);gap:6px;margin-top:10px}
+.pick img{width:100%;aspect-ratio:1;object-fit:cover;border-radius:6px;border:2px solid transparent}
+.pick img.on{border-color:var(--accent)}
+</style>
+</head>
+<body>
+<header>
+  <div style="flex:1;min-width:0">
+    <h1 id="hTitle">無題の写真集</h1>
+    <div class="sub" id="hSub">0ページ</div>
+  </div>
+  <button class="btn" id="btnPreview">▶ プレビュー</button>
+</header>
+
+<main>
+  <!-- ページ -->
+  <section class="tab on" id="tab-pages">
+    <div class="toolbar">
+      <button class="btn" id="btnSort">⇅ 並べ替え</button>
+      <span class="sp"></span>
+      <span class="hint" style="margin:0" id="sortHint"></span>
+    </div>
+    <div id="pagesEmpty" class="empty"><b>まだ写真がありません</b>右下の「写真を追加」から、<br>本に入れたい写真をまとめて選んでください。<br>選んだ順にページになります。</div>
+    <div class="grid" id="grid"></div>
+  </section>
+
+  <!-- 表紙 -->
+  <section class="tab" id="tab-cover">
+    <div class="pv coverpv"><canvas id="coverCv"></canvas></div>
+    <div class="card" style="margin-top:14px">
+      <div class="row">
+        <button class="btn" id="coverFromFile">📷 写真から</button>
+        <button class="btn" id="coverFromPages">📚 ページから</button>
+      </div>
+      <div id="coverPick" class="pick" style="display:none"></div>
+      <label class="f">表紙の文字</label>
+      <div class="seg" id="segCoverTitle">
+        <button data-v="bottom">下</button><button data-v="center">中央</button><button data-v="top">上</button><button data-v="none">なし</button>
+      </div>
+      <label class="f">書体</label>
+      <div class="seg" id="segCoverFont"><button data-v="mincho">明朝</button><button data-v="gothic">ゴシック</button></div>
+      <div class="row">
+        <div><label class="f">文字の色</label><input type="color" id="coverColor"></div>
+        <div><label class="f">ズーム</label><input type="range" id="coverZoom" min="1" max="3" step="0.01"></div>
+      </div>
+      <div class="row">
+        <div><label class="f">左右の位置</label><input type="range" id="coverPx" min="-1" max="1" step="0.01"></div>
+        <div><label class="f">上下の位置</label><input type="range" id="coverPy" min="-1" max="1" step="0.01"></div>
+      </div>
+      <p class="hint">タイトルと著者名は「設定」タブで変えられます。表紙は写真が画面いっぱいになるように配置されます。</p>
+    </div>
+  </section>
+
+  <!-- 設定 -->
+  <section class="tab" id="tab-settings">
+    <div class="card">
+      <h3>本の情報</h3>
+      <label class="f">タイトル</label><input id="sTitle" placeholder="例：近江八幡 四季の風景">
+      <label class="f">著者名</label><input id="sAuthor" placeholder="例：山田 太郎">
+    </div>
+    <div class="card">
+      <h3>ページの形</h3>
+      <div class="seg" id="segSize" style="margin-top:10px">
+        <button data-v="portrait">縦長</button><button data-v="landscape">横長</button><button data-v="square">正方形</button>
+      </div>
+      <p class="hint" id="sizeNote"></p>
+      <label class="f">めくる方向</label>
+      <div class="seg" id="segDir"><button data-v="rtl">右開き（和書）</button><button data-v="ltr">左開き（洋書）</button></div>
+      <label class="f">余白の色</label>
+      <div class="seg" id="segBg"><button data-v="#000000">黒</button><button data-v="#ffffff">白</button><button data-v="#f3eee4">生成り</button><button data-v="#2b2b2b">グレー</button></div>
+    </div>
+    <div class="card">
+      <h3>写真の収め方（まとめて変更）</h3>
+      <p>「全体」は写真を切らずに余白付き、「フチなし」はページいっぱいに広げて端を切ります。</p>
+      <div class="row" style="margin-top:12px">
+        <button class="btn" data-allfit="contain">全ページ「全体」</button>
+        <button class="btn" data-allfit="cover">全ページ「フチなし」</button>
+      </div>
+    </div>
+    <div class="card">
+      <h3>データ</h3>
+      <p>作業内容はこのスマホのブラウザ内に自動保存されます（他の端末には引き継がれません）。</p>
+      <button class="btn dng" id="btnReset" style="margin-top:12px">すべて消して新しく作る</button>
+    </div>
+  </section>
+
+  <!-- 書き出し -->
+  <section class="tab" id="tab-export">
+    <div class="card">
+      <h3>① 本文ファイル（EPUB）</h3>
+      <p>KDPの「電子書籍の原稿」にそのままアップロードできる固定レイアウトEPUBです。表紙・全ページ・キャプションが入ります。</p>
+      <button class="btn pri wide" style="margin-top:12px" id="exEpub">EPUBを書き出す</button>
+    </div>
+    <div class="card">
+      <h3>② 表紙画像（JPG）</h3>
+      <p>KDPの「表紙」欄にアップロードする画像です（Kindle推奨の 1600×2560px）。</p>
+      <button class="btn wide" style="margin-top:12px" id="exCover">表紙JPGを書き出す</button>
+    </div>
+    <div class="card">
+      <h3>③ 全ページ画像（ZIP）</h3>
+      <p>ページを1枚ずつJPGにしてまとめたもの。後でパソコンのKindle Createで作り直したい時や、SNS告知用に。</p>
+      <button class="btn wide" style="margin-top:12px" id="exZip">ページ画像ZIPを書き出す</button>
+    </div>
+    <div class="card">
+      <h3>KDPでの出し方</h3>
+      <ol class="steps">
+        <li>kdp.amazon.co.jp で「電子書籍」を新規作成</li>
+        <li>原稿に ① のEPUB、表紙に ② のJPGをアップロード</li>
+        <li>「プレビューアー」でスマホ・タブレット表示を確認</li>
+        <li>価格を決めて出版（審査は通常72時間以内）</li>
+      </ol>
+      <p class="hint">写真が多いと容量が増え、KDPの配信コスト（70%ロイヤリティ時）が上がります。目安は1冊30MB以下です。</p>
+    </div>
+    <p class="hint" id="dlNote"></p>
+  </section>
+</main>
+
+<button class="fab" id="fab">＋ 写真を追加</button>
+<input type="file" id="fileIn" accept="image/*" multiple hidden>
+<input type="file" id="coverIn" accept="image/*" hidden>
+
+<nav class="bottom">
+  <button data-tab="pages" class="on"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><rect x="3" y="3" width="7" height="9" rx="1"/><rect x="14" y="3" width="7" height="9" rx="1"/><rect x="3" y="15" width="7" height="6" rx="1"/><rect x="14" y="15" width="7" height="6" rx="1"/></svg>ページ</button>
+  <button data-tab="cover"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M5 3h12a2 2 0 0 1 2 2v16l-3-2-3 2-3-2-3 2V5a2 2 0 0 1 0 0z"/><path d="M8 8h8M8 12h5"/></svg>表紙</button>
+  <button data-tab="settings"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.7 1.7 0 0 0 .3 1.8l.1.1a2 2 0 1 1-2.8 2.8l-.1-.1a1.7 1.7 0 0 0-1.8-.3 1.7 1.7 0 0 0-1 1.5V21a2 2 0 1 1-4 0v-.1a1.7 1.7 0 0 0-1.1-1.5 1.7 1.7 0 0 0-1.8.3l-.1.1a2 2 0 1 1-2.8-2.8l.1-.1a1.7 1.7 0 0 0 .3-1.8 1.7 1.7 0 0 0-1.5-1H3a2 2 0 1 1 0-4h.1a1.7 1.7 0 0 0 1.5-1.1 1.7 1.7 0 0 0-.3-1.8l-.1-.1a2 2 0 1 1 2.8-2.8l.1.1a1.7 1.7 0 0 0 1.8.3H9a1.7 1.7 0 0 0 1-1.5V3a2 2 0 1 1 4 0v.1a1.7 1.7 0 0 0 1 1.5 1.7 1.7 0 0 0 1.8-.3l.1-.1a2 2 0 1 1 2.8 2.8l-.1.1a1.7 1.7 0 0 0-.3 1.8V9a1.7 1.7 0 0 0 1.5 1H21a2 2 0 1 1 0 4h-.1a1.7 1.7 0 0 0-1.5 1z"/></svg>設定</button>
+  <button data-tab="export"><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.8"><path d="M12 3v12M7 10l5 5 5-5"/><path d="M4 17v3h16v-3"/></svg>書き出し</button>
+</nav>
+
+<!-- ページ編集シート -->
+<div class="sheet" id="editSheet">
+  <div class="box">
+    <div class="hd"><h2 id="edTitle">ページ</h2><button class="btn" id="edClose">完了</button></div>
+    <div class="pv"><canvas id="edCv"></canvas></div>
+    <label class="f">写真の収め方</label>
+    <div class="seg" id="segFit"><button data-v="contain">全体（余白あり）</button><button data-v="cover">フチなし</button></div>
+    <div class="row">
+      <div><label class="f">ズーム</label><input type="range" id="edZoom" min="1" max="3" step="0.01"></div>
+    </div>
+    <div class="row">
+      <div><label class="f">左右の位置</label><input type="range" id="edPx" min="-1" max="1" step="0.01"></div>
+      <div><label class="f">上下の位置</label><input type="range" id="edPy" min="-1" max="1" step="0.01"></div>
+    </div>
+    <label class="f">キャプション（空欄なら表示なし）</label>
+    <textarea id="edCap" placeholder="例：2026年 春　八幡堀の桜"></textarea>
+    <div class="row">
+      <div><label class="f">位置</label><div class="seg" id="segCapPos"><button data-v="bottom">下</button><button data-v="top">上</button></div></div>
+      <div><label class="f">見せ方</label><div class="seg" id="segCapStyle"><button data-v="band">帯</button><button data-v="plain">文字だけ</button></div></div>
+    </div>
+    <label class="f">書体</label>
+    <div class="seg" id="segCapFont"><button data-v="gothic">ゴシック</button><button data-v="mincho">明朝</button></div>
+    <div class="row" style="margin-top:18px">
+      <button class="btn" id="edPrev">◀ 前へ移動</button>
+      <button class="btn" id="edNext">後ろへ移動 ▶</button>
+    </div>
+    <div class="row" style="margin-top:10px">
+      <button class="btn" id="edReplace">写真を差し替え</button>
+      <button class="btn dng" id="edDel">このページを削除</button>
+    </div>
+  </div>
+</div>
+<input type="file" id="replaceIn" accept="image/*" hidden>
+
+<div id="viewer">
+  <div class="vt"><span id="vNo"></span><button class="btn" id="vClose">閉じる</button></div>
+  <div class="stage" id="vStage"><canvas id="vCv"></canvas></div>
+  <div class="vt" style="justify-content:center;padding-bottom:calc(14px + env(safe-area-inset-bottom))">
+    <button class="btn" id="vLeft">◀</button><span style="flex:0 0 auto;text-align:center">左右にスワイプでめくる</span><button class="btn" id="vRight">▶</button>
+  </div>
+</div>
+
+<div class="modal" id="modal"><div class="box"><p id="mMsg"></p><div class="prog" id="mProg" style="display:none"><i></i></div><div class="acts" id="mActs"></div></div></div>
+<div class="toast" id="toast"></div>
+
+<script>
+/* ========== 定数 ========== */
+const SIZES={portrait:{w:1600,h:2560,note:'1600×2560px（Kindle推奨の縦長・スマホ/Kindle端末で最も大きく表示）'},
+  landscape:{w:2560,h:1600,note:'2560×1600px（横長写真向け・タブレットを横にして読む想定）'},
+  square:{w:2048,h:2048,note:'2048×2048px（正方形・インスタ風の写真集に）'}};
+const COVER={w:1600,h:2560};
+const FONTS={gothic:'"Zen Kaku Gothic New", sans-serif',mincho:'"Shippori Mincho", serif'};
+const $=s=>document.querySelector(s);
+const uid=()=>Date.now().toString(36)+Math.random().toString(36).slice(2,8);
+
+/* ========== 状態 ========== */
+let book=defaultBook();
+function defaultBook(){return{title:'',author:'',size:'portrait',dir:'rtl',bg:'#000000',
+  cover:{imgId:null,zoom:1,px:0,py:0,titlePos:'bottom',font:'mincho',color:'#ffffff'},pages:[]};}
+const prevCache=new Map(); // imgId -> bitmap/image (プレビュー用・小)
+
+/* ========== IndexedDB ========== */
+let dbp=null;
+function db(){ if(dbp) return dbp;
+  dbp=new Promise((res,rej)=>{try{const r=indexedDB.open('kindle-photobook',1);
+    r.onupgradeneeded=()=>{r.result.createObjectStore('imgs');r.result.createObjectStore('meta');};
+    r.onsuccess=()=>res(r.result);r.onerror=()=>rej(r.error);}catch(e){rej(e);}});
+  return dbp;}
+async function idb(store,mode,fn){try{const d=await db();return await new Promise((res,rej)=>{const t=d.transaction(store,mode);const s=t.objectStore(store);const r=fn(s);t.oncomplete=()=>res(r&&r.result);t.onerror=()=>rej(t.error);});}catch(e){return undefined;}}
+const putImg=(id,v)=>idb('imgs','readwrite',s=>s.put(v,id));
+const getImg=id=>idb('imgs','readonly',s=>s.get(id));
+const delImg=id=>idb('imgs','readwrite',s=>s.delete(id));
+const memImgs=new Map(); // IDBが使えない時の退避
+let saveT=null;
+function save(){clearTimeout(saveT);saveT=setTimeout(()=>idb('meta','readwrite',s=>s.put(JSON.stringify(book),'book')),300);}
+
+/* ========== 画像 ========== */
+function loadBmp(blob){
+  if(window.createImageBitmap) return createImageBitmap(blob).catch(()=>loadImgEl(blob));
+  return loadImgEl(blob);}
+function loadImgEl(blob){return new Promise((res,rej)=>{const u=URL.createObjectURL(blob);const i=new Image();i.onload=()=>{res(i);};i.onerror=rej;i.src=u;});}
+const dims=b=>({w:b.width||b.naturalWidth,h:b.height||b.naturalHeight});
+function scaleTo(bmp,max,q=0.9){const {w,h}=dims(bmp);const s=Math.min(1,max/Math.max(w,h));
+  const c=document.createElement('canvas');c.width=Math.round(w*s);c.height=Math.round(h*s);
+  c.getContext('2d').drawImage(bmp,0,0,c.width,c.height);
+  return new Promise(r=>c.toBlob(b=>r(b),'image/jpeg',q));}
+async function importFile(file){
+  const bmp=await loadBmp(file);
+  const full=await scaleTo(bmp,3000,0.92);
+  const prev=await scaleTo(bmp,900,0.82);
+  if(bmp.close) bmp.close();
+  const id=uid();
+  const rec={full,prev};
+  const ok=await putImg(id,rec);
+  memImgs.set(id,rec);
+  return id;}
+async function getRec(id){return memImgs.get(id)||await getImg(id);}
+async function getPrev(id){
+  if(!id) return null;
+  if(prevCache.has(id)) return prevCache.get(id);
+  const rec=await getRec(id); if(!rec) return null;
+  const b=await loadBmp(rec.prev); prevCache.set(id,b); return b;}
+
+/* ========== 描画 ========== */
+function placeImage(ctx,W,H,img,o,fit){
+  const {w:iw,h:ih}=dims(img);
+  let s=fit==='cover'?Math.max(W/iw,H/ih):Math.min(W/iw,H/ih);
+  s*=o.zoom||1;
+  const dw=iw*s,dh=ih*s;
+  const x=(W-dw)/2+(o.px||0)*Math.abs(W-dw)/2;
+  const y=(H-dh)/2+(o.py||0)*Math.abs(H-dh)/2;
+  ctx.drawImage(img,x,y,dw,dh);}
+function wrap(ctx,text,maxW){
+  const out=[];
+  for(const para of String(text).split('\n')){
+    let line='';
+    for(const ch of [...para]){
+      const t=line+ch;
+      if(ctx.measureText(t).width>maxW&&line){out.push(line);line=ch;} else line=t;}
+    out.push(line);}
+  return out;}
+function drawPage(cv,W,H,p,img){
+  cv.width=W;cv.height=H;const ctx=cv.getContext('2d');
+  ctx.fillStyle=book.bg;ctx.fillRect(0,0,W,H);
+  if(img) placeImage(ctx,W,H,img,p,p.fit);
+  if(p.caption&&p.caption.trim()){
+    const fs=Math.round(Math.min(W,H)*0.036);
+    ctx.font=`500 ${fs}px ${FONTS[p.capFont||'gothic']}`;
+    const lines=wrap(ctx,p.caption.trim(),W*0.86);
+    const lh=fs*1.55,pad=fs*0.9;
+    const bh=lines.length*lh+pad*2;
+    const top=p.capPos==='top';
+    const by=top?0:H-bh;
+    const light=isLight(book.bg);
+    if(p.capStyle!=='plain'){
+      ctx.fillStyle=light?'rgba(255,255,255,.78)':'rgba(0,0,0,.55)';
+      ctx.fillRect(0,by,W,bh);
+      ctx.fillStyle=light?'#222':'#fff';
+    }else{
+      ctx.fillStyle='#fff';ctx.shadowColor='rgba(0,0,0,.75)';ctx.shadowBlur=fs*0.5;
+    }
+    ctx.textAlign='center';ctx.textBaseline='middle';
+    lines.forEach((l,i)=>ctx.fillText(l,W/2,by+pad+lh*i+lh/2));
+    ctx.shadowBlur=0;ctx.shadowColor='transparent';}
+}
+function isLight(hex){const n=parseInt(hex.slice(1),16);return ((n>>16)*299+((n>>8)&255)*587+(n&255)*114)/1000>150;}
+function drawCover(cv,W,H,img){
+  cv.width=W;cv.height=H;const ctx=cv.getContext('2d');const c=book.cover;
+  ctx.fillStyle='#1a1714';ctx.fillRect(0,0,W,H);
+  if(img) placeImage(ctx,W,H,img,c,'cover');
+  else{ctx.fillStyle='#6d6458';ctx.font=`500 ${W*0.04}px ${FONTS.gothic}`;ctx.textAlign='center';ctx.fillText('表紙の写真を選んでください',W/2,H*0.45);}
+  if(c.titlePos==='none') return;
+  const title=book.title||'タイトル未設定',author=book.author;
+  const fs=W*0.085,fa=W*0.038;
+  ctx.font=`700 ${fs}px ${FONTS[c.font]}`;
+  const lines=wrap(ctx,title,W*0.84);
+  const lh=fs*1.3;
+  const blockH=lines.length*lh+(author?fa*2.4:0);
+  let y0= c.titlePos==='top'?H*0.08 : c.titlePos==='center'?(H-blockH)/2 : H*0.92-blockH;
+  // 読みやすくする影のグラデーション
+  const g0=c.titlePos==='top'?0:c.titlePos==='center'?y0-H*0.08:y0-H*0.12;
+  const g1=c.titlePos==='top'?y0+blockH+H*0.12:c.titlePos==='center'?y0+blockH+H*0.08:H;
+  const dark=!isLight(c.color);
+  const shade=dark?'255,255,255':'0,0,0';
+  const grd=ctx.createLinearGradient(0,g0,0,g1);
+  if(c.titlePos==='top'){grd.addColorStop(0,`rgba(${shade},.6)`);grd.addColorStop(1,`rgba(${shade},0)`);}
+  else if(c.titlePos==='bottom'){grd.addColorStop(0,`rgba(${shade},0)`);grd.addColorStop(1,`rgba(${shade},.65)`);}
+  else{grd.addColorStop(0,`rgba(${shade},0)`);grd.addColorStop(.5,`rgba(${shade},.45)`);grd.addColorStop(1,`rgba(${shade},0)`);}
+  ctx.fillStyle=grd;ctx.fillRect(0,g0,W,g1-g0);
+  ctx.fillStyle=c.color;ctx.textAlign='center';ctx.textBaseline='top';
+  ctx.shadowColor=dark?'rgba(255,255,255,.5)':'rgba(0,0,0,.6)';ctx.shadowBlur=fs*0.25;
+  ctx.font=`700 ${fs}px ${FONTS[c.font]}`;
+  lines.forEach((l,i)=>ctx.fillText(l,W/2,y0+i*lh));
+  if(author){ctx.font=`500 ${fa}px ${FONTS[c.font]}`;ctx.fillText(author,W/2,y0+lines.length*lh+fa*1.1);}
+  ctx.shadowBlur=0;ctx.shadowColor='transparent';}
+
+/* ========== UI共通 ========== */
+function toast(m){const t=$('#toast');t.textContent=m;t.classList.add('on');clearTimeout(t._t);t._t=setTimeout(()=>t.classList.remove('on'),2200);}
+function modal(msg,acts=[{label:'OK',pri:true}],prog=false){
+  return new Promise(res=>{$('#mMsg').textContent=msg;$('#mProg').style.display=prog?'block':'none';$('#mProg i').style.width='0';
+    const a=$('#mActs');a.innerHTML='';
+    acts.forEach(x=>{const b=document.createElement('button');b.className='btn'+(x.pri?' pri':'')+(x.dng?' dng':'');b.textContent=x.label;b.onclick=()=>{closeModal();res(x.v);};a.appendChild(b);});
+    $('#modal').classList.add('on');});}
+function closeModal(){$('#modal').classList.remove('on');}
+function progress(msg,ratio){$('#mMsg').textContent=msg;$('#mProg').style.display='block';$('#mProg i').style.width=(ratio*100)+'%';$('#mActs').innerHTML='';$('#modal').classList.add('on');}
+function seg(el,val,cb){el.querySelectorAll('button').forEach(b=>{b.classList.toggle('on',b.dataset.v===val);b.onclick=()=>{el.querySelectorAll('button').forEach(x=>x.classList.toggle('on',x===b));cb(b.dataset.v);};});}
+const S=()=>SIZES[book.size];
+
+/* ========== タブ ========== */
+document.querySelectorAll('nav.bottom button').forEach(b=>b.onclick=()=>showTab(b.dataset.tab));
+function showTab(t){
+  document.querySelectorAll('nav.bottom button').forEach(b=>b.classList.toggle('on',b.dataset.tab===t));
+  document.querySelectorAll('.tab').forEach(s=>s.classList.toggle('on',s.id==='tab-'+t));
+  $('#fab').style.display=t==='pages'?'flex':'none';
+  if(t==='cover') renderCover();
+  if(t==='settings') renderSettings();
+  window.scrollTo(0,0);}
+
+/* ========== ページ一覧 ========== */
+let sorting=false;
+$('#btnSort').onclick=()=>{sorting=!sorting;$('#grid').classList.toggle('sorting',sorting);$('#btnSort').classList.toggle('pri',sorting);
+  $('#btnSort').textContent=sorting?'✓ 並べ替え終了':'⇅ 並べ替え';$('#sortHint').textContent=sorting?'◀ ▶ で順番を動かせます':'';};
+function header(){
+  $('#hTitle').textContent=book.title||'無題の写真集';
+  $('#hSub').textContent=`${book.pages.length}ページ・${book.size==='portrait'?'縦長':book.size==='landscape'?'横長':'正方形'}・${book.dir==='rtl'?'右開き':'左開き'}`;}
+async function renderGrid(){
+  header();
+  const g=$('#grid');g.innerHTML='';
+  $('#pagesEmpty').style.display=book.pages.length?'none':'block';
+  const {w,h}=S();const tw=240,thh=Math.round(240*h/w);
+  for(let i=0;i<book.pages.length;i++){
+    const p=book.pages[i];
+    const d=document.createElement('div');d.className='th';
+    const cv=document.createElement('canvas');cv.width=tw;cv.height=thh;
+    d.appendChild(cv);
+    d.insertAdjacentHTML('beforeend',`<span class="no">${i+1}</span><div class="mv"><button data-m="-1">◀</button><button data-m="1">▶</button></div>`);
+    d.onclick=e=>{const m=e.target.dataset&&e.target.dataset.m;if(m){e.stopPropagation();move(i,+m);return;} if(!sorting) openEditor(i);};
+    g.appendChild(d);
+    getPrev(p.imgId).then(img=>drawThumb(cv,tw,thh,p,img));}
+}
+function drawThumb(cv,tw,thh,p,img){
+  // 実寸比で描いてから縮小（キャプションの大きさを正しく見せる）
+  const {w,h}=S();const k=tw/w;
+  const tmp=document.createElement('canvas');
+  drawPage(tmp,Math.round(w*0.3),Math.round(h*0.3),p,img);
+  const ctx=cv.getContext('2d');cv.width=tw;cv.height=thh;ctx.drawImage(tmp,0,0,tw,thh);}
+function move(i,d){const j=i+d;if(j<0||j>=book.pages.length)return;const a=book.pages;[a[i],a[j]]=[a[j],a[i]];save();renderGrid();}
+
+$('#fab').onclick=()=>$('#fileIn').click();
+$('#fileIn').onchange=async e=>{
+  const files=[...e.target.files];e.target.value='';if(!files.length)return;
+  let n=0,okN=0;
+  for(const f of files){
+    progress(`写真を読み込み中… ${n+1}/${files.length}`,n/files.length);
+    try{const id=await importFile(f);
+      book.pages.push({id:uid(),imgId:id,fit:'contain',zoom:1,px:0,py:0,caption:'',capPos:'bottom',capStyle:'band',capFont:'gothic'});
+      if(!book.cover.imgId) book.cover.imgId=id;
+      okN++;
+    }catch(err){console.log(err);}
+    n++;}
+  closeModal();save();renderGrid();toast(okN===files.length?`${okN}枚を追加しました`:`${okN}枚を追加（${files.length-okN}枚は読み込めませんでした）`);};
+
+/* ========== ページ編集 ========== */
+let edIdx=-1;
+function openEditor(i){edIdx=i;fillEditor();$('#editSheet').classList.add('on');}
+function fillEditor(){
+  const p=book.pages[edIdx];
+  $('#edTitle').textContent=`${edIdx+1}ページ目 / 全${book.pages.length}`;
+  seg($('#segFit'),p.fit,v=>{p.fit=v;p.zoom=1;p.px=0;p.py=0;$('#edZoom').value=1;$('#edPx').value=0;$('#edPy').value=0;edChanged();});
+  seg($('#segCapPos'),p.capPos,v=>{p.capPos=v;edChanged();});
+  seg($('#segCapStyle'),p.capStyle||'band',v=>{p.capStyle=v;edChanged();});
+  seg($('#segCapFont'),p.capFont||'gothic',v=>{p.capFont=v;edChanged();});
+  $('#edZoom').value=p.zoom;$('#edPx').value=p.px;$('#edPy').value=p.py;$('#edCap').value=p.caption||'';
+  $('#edPrev').disabled=edIdx===0;$('#edNext').disabled=edIdx===book.pages.length-1;
+  drawEd();}
+async function drawEd(){const p=book.pages[edIdx];if(!p)return;const img=await getPrev(p.imgId);const {w,h}=S();drawPage($('#edCv'),Math.round(w*0.4),Math.round(h*0.4),p,img);}
+function edChanged(){save();drawEd();}
+['edZoom','edPx','edPy'].forEach(k=>$('#'+k).oninput=e=>{const p=book.pages[edIdx];p[{edZoom:'zoom',edPx:'px',edPy:'py'}[k]]=+e.target.value;edChanged();});
+$('#edCap').oninput=e=>{book.pages[edIdx].caption=e.target.value;edChanged();};
+$('#edClose').onclick=()=>{$('#editSheet').classList.remove('on');renderGrid();};
+$('#editSheet').onclick=e=>{if(e.target.id==='editSheet'){$('#editSheet').classList.remove('on');renderGrid();}};
+$('#edPrev').onclick=()=>{move(edIdx,-1);edIdx--;fillEditor();};
+$('#edNext').onclick=()=>{move(edIdx,1);edIdx++;fillEditor();};
+$('#edDel').onclick=async()=>{
+  const ok=await modal(`${edIdx+1}ページ目を削除しますか？`,[{label:'やめる'},{label:'削除する',dng:true,v:true}]);
+  if(!ok)return;
+  const [p]=book.pages.splice(edIdx,1);
+  cleanupImg(p.imgId);
+  save();$('#editSheet').classList.remove('on');renderGrid();toast('削除しました');};
+function cleanupImg(id){
+  if(book.pages.some(x=>x.imgId===id)||book.cover.imgId===id) return;
+  delImg(id);memImgs.delete(id);prevCache.delete(id);}
+$('#edReplace').onclick=()=>$('#replaceIn').click();
+$('#replaceIn').onchange=async e=>{const f=e.target.files[0];e.target.value='';if(!f)return;
+  progress('写真を読み込み中…',0.5);
+  const p=book.pages[edIdx];const old=p.imgId;p.imgId=await importFile(f);p.zoom=1;p.px=0;p.py=0;
+  closeModal();cleanupImg(old);save();fillEditor();};
+
+/* ========== 表紙 ========== */
+async function renderCover(){
+  const c=book.cover;
+  seg($('#segCoverTitle'),c.titlePos,v=>{c.titlePos=v;coverChanged();});
+  seg($('#segCoverFont'),c.font,v=>{c.font=v;coverChanged();});
+  $('#coverColor').value=c.color;$('#coverZoom').value=c.zoom;$('#coverPx').value=c.px;$('#coverPy').value=c.py;
+  drawCoverPv();}
+async function drawCoverPv(){const img=await getPrev(book.cover.imgId);drawCover($('#coverCv'),640,1024,img);}
+function coverChanged(){save();drawCoverPv();}
+$('#coverColor').oninput=e=>{book.cover.color=e.target.value;coverChanged();};
+[['coverZoom','zoom'],['coverPx','px'],['coverPy','py']].forEach(([id,k])=>$('#'+id).oninput=e=>{book.cover[k]=+e.target.value;coverChanged();});
+$('#coverFromFile').onclick=()=>$('#coverIn').click();
+$('#coverIn').onchange=async e=>{const f=e.target.files[0];e.target.value='';if(!f)return;progress('写真を読み込み中…',0.5);
+  const old=book.cover.imgId;book.cover.imgId=await importFile(f);Object.assign(book.cover,{zoom:1,px:0,py:0});closeModal();if(old)cleanupImg(old);save();renderCover();};
+$('#coverFromPages').onclick=async()=>{
+  const box=$('#coverPick');
+  if(box.style.display==='grid'){box.style.display='none';return;}
+  if(!book.pages.length){toast('先にページに写真を追加してください');return;}
+  box.innerHTML='';box.style.display='grid';
+  for(const p of book.pages){
+    const rec=await getRec(p.imgId);if(!rec)continue;
+    const im=document.createElement('img');im.src=URL.createObjectURL(rec.prev);
+    im.classList.toggle('on',p.imgId===book.cover.imgId);
+    im.onclick=()=>{const old=book.cover.imgId;book.cover.imgId=p.imgId;Object.assign(book.cover,{zoom:1,px:0,py:0});if(old)cleanupImg(old);save();box.style.display='none';renderCover();};
+    box.appendChild(im);}};
+
+/* ========== 設定 ========== */
+function renderSettings(){
+  $('#sTitle').value=book.title;$('#sAuthor').value=book.author;
+  seg($('#segSize'),book.size,v=>{book.size=v;$('#sizeNote').textContent=SIZES[v].note;save();header();});
+  $('#sizeNote').textContent=S().note;
+  seg($('#segDir'),book.dir,v=>{book.dir=v;save();header();});
+  seg($('#segBg'),book.bg,v=>{book.bg=v;save();});}
+$('#sTitle').oninput=e=>{book.title=e.target.value;save();header();};
+$('#sAuthor').oninput=e=>{book.author=e.target.value;save();};
+document.querySelectorAll('[data-allfit]').forEach(b=>b.onclick=()=>{book.pages.forEach(p=>{p.fit=b.dataset.allfit;p.zoom=1;p.px=0;p.py=0;});save();toast('全ページに適用しました');});
+$('#btnReset').onclick=async()=>{
+  const ok=await modal('写真・表紙・設定をすべて消します。\n元に戻せません。よろしいですか？',[{label:'やめる'},{label:'すべて消す',dng:true,v:true}]);
+  if(!ok)return;
+  await idb('imgs','readwrite',s=>s.clear());await idb('meta','readwrite',s=>s.clear());
+  memImgs.clear();prevCache.clear();book=defaultBook();renderSettings();renderGrid();toast('新しい写真集を始めました');};
+
+/* ========== プレビュー ========== */
+let vIdx=0;
+function vList(){return [{cover:true},...book.pages];}
+$('#btnPreview').onclick=()=>{vIdx=0;$('#viewer').classList.add('on');drawViewer();};
+$('#vClose').onclick=()=>$('#viewer').classList.remove('on');
+async function drawViewer(){
+  const L=vList();vIdx=Math.max(0,Math.min(L.length-1,vIdx));const it=L[vIdx];
+  $('#vNo').textContent=it.cover?'表紙':`${vIdx} / ${book.pages.length}`;
+  const cv=$('#vCv');
+  if(it.cover){drawCover(cv,800,1280,await getPrev(book.cover.imgId));}
+  else{const {w,h}=S();drawPage(cv,Math.round(w/2),Math.round(h/2),it,await getPrev(it.imgId));}}
+// 右開きなら左スワイプ/左ボタンで次へ（和書の感覚）
+function turn(side){const fwd=book.dir==='rtl'?side==='left':side==='right';vIdx+=fwd?1:-1;drawViewer();}
+$('#vLeft').onclick=()=>turn('left');$('#vRight').onclick=()=>turn('right');
+let sx=null;
+$('#vStage').addEventListener('touchstart',e=>{sx=e.touches[0].clientX;},{passive:true});
+$('#vStage').addEventListener('touchend',e=>{if(sx==null)return;const dx=e.changedTouches[0].clientX-sx;sx=null;
+  if(Math.abs(dx)<40)return; // スワイプ方向 = 指の動き。右開きは指を右へ動かすと次ページ
+  const fingerRight=dx>0; vIdx+= (book.dir==='rtl'?fingerRight:!fingerRight)?1:-1; drawViewer();});
+
+/* ========== ZIP / EPUB ========== */
+const CRC=(()=>{const t=new Uint32Array(256);for(let n=0;n<256;n++){let c=n;for(let k=0;k<8;k++)c=c&1?0xEDB88320^(c>>>1):c>>>1;t[n]=c>>>0;}return t;})();
+function crc32(u8){let c=0xFFFFFFFF;for(let i=0;i<u8.length;i++)c=CRC[(c^u8[i])&255]^(c>>>8);return (c^0xFFFFFFFF)>>>0;}
+function makeZip(files){ // files: [{name, data:Uint8Array}] 無圧縮（EPUBのmimetype要件を満たす）
+  const enc=new TextEncoder();const parts=[];const central=[];let off=0;
+  const d=new Date();const time=(d.getHours()<<11)|(d.getMinutes()<<5)|(d.getSeconds()>>1);
+  const date=((d.getFullYear()-1980)<<9)|((d.getMonth()+1)<<5)|d.getDate();
+  for(const f of files){
+    const nm=enc.encode(f.name);const crc=crc32(f.data);const sz=f.data.length;
+    const lh=new DataView(new ArrayBuffer(30));
+    lh.setUint32(0,0x04034b50,true);lh.setUint16(4,20,true);lh.setUint16(6,0x0800,true);lh.setUint16(8,0,true);
+    lh.setUint16(10,time,true);lh.setUint16(12,date,true);lh.setUint32(14,crc,true);lh.setUint32(18,sz,true);lh.setUint32(22,sz,true);
+    lh.setUint16(26,nm.length,true);lh.setUint16(28,0,true);
+    parts.push(new Uint8Array(lh.buffer),nm,f.data);
+    const ch=new DataView(new ArrayBuffer(46));
+    ch.setUint32(0,0x02014b50,true);ch.setUint16(4,20,true);ch.setUint16(6,20,true);ch.setUint16(8,0x0800,true);ch.setUint16(10,0,true);
+    ch.setUint16(12,time,true);ch.setUint16(14,date,true);ch.setUint32(16,crc,true);ch.setUint32(20,sz,true);ch.setUint32(24,sz,true);
+    ch.setUint16(28,nm.length,true);ch.setUint32(42,off,true);
+    central.push(new Uint8Array(ch.buffer),nm);
+    off+=30+nm.length+sz;}
+  const cSize=central.reduce((a,b)=>a+b.length,0);
+  const end=new DataView(new ArrayBuffer(22));
+  end.setUint32(0,0x06054b50,true);end.setUint16(8,files.length,true);end.setUint16(10,files.length,true);
+  end.setUint32(12,cSize,true);end.setUint32(16,off,true);
+  return new Blob([...parts,...central,new Uint8Array(end.buffer)],{type:'application/zip'});}
+const esc=s=>String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;');
+const pad3=n=>String(n).padStart(3,'0');
+
+async function renderFull(kind,p){ // 書き出し用の高解像度JPEG
+  const cv=document.createElement('canvas');
+  const id=kind==='cover'?book.cover.imgId:p.imgId;
+  const rec=id?await getRec(id):null;
+  const img=rec?await loadBmp(rec.full):null;
+  if(kind==='cover') drawCover(cv,COVER.w,COVER.h,img); else {const {w,h}=S();drawPage(cv,w,h,p,img);}
+  if(img&&img.close) img.close();
+  const blob=await new Promise(r=>cv.toBlob(r,'image/jpeg',0.86));
+  cv.width=cv.height=1;
+  return new Uint8Array(await blob.arrayBuffer());}
+
+function epubText(n){
+  const t=book.title||'無題の写真集',a=book.author||'著者不明';const {w,h}=S();
+  const uuid='urn:uuid:'+(crypto.randomUUID?crypto.randomUUID():uid());
+  const mod=new Date().toISOString().replace(/\.\d+Z$/,'Z');
+  const pageX=(img,title,W,H)=>`<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml" xmlns:epub="http://www.idpf.org/2007/ops" xml:lang="ja" lang="ja">
+<head><meta charset="UTF-8"/><title>${esc(title)}</title><meta name="viewport" content="width=${W}, height=${H}"/>
+<style>html,body{margin:0;padding:0;width:${W}px;height:${H}px;overflow:hidden;background:${book.bg};}img{display:block;position:absolute;top:0;left:0;width:${W}px;height:${H}px;}</style></head>
+<body><img src="${img}" alt="${esc(title)}"/></body></html>`;
+  const files=[];
+  files.push(['OEBPS/cover.xhtml',pageX('images/cover.jpg',t,COVER.w,COVER.h)]);
+  for(let i=1;i<=n;i++) files.push([`OEBPS/p${pad3(i)}.xhtml`,pageX(`images/p${pad3(i)}.jpg`,`${i}ページ`,w,h)]);
+  const items=[`<item id="nav" href="nav.xhtml" media-type="application/xhtml+xml" properties="nav"/>`,
+    `<item id="ncx" href="toc.ncx" media-type="application/x-dtbncx+xml"/>`,
+    `<item id="cover-img" href="images/cover.jpg" media-type="image/jpeg" properties="cover-image"/>`,
+    `<item id="cover" href="cover.xhtml" media-type="application/xhtml+xml"/>`];
+  const spine=[`<itemref idref="cover" linear="yes"/>`];
+  for(let i=1;i<=n;i++){items.push(`<item id="p${pad3(i)}" href="p${pad3(i)}.xhtml" media-type="application/xhtml+xml"/>`,`<item id="i${pad3(i)}" href="images/p${pad3(i)}.jpg" media-type="image/jpeg"/>`);spine.push(`<itemref idref="p${pad3(i)}"/>`);}
+  files.push(['OEBPS/content.opf',`<?xml version="1.0" encoding="UTF-8"?>
+<package xmlns="http://www.idpf.org/2007/opf" version="3.0" unique-identifier="bookid" xml:lang="ja" prefix="rendition: http://www.idpf.org/vocab/rendition/#">
+<metadata xmlns:dc="http://purl.org/dc/elements/1.1/">
+<dc:identifier id="bookid">${uuid}</dc:identifier>
+<dc:title>${esc(t)}</dc:title>
+<dc:creator>${esc(a)}</dc:creator>
+<dc:language>ja</dc:language>
+<meta property="dcterms:modified">${mod}</meta>
+<meta property="rendition:layout">pre-paginated</meta>
+<meta property="rendition:orientation">auto</meta>
+<meta property="rendition:spread">none</meta>
+<meta name="cover" content="cover-img"/>
+<meta name="fixed-layout" content="true"/>
+<meta name="original-resolution" content="${w}x${h}"/>
+<meta name="orientation-lock" content="none"/>
+<meta name="primary-writing-mode" content="${book.dir==='rtl'?'horizontal-rl':'horizontal-lr'}"/>
+</metadata>
+<manifest>
+${items.join('\n')}
+</manifest>
+<spine toc="ncx" page-progression-direction="${book.dir}">
+${spine.join('\n')}
+</spine>
+</package>`]);
+  files.push(['OEBPS/nav.xhtml',`<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE html>
+<html xmlns="http://www.w3.org/1999/xhtml" xmlns:epub="http://www.idpf.org/2007/ops" xml:lang="ja" lang="ja">
+<head><meta charset="UTF-8"/><title>目次</title></head>
+<body><nav epub:type="toc" id="toc"><h1>目次</h1><ol><li><a href="cover.xhtml">表紙</a></li>${n?'<li><a href="p001.xhtml">本文</a></li>':''}</ol></nav>
+<nav epub:type="landmarks" hidden=""><ol><li><a epub:type="cover" href="cover.xhtml">表紙</a></li>${n?'<li><a epub:type="bodymatter" href="p001.xhtml">本文</a></li>':''}</ol></nav></body></html>`]);
+  files.push(['OEBPS/toc.ncx',`<?xml version="1.0" encoding="UTF-8"?>
+<ncx xmlns="http://www.daisy.org/z3986/2005/ncx/" version="2005-1"><head><meta name="dtb:uid" content="${uuid}"/></head>
+<docTitle><text>${esc(t)}</text></docTitle><navMap>
+<navPoint id="np1" playOrder="1"><navLabel><text>表紙</text></navLabel><content src="cover.xhtml"/></navPoint>
+${n?'<navPoint id="np2" playOrder="2"><navLabel><text>本文</text></navLabel><content src="p001.xhtml"/></navPoint>':''}
+</navMap></ncx>`]);
+  return files;}
+
+async function buildEpub(onProg){
+  const enc=new TextEncoder();const n=book.pages.length;
+  const out=[{name:'mimetype',data:enc.encode('application/epub+zip')},
+    {name:'META-INF/container.xml',data:enc.encode(`<?xml version="1.0" encoding="UTF-8"?>
+<container version="1.0" xmlns="urn:oasis:names:tc:opendocument:xmlns:container"><rootfiles><rootfile full-path="OEBPS/content.opf" media-type="application/oebps-package+xml"/></rootfiles></container>`)}];
+  for(const [name,txt] of epubText(n)) out.push({name,data:enc.encode(txt)});
+  onProg(0,n+1);out.push({name:'OEBPS/images/cover.jpg',data:await renderFull('cover')});
+  for(let i=0;i<n;i++){onProg(i+1,n+1);out.push({name:`OEBPS/images/p${pad3(i+1)}.jpg`,data:await renderFull('page',book.pages[i])});}
+  return makeZip(out);}
+
+/* ========== 保存（downloads） ========== */
+let dl=null,dlReady=null;
+function getDl(){
+  if(!dlReady) dlReady=(async()=>{try{if(window.claude&&claude.use){dl=await claude.use('downloads');}}catch(e){dl=null;}return dl;})();
+  return dlReady;}
+async function saveFile(filename,data){
+  await getDl();
+  if(!dl&&!window.claude){ // ダウンロード版：ブラウザの普通の保存
+    const blob=data instanceof Blob?data:new Blob([data]);
+    const u=URL.createObjectURL(blob);const a=document.createElement('a');
+    a.href=u;a.download=filename;document.body.appendChild(a);a.click();a.remove();
+    setTimeout(()=>URL.revokeObjectURL(u),60000);toast('保存しました');return;}
+  if(!dl){await modal('この画面ではファイルを保存できません。\nclaude.ai のアーティファクトのページ（またはClaudeアプリ）でこの写真集アプリを開いてから、もう一度お試しください。');return;}
+  try{const r=await dl.save({filename,data});if(r&&r.status==='saved')toast('保存しました');}
+  catch(e){const c=e&&e.code;
+    if(c==='declined')return;
+    if(c==='rate_limited'){toast('少し待ってからもう一度お試しください');return;}
+    if(c==='too_large'){await modal('ファイルが大きすぎて保存できませんでした。ページ数を減らしてお試しください。');return;}
+    await modal('保存できませんでした（'+(c||'不明なエラー')+'）');}}
+const fname=ext=>((book.title||'写真集').replace(/[\\/:*?"<>|]/g,'').slice(0,40)||'写真集')+ext;
+async function fontsReady(){try{await Promise.all([document.fonts.load(`700 40px "Shippori Mincho"`),document.fonts.load(`500 40px "Shippori Mincho"`),document.fonts.load(`500 40px "Zen Kaku Gothic New"`),document.fonts.load(`700 40px "Zen Kaku Gothic New"`)]);}catch(e){}}
+
+$('#exEpub').onclick=async()=>{
+  if(!book.pages.length){toast('先に写真を追加してください');return;}
+  if(!book.title){const go=await modal('タイトルが未設定です。このまま書き出しますか？',[{label:'設定する',v:'set'},{label:'このまま',pri:true,v:'go'}]);if(go!=='go'){showTab('settings');return;}}
+  await fontsReady();
+  try{const blob=await buildEpub((i,t)=>progress(`ページを作成中… ${i}/${t}`,i/t));
+    closeModal();
+    const mb=(blob.size/1048576).toFixed(1);
+    const ok=await modal(`EPUBができました（${mb}MB・${book.pages.length}ページ＋表紙）。\n保存しますか？`,[{label:'やめる'},{label:'保存する',pri:true,v:true}]);
+    if(ok) await saveFile(fname('.epub'),blob);
+  }catch(e){closeModal();await modal('作成中にエラーが起きました：'+(e&&e.message||e));}};
+$('#exCover').onclick=async()=>{
+  await fontsReady();progress('表紙を作成中…',0.5);
+  const u8=await renderFull('cover');closeModal();
+  await saveFile(fname('_表紙.jpg'),new Blob([u8],{type:'image/jpeg'}));};
+$('#exZip').onclick=async()=>{
+  if(!book.pages.length){toast('先に写真を追加してください');return;}
+  await fontsReady();const n=book.pages.length;const out=[];
+  out.push({name:'000_cover.jpg',data:await renderFull('cover')});
+  for(let i=0;i<n;i++){progress(`ページ画像を作成中… ${i+1}/${n}`,(i+1)/n);out.push({name:`${pad3(i+1)}.jpg`,data:await renderFull('page',book.pages[i])});}
+  closeModal();await saveFile(fname('_ページ画像.zip'),makeZip(out));};
+
+/* ========== 起動 ========== */
+(async()=>{
+  try{const s=await idb('meta','readonly',st=>st.get('book'));if(s){const b=JSON.parse(s);book=Object.assign(defaultBook(),b);book.cover=Object.assign(defaultBook().cover,b.cover||{});}}catch(e){}
+  renderGrid();renderSettings();
+  getDl().then(d=>{if(!d&&window.claude)$('#dlNote').textContent='※ この表示ではファイル保存が使えない場合があります。保存できない時は claude.ai のアーティファクトページで開いてください。';});
+})();
+</script>
+</body>
+</html>
