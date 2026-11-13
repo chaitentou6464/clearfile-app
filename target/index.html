@@ -286,6 +286,44 @@ async function backupCopy(){
   const code='TGTBK:'+await enc(S);const ok=await copyText(code);
   modal(`<h3>${ok?'バックアップをコピーしました':'下の文字をすべてコピーしてください'}</h3><p class="sub">LINEの自分だけのトークやメモ帳に貼って保管してください。機種変更のときは「バックアップから戻す」に貼り付けます。</p><textarea class="tin" rows="4" readonly>${esc(code)}</textarea><button class="btn" data-x="no">閉じる</button>`,(e,close)=>{if(e.target.closest('[data-x]'))close();});
 }
+// ---- 設定の共有（項目・種類・ポイント・足切り）----
+async function shareCfg(withGoal){
+  const items=S.items.map(it=>({id:it.id,name:it.name||'',unit:it.unit||'',pt:it.pt??'',subs:subsOf(it).map(x=>({id:x.id,name:x.name||'',pt:x.pt??'',cut:!!x.cut})),
+    cut:{fixed:!!it.cut.fixed,value:it.cut.fixed?it.cut.value:'',mode:it.cut.mode||'cnt'},goal:{fixed:!!it.goal.fixed,value:withGoal&&it.goal.fixed?it.goal.value:''}}));
+  const t={};for(const ym in S.months){if(ym<curYM)continue;const mt=S.months[ym].t||{};for(const id in mt){const o={};if(mt[id].cut!==undefined&&mt[id].cut!=='')o.cut=mt[id].cut;if(withGoal&&mt[id].goal!==undefined&&mt[id].goal!=='')o.goal=mt[id].goal;if(Object.keys(o).length){(t[ym]=t[ym]||{})[id]=o;}}}
+  const code=await enc({v:1,kind:'cfg',from:S.me.name||'',withGoal:!!withGoal,ptCut:S.ptCut??'',items,t});
+  const url=location.origin+location.pathname+'#cfg='+code;
+  const txt=`【目標管理アプリ】設定入りのリンクです。\nChromeで開いて「読み込む」を押し、ホーム画面に追加してください。\n${url}`;
+  if(navigator.share){try{await navigator.share({text:txt});return;}catch(e){if(e&&e.name==='AbortError')return;}}
+  const ok=await copyText(txt);
+  modal(`<h3>${ok?'コピーしました':'下の文をコピーしてください'}</h3><p class="sub">LINEなどでみんなに送ってください。</p><textarea class="tin" rows="5" readonly>${esc(txt)}</textarea><button class="btn" data-x="no">閉じる</button>`,(e,close)=>{if(e.target.closest('[data-x]'))close();});
+}
+function applyCfg(c){
+  const byName={};S.items.forEach(i=>{if(i.name)byName[i.name]=i;});
+  const idMap={};
+  S.items=c.items.map(x=>{const ex=byName[x.name];const id=ex?ex.id:x.id;idMap[x.id]=id;
+    const subs=x.subs.map(sb=>{const es=ex&&subsOf(ex).find(v=>v.name===sb.name);return{id:es?es.id:sb.id,name:sb.name,pt:sb.pt,cut:sb.cut};});
+    const goal=c.withGoal?x.goal:(ex&&ex.goal?ex.goal:{fixed:x.goal.fixed,value:''});
+    return{id,name:x.name,unit:x.unit,pt:x.pt,subs,cut:x.cut,goal};});
+  S.ptCut=c.ptCut;
+  for(const ym in (c.t||{})){const m=ensure(ym);for(const oid in c.t[ym]){const id=idMap[oid]||oid;m.t[id]=Object.assign(m.t[id]||{},c.t[ym][oid]);}}
+  changed();
+}
+async function cfgFromHash(){
+  const mm=location.hash.match(/[#&]cfg=([A-Za-z0-9_\-]+)/);if(!mm)return;
+  try{history.replaceState(null,'',location.pathname)}catch(e){}
+  let c;try{c=await dec(mm[1]);if(!c||c.kind!=='cfg'||!Array.isArray(c.items))throw 0;}catch(e){modal(`<h3>読み込めませんでした</h3><p class="sub">リンクが途中で切れているかもしれません。届いたメッセージのリンクをもう一度開いてください。</p><button class="btn" data-x="no">閉じる</button>`,(e2,close)=>{if(e2.target.closest('[data-x]'))close();});return;}
+  const inLine=/\bLine\//i.test(navigator.userAgent);
+  modal(`<h3>設定を読み込みますか？</h3><p class="sub">${c.from?esc(c.from)+'さんから共有された':'共有された'}設定です。</p>
+    <ul class="sub" style="padding-left:18px;line-height:1.7;margin:6px 0">${c.items.map(x=>`<li>${esc(x.name)}${x.subs.length?'（'+x.subs.map(s=>esc(s.name)).join('・')+'）':''}</li>`).join('')}${c.ptCut!==''&&c.ptCut!=null?`<li>ポイントの足切り ${fmt(Number(c.ptCut))}pt</li>`:''}</ul>
+    <p class="sub">項目・ポイント・足切り${c.withGoal?'・個人目標':''}がこの設定に置き換わります。入力済みの実績や休みの日はそのまま残ります。</p>
+    ${inLine?'<div class="notice" style="margin-top:8px">LINEの中で開いています。このままだとLINEの中にしか保存されません。右上のメニューから「ブラウザで開く」を選んでから読み込んでください。</div>':''}
+    <div class="mrow2"><button class="btn ghost" data-x="no">やめる</button><button class="btn" data-x="ok">読み込む</button></div>`,(e,close)=>{
+    const x=e.target.closest('[data-x]');if(!x)return;if(x.dataset.x==='ok'){applyCfg(c);view.tab='set';render();}close();
+    if(x.dataset.x==='ok')modal(`<h3>読み込みました</h3><p class="sub">あとは「あなたの名前」と、必要なら個人目標を入れてください。カレンダーの「休み入力」で休みの日も入れておくと、毎日の目安が正確になります。</p><button class="btn" data-x="no">OK</button>`,(e2,c2)=>{if(e2.target.closest('[data-x]'))c2();});
+  });
+}
+window.addEventListener('hashchange',cfgFromHash);
 function backupRestore(){
   modal(`<h3>バックアップから戻す</h3><p class="sub">コピーしておいたバックアップの文字を貼り付けてください。<b>今このスマホにあるデータは置き換わります。</b></p><textarea id="bk" class="tin" rows="4" placeholder="TGTBK:..."></textarea><div class="mrow2"><button class="btn ghost" data-x="no">やめる</button><button class="btn" data-x="ok">戻す</button></div><p id="bkmsg" class="sub" style="color:var(--bad)"></p>`,async(e,close,w)=>{
     const x=e.target.closest('[data-x]');if(!x)return;if(x.dataset.x!=='ok'){close();return;}
@@ -425,6 +463,9 @@ function setView(ym,m){
   h+=`<div class="card"><div class="iname">ポイントの足切り</div><div class="sub">「今日の成果」のポイントの、月の足切りラインです（全月共通）。使わないなら空欄にしてください。</div><div class="field"><div class="flex"><input type="number" inputmode="numeric" value="${S.ptCut??''}" data-a="ptcut" placeholder="例：600"><span class="sub">pt</span></div></div></div>`;
   h+=`<div class="card"><div class="iname">項目の例</div><div class="sub" style="margin:4px 0 6px">タップで追加できます</div><div class="flex" style="flex-wrap:wrap">`+
     [['新規契約','件'],['機種変更','台'],['光回線','件'],['でんき','件'],['PayPayカード','枚'],['アクセサリー','円']].map(([a,b])=>`<button class="mini" style="padding:0 10px" data-a="preset" data-n="${a}" data-u="${b}">${a}</button>`).join('')+`</div></div>`;
+  h+=`<div class="card"><div class="iname">みんなに設定を共有</div><div class="sub" style="margin-top:4px">今の項目・種類・ポイント・足切りが入ったリンクを作ります。受け取った人はリンクを開いて「読み込む」を押すだけで同じ設定になります（実績・名前・休みは送られません）。</div>
+    <label class="flex" style="margin-top:10px;font-size:14px"><input type="checkbox" id="cfggoal" style="width:20px;height:20px">個人目標の数字も入れる</label>
+    <button class="btn" data-a="sharecfg">🔗 設定の共有リンクを作る</button></div>`;
   h+=`<div class="card"><div class="iname">バックアップ</div><div class="sub" style="margin-top:4px">データはこのスマホの中だけに保存されています。ブラウザのデータを消したり機種変更したりすると消えるので、ときどきバックアップを取っておいてください。</div><button class="btn ghost" data-a="bkcopy">バックアップをコピー</button><button class="btn ghost" data-a="bkrestore">バックアップから戻す</button></div>`;
   return h;
 }
@@ -529,6 +570,7 @@ $app.addEventListener('click',e=>{
   if(a==='cmode'){const it=findItem(id);if(!it)return;it.cut.mode=t.dataset.v;changed();render();return;}
   if(a==='sadd'){const it=findItem(id);if(!it)return;if(!Array.isArray(it.subs))it.subs=[];it.subs.push({id:uid(),name:'',pt:it.subs.length?'':(it.pt??'')});changed();render();return;}
   if(a==='sdel'){const it=findItem(id),sid=t.dataset.s;if(!it)return;if(delAsk===sid){it.subs=subsOf(it).filter(x=>x.id!==sid);delAsk=null;changed();}else delAsk=sid;render();return;}
+  if(a==='sharecfg'){shareCfg(!!(document.getElementById('cfggoal')||{}).checked);return;}
   if(a==='send'){sendToBoss();return;}
   if(a==='bkcopy'){backupCopy();return;}
   if(a==='bkrestore'){backupRestore();return;}
@@ -559,7 +601,7 @@ $app.addEventListener('change',e=>{
   if(a==='setToday'||a==='setDay'||a==='tval'||a==='ipt'||a==='spt'||a==='sname'||a==='scut')render();
 });
 const _r=render;render=function(){_r();updPrev();};
-render();
+render();cfgFromHash();
 })();
 </script>
 </body>
