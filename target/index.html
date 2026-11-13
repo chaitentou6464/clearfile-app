@@ -85,6 +85,10 @@ nav button.on{color:var(--acc);font-weight:700}
 .ptc{margin-top:8px;background:#f8fafc;border-radius:10px;padding:8px 10px}
 .ptn{font-size:18px}
 .ptbar{height:8px;background:var(--line);border-radius:4px;overflow:hidden;margin:5px 0 4px}.ptbar i{display:block;height:100%;border-radius:4px}
+.offbtn{border:1px solid var(--line);background:#fff;border-radius:10px;height:36px;padding:0 14px;font-size:14px;font-weight:700;color:var(--ink)}
+.offbtn.on{background:var(--bad);border-color:var(--bad);color:#fff}
+.omcard{box-shadow:0 0 0 2px var(--bad)}
+.omhint{margin-top:10px;background:#fef2f2;color:#991b1b;border-radius:10px;padding:8px 10px;font-size:12.5px}
 .dot{display:inline-block;width:9px;height:9px;border-radius:3px;margin-right:3px;vertical-align:middle}
 nav button{font-size:11px}
 .ihead{display:flex;width:100%;justify-content:space-between;align-items:center;gap:8px;text-align:left;background:none;border:0;border-top:1px solid var(--line);padding:12px 2px;margin-top:4px;font-size:15px;color:var(--ink)}
@@ -369,7 +373,10 @@ function calView(ym,m){
   if(off)det+=`<div class="sub" style="margin-top:8px">休みの日は残り日数に含めません。</div>`;
   else if(!S.items.length)det+=`<div class="sub" style="margin-top:8px">項目を追加すると、ここで実績を入力できます。</div>`;
   else det+='<div style="margin-top:6px">'+S.items.map(it=>`<div class="drow"><div>${esc(it.name)}</div><div class="flex"><input type="number" inputmode="decimal" placeholder="0" value="${(m.entries[k]||{})[it.id]??''}" data-a="setDay" data-id="${it.id}"><span class="sub">${esc(it.unit||'')}</span></div></div>`).join('')+'</div>';
-  return `<div class="card">${g}<div class="sub" style="margin-top:8px">日付をタップ → 休みの設定や、過去の実績の入力・修正ができます</div></div><div class="card">${det}</div>${off?'':logBlock(k)}`;
+  const om=!!view.offMode,offN=m.off.length;
+  const head=`<div class="between" style="align-items:center;margin-bottom:10px"><div><div class="iname">シフト</div><div class="sub">出勤 ${n-offN}日・休み ${offN}日</div></div><button class="offbtn ${om?'on':''}" data-a="offmode">${om?'✓ 入力完了':'休み入力'}</button></div>`;
+  const hint=om?`<div class="omhint">休みの日をタップしてください。もう一度タップすると出勤に戻ります。終わったら右上の「入力完了」を押してください。</div>`:`<div class="sub" style="margin-top:8px">日付をタップ → その日の実績の入力・修正ができます。休みは右上の「休み入力」から。</div>`;
+  return `<div class="card ${om?'omcard':''}">${head}${g}${hint}</div>${om?'':`<div class="card">${det}</div>${off?'':logBlock(k)}`}`;
 }
 
 function setView(ym,m){
@@ -466,7 +473,7 @@ function setEntry(m,k,id,v){
 }
 $app.addEventListener('click',e=>{
   const t=e.target.closest('[data-a],[data-tab]');if(!t)return;
-  if(t.dataset.tab){view.tab=t.dataset.tab;delAsk=null;render();window.scrollTo(0,0);return;}
+  if(t.dataset.tab){view.tab=t.dataset.tab;view.offMode=false;delAsk=null;render();window.scrollTo(0,0);return;}
   const a=t.dataset.a,id=t.dataset.id;
   if(a==='prev'||a==='next'){const[y,mo]=view.ym.split('-').map(Number);const d=new Date(y,mo-1+(a==='next'?1:-1),1);view.ym=`${d.getFullYear()}-${pad(d.getMonth()+1)}`;render();return;}
   if(a==='inc'||a==='dec'){const m=ensure(view.ym);const cur=Number((m.entries[todayKey]||{})[id]||0);setEntry(m,todayKey,id,Math.max(0,cur+(a==='inc'?1:-1)));changed();render();return;}
@@ -482,7 +489,8 @@ $app.addEventListener('click',e=>{
   if(a==='bkcopy'){backupCopy();return;}
   if(a==='bkrestore'){backupRestore();return;}
   if(a==='toggle'){openId=openId===id?null:id;delAsk=null;render();return;}
-  if(a==='pick'){view.sel=t.dataset.k;render();return;}
+  if(a==='offmode'){view.offMode=!view.offMode;render();return;}
+  if(a==='pick'){if(view.offMode){const k=t.dataset.k,m=ensure(k.slice(0,7)),i=m.off.indexOf(k);if(i>=0)m.off.splice(i,1);else m.off.push(k);changed();render();return;}view.sel=t.dataset.k;render();return;}
   if(a==='toggleOff'){const m=ensure(view.ym);const i=m.off.indexOf(view.sel);if(i>=0)m.off.splice(i,1);else m.off.push(view.sel);changed();render();return;}
   if(a==='add'||a==='preset'){S.items.push({id:(openId=uid()),name:a==='preset'?t.dataset.n:'',unit:a==='preset'?t.dataset.u:'件',pt:'',cut:{fixed:true,value:''},goal:{fixed:false,value:''}});changed();render();return;}
   if(a==='fixed'){const it=findItem(id);if(!it)return;it[t.dataset.k].fixed=t.dataset.v==='1';changed();render();return;}
