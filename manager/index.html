@@ -133,6 +133,15 @@ textarea.tin{font-size:12px;word-break:break-all}
 .chip.on{background:var(--ink);border-color:var(--ink);color:#fff}.chip.on small{color:#cbd5e1}
 .okmsg{background:#dcfce7;color:#166534;border-radius:10px;padding:10px 12px;font-size:13.5px;margin-bottom:12px;font-weight:700}
 .tag.bad{background:#fee2e2;color:var(--bad)}
+.whorow{display:flex;justify-content:space-between;align-items:center;font-size:14px;margin-bottom:8px;color:#e2e8f0}
+.who{background:rgba(255,255,255,.16);border:0;color:#fff;border-radius:8px;font-size:13px;font-weight:700;padding:5px 12px;white-space:nowrap}
+.pick{padding:28px 16px 40px}
+.pickhead{text-align:center;margin-bottom:20px}.ptl{font-size:22px;font-weight:800}.psub{color:var(--sub);font-size:14px;margin-top:4px}
+.pgrid{display:grid;grid-template-columns:repeat(auto-fill,minmax(140px,1fr));gap:12px}
+.pbtn{display:flex;flex-direction:column;align-items:center;gap:6px;background:#fff;border:1px solid var(--line);border-radius:16px;padding:18px 10px;font-size:16px;color:var(--ink)}
+.pbtn small{font-size:11px;color:var(--sub)}
+.pav{width:54px;height:54px;border-radius:27px;background:var(--ink);color:#fff;display:flex;align-items:center;justify-content:center;font-size:22px;font-weight:800}
+.pbtn.add{border-style:dashed}.pbtn.add .pav{background:var(--line);color:var(--ink)}
 .notice{background:#fff7ed;color:#9a3412;border-radius:10px;padding:9px 11px;font-size:12.5px;margin-bottom:12px}
 </style>
 </head>
@@ -147,6 +156,15 @@ const LS='target_v1';
 let S;
 try{S=JSON.parse(localStorage.getItem(LS)||'null')}catch(e){S=null}
 if(!S||typeof S!=='object')S={months:{}};
+// ---- 共用端末モード（shared/）：1台の中に、メンバーごとのデータを持つ ----
+const SHARED=/\/shared\//.test(location.pathname),SHL='shared_v1';
+let SH=null,CUR=null;
+if(SHARED){try{SH=JSON.parse(localStorage.getItem(SHL)||'null')}catch(e){SH=null}
+  if(!SH||!SH.profiles)SH={profiles:{},order:[],mgrPin:'',cfg:null};
+  try{CUR=sessionStorage.getItem('shared_cur')}catch(e){CUR=null}
+  if(CUR&&!SH.profiles[CUR])CUR=null;
+  S=CUR?SH.profiles[CUR].S:{months:{}};if(!S.months)S.months={};}
+function saveShared(){try{localStorage.setItem(SHL,JSON.stringify(SH));return true;}catch(e){return false;}}
 if(!S.months)S.months={};
 
 const pad=n=>String(n).padStart(2,'0');
@@ -260,11 +278,13 @@ let saveMsg='';
 function setMsg(t){saveMsg=t;const e=document.getElementById('savemsg');if(e)e.textContent=t;}
 function changed(){
   S.savedAt=Date.now();
+  if(SHARED){if(!CUR)return;SH.profiles[CUR].S=S;setMsg(saveShared()?'この端末に保存しました':'保存できませんでした（空き容量を確認してください）');return;}
   try{localStorage.setItem(LS,JSON.stringify(S));setMsg('このスマホに保存しました');}
   catch(e){setMsg('保存できませんでした（空き容量を確認してください）');}
 }
 try{if(navigator.storage&&navigator.storage.persist)navigator.storage.persist();}catch(e){}
 if(!S.me)S.me={id:Math.random().toString(36).slice(2,12),name:''};
+if(SHARED&&CUR){S.me.id=CUR;S.me.name=SH.profiles[CUR].name;}
 
 // ---- 店長に送る・バックアップ（データを短い文字列にする）----
 function b64u(u8){let s='';for(let i=0;i<u8.length;i+=0x8000)s+=String.fromCharCode.apply(null,u8.subarray(i,i+0x8000));return btoa(s).replace(/\+/g,'-').replace(/\//g,'_').replace(/=+$/,'');}
@@ -311,18 +331,21 @@ async function backupCopy(){
   modal(`<h3>${ok?'バックアップをコピーしました':'下の文字をすべてコピーしてください'}</h3><p class="sub">LINEの自分だけのトークやメモ帳に貼って保管してください。機種変更のときは「バックアップから戻す」に貼り付けます。</p><textarea class="tin" rows="4" readonly>${esc(code)}</textarea><button class="btn" data-x="no">閉じる</button>`,(e,close)=>{if(e.target.closest('[data-x]'))close();});
 }
 // ---- 設定の共有（項目・種類・ポイント・足切り）----
-async function shareCfg(withGoal){
+function buildCfg(withGoal){
   const items=S.items.map(it=>({id:it.id,name:it.name||'',unit:it.unit||'',pt:it.pt??'',subs:subsOf(it).map(x=>({id:x.id,name:x.name||'',pt:x.pt??'',cut:!!x.cut})),
     cut:{fixed:!!it.cut.fixed,value:it.cut.fixed?it.cut.value:'',mode:it.cut.mode||'cnt'},goal:{fixed:!!it.goal.fixed,value:withGoal&&it.goal.fixed?it.goal.value:''}}));
   const t={};for(const ym in S.months){if(ym<curYM)continue;const mt=S.months[ym].t||{};for(const id in mt){const o={};if(mt[id].cut!==undefined&&mt[id].cut!=='')o.cut=mt[id].cut;if(withGoal&&mt[id].goal!==undefined&&mt[id].goal!=='')o.goal=mt[id].goal;if(Object.keys(o).length){(t[ym]=t[ym]||{})[id]=o;}}}
-  const code=await enc({v:1,kind:'cfg',from:S.me.name||'',withGoal:!!withGoal,ptCut:S.ptCut??'',items,t});
+  return{v:1,kind:'cfg',from:S.me.name||'',withGoal:!!withGoal,ptCut:S.ptCut??'',items,t};
+}
+async function shareCfg(withGoal){
+  const code=await enc(buildCfg(withGoal));
   const url=location.origin+location.pathname+'#cfg='+code;
   const txt=`【目標管理アプリ】設定入りのリンクです。\nChromeで開いて「読み込む」を押し、ホーム画面に追加してください。\n${url}`;
   if(navigator.share){try{await navigator.share({text:txt});return;}catch(e){if(e&&e.name==='AbortError')return;}}
   const ok=await copyText(txt);
   modal(`<h3>${ok?'コピーしました':'下の文をコピーしてください'}</h3><p class="sub">LINEなどでみんなに送ってください。</p><textarea class="tin" rows="5" readonly>${esc(txt)}</textarea><button class="btn" data-x="no">閉じる</button>`,(e,close)=>{if(e.target.closest('[data-x]'))close();});
 }
-function applyCfg(c){
+function applyCfg(c,noSave){
   const byName={};S.items.forEach(i=>{if(i.name)byName[i.name]=i;});
   const idMap={};
   S.items=c.items.map(x=>{const ex=byName[x.name];const id=ex?ex.id:x.id;idMap[x.id]=id;
@@ -331,7 +354,7 @@ function applyCfg(c){
     return{id,name:x.name,unit:x.unit,pt:x.pt,subs,cut:x.cut,goal};});
   S.ptCut=c.ptCut;
   for(const ym in (c.t||{})){const m=ensure(ym);for(const oid in c.t[ym]){const id=idMap[oid]||oid;m.t[id]=Object.assign(m.t[id]||{},c.t[ym][oid]);}}
-  changed();
+  if(!noSave)changed();
 }
 async function cfgFromHash(){
   const mm=location.hash.match(/[#&]cfg=([A-Za-z0-9_\-]+)/);if(!mm)return;
@@ -343,7 +366,7 @@ async function cfgFromHash(){
     <p class="sub">項目・ポイント・足切り${c.withGoal?'・個人目標':''}がこの設定に置き換わります。入力済みの実績や休みの日はそのまま残ります。</p>
     ${inLine?'<div class="notice" style="margin-top:8px">LINEの中で開いています。このままだとLINEの中にしか保存されません。右上のメニューから「ブラウザで開く」を選んでから読み込んでください。</div>':''}
     <div class="mrow2"><button class="btn ghost" data-x="no">やめる</button><button class="btn" data-x="ok">読み込む</button></div>`,(e,close)=>{
-    const x=e.target.closest('[data-x]');if(!x)return;if(x.dataset.x==='ok'){applyCfg(c);view.tab='set';render();}close();
+    const x=e.target.closest('[data-x]');if(!x)return;if(x.dataset.x==='ok'){if(SHARED){SH.cfg=c;if(CUR)applyCfg(c);distributeCfg(c);}else applyCfg(c);view.tab='set';render();}close();
     if(x.dataset.x==='ok')modal(`<h3>読み込みました</h3><p class="sub">あとは「あなたの名前」と、必要なら個人目標を入れてください。カレンダーの「休み入力」で休みの日も入れておくと、毎日の目安が正確になります。</p><button class="btn" data-x="no">OK</button>`,(e2,c2)=>{if(e2.target.closest('[data-x]'))c2();});
   });
 }
@@ -496,7 +519,7 @@ function memberView(ym){
   h+=`<p class="sub" style="text-align:center;margin-bottom:12px">数字はスタッフが送った時点のものです。データはこのスマホの中だけに保存されます。</p>`;
   return h;
 }
-function memberCut(st,p,id){
+function memberCut(st,p,id,live){
   const ym=p.ym,isCur=ym===curYM,past=ym<curYM,work=p.work||0,el=p.el||0,left=Math.max(0,work-el);
   const d=new Date(p.at),age=(Date.now()-p.at)/36e5;
   const rows=[];
@@ -508,14 +531,14 @@ function memberCut(st,p,id){
   const cnt={ok:0,pace:0,bad:0,ng:0};rows.forEach(x=>cnt[x.st]++);
   const SC={ok:'var(--ok)',pace:'var(--acc)',bad:'var(--bad)',ng:'var(--bad)'},ptR=rows.find(r=>r.pt);
   let h=`<div class="card cuthead ${rows.length&&cnt.ok===rows.length?'all':''}">
-    <div class="between" style="align-items:center;margin-bottom:6px"><b style="font-size:17px">${esc(st.name||'名前なし')}さんの足切り</b><span class="tag ${age>24?'bad':''}">${d.getMonth()+1}/${d.getDate()} ${pad(d.getHours())}:${pad(d.getMinutes())} 時点</span></div>
+    <div class="between" style="align-items:center;margin-bottom:6px"><b style="font-size:17px">${esc(st.name||'名前なし')}さんの足切り</b>${live?'<span class="tag">最新</span>':`<span class="tag ${age>24?'bad':''}">${d.getMonth()+1}/${d.getDate()} ${pad(d.getHours())}:${pad(d.getMinutes())} 時点</span>`}</div>
     ${rows.length?`<div class="cuttop">
       <div><div class="sub">${Number(ym.slice(5))}月の足切り</div><div class="cutbig">${cnt.ok}<small> / ${rows.length} クリア</small></div></div>
       ${ptR?`<div class="cutdiv"></div><div><div class="sub">合計ポイント</div><div class="cutbig" style="color:${SC[ptR.st]}">${fmt(ptR.tot)}<small> / ${fmt(ptR.T)}pt</small></div></div>`:''}
     </div>
     <div class="cutsum">${cnt.ok===rows.length?'🎉 全部クリア！':`<span class="cb ok">クリア ${cnt.ok}</span>${isCur?`<span class="cb pace">ペースOK ${cnt.pace}</span><span class="cb bad">ペース不足 ${cnt.bad}</span>`:`<span class="cb bad">未達 ${cnt.ng+cnt.bad}</span>`}`}</div>
     ${ptR?`<div class="ptbar" style="margin:12px 0 0"><i style="width:${ptR.T?Math.min(100,ptR.tot/ptR.T*100):0}%;background:${SC[ptR.st]}"></i></div><div class="between sub" style="margin-top:3px"><span>${ptR.proj!=null&&!ptR.done?`着地予測 ${fmt(Math.round(ptR.proj))}pt`:''}</span><span>${ptR.done?'<b style="color:var(--ok)">ポイント足切りクリア！</b>':`あと <b style="color:var(--ink)">${fmt(ptR.left)}pt</b>`}</span></div>`:''}
-    ${isCur?`<div class="sub" style="margin-top:6px">送信時点の残り出勤日 ${left}日</div>`:''}`:'<div class="sub">この人は足切りが設定されていません。</div>'}
+    ${isCur?`<div class="sub" style="margin-top:6px">${live?'今日より後の':'送信時点の'}残り出勤日 ${left}日</div>`:''}`:'<div class="sub">この人は足切りが設定されていません。</div>'}
   </div>`;
   const list=rows.filter(x=>!x.pt),order={bad:0,ng:0,pace:1,ok:2};list.sort((a,b)=>order[a.st]-order[b.st]);
   if(list.length)h+='<div class="card" style="padding:6px 14px">'+list.map(x=>{const rate=x.T?Math.min(100,x.tot/x.T*100):0;
@@ -524,9 +547,59 @@ function memberCut(st,p,id){
       <div class="between" style="margin-top:4px"><span><b class="cnum">${fmt(x.tot)}</b><span class="sub"> / ${fmt(x.T)}${esc(x.u)}</span></span><span class="sub">${x.done?'':`あと <b style="color:var(--ink)">${fmt(x.left)}${esc(x.u)}</b>`}</span></div>
       <div class="cbar"><i class="${x.st}" style="width:${rate}%"></i></div>
       ${isCur&&!x.done?`<div class="sub">${x.per!=null?`残りの出勤日で1日 <b style="color:var(--ink)">${fmt(x.per)}${esc(x.u)}</b> ペース`:''}${x.proj!=null?`　着地予測 ${fmt(Math.round(x.proj))}${esc(x.u)}`:''}</div>`:''}</div>`;}).join('')+'</div>';
-  h+=`<div style="text-align:right;margin:-4px 0 12px"><button class="mini" data-a="memdel" data-id="${id}" style="color:var(--bad);padding:0 10px">${view.mdel===id?'本当に削除（全月分）':'このメンバーを削除'}</button></div>`;
+  if(!live)h+=`<div style="text-align:right;margin:-4px 0 12px"><button class="mini" data-a="memdel" data-id="${id}" style="color:var(--bad);padding:0 10px">${view.mdel===id?'本当に削除（全月分）':'このメンバーを削除'}</button></div>`;
   return h;
 }
+// ---- 共用端末：名前の選択・メンバー欄（店長の暗証番号つき）----
+let mgrOK=false;
+function pickerView(){
+  const L=SH.order.filter(id=>SH.profiles[id]);
+  return `<div class="pick"><div class="pickhead"><div class="ptl">目標達成マネージャー</div><div class="psub">共用端末　あなたの名前を選んでください</div></div>
+  <div class="pgrid">${L.map(id=>{const pr=SH.profiles[id];return `<button class="pbtn" data-a="pickp" data-id="${id}"><span class="pav">${esc((pr.name||'？').slice(0,1))}</span><b>${esc(pr.name)}</b>${pr.pin?'<small>🔒 暗証番号あり</small>':''}</button>`;}).join('')}
+  <button class="pbtn add" data-a="addp"><span class="pav">＋</span><b>メンバーを追加</b></button></div>
+  <p class="sub" style="text-align:center;margin-top:18px;line-height:1.7">使い終わったら、上の名前ボタンから「切り替え」を押してください。<br>5分さわらないと、自動でこの画面に戻ります。</p></div>`;
+}
+function enterProfile(id){try{sessionStorage.setItem('shared_cur',id)}catch(e){}location.reload();}
+function leaveProfile(){try{sessionStorage.removeItem('shared_cur')}catch(e){}location.reload();}
+function pinModal(title,sub,onOk){
+  modal(`<h3>${title}</h3><p class="sub">${sub}</p><input id="pin" class="tin" type="password" inputmode="numeric" maxlength="8" autocomplete="off" placeholder="暗証番号"><p id="pinmsg" class="sub" style="color:var(--bad);min-height:18px"></p><div class="mrow2"><button class="btn ghost" data-x="no">やめる</button><button class="btn" data-x="ok">OK</button></div>`,(e,close,w)=>{
+    const x=e.target.closest('[data-x]');if(!x)return;if(x.dataset.x!=='ok'){close();return;}
+    const v=w.querySelector('#pin').value.trim();if(onOk(v)===false){w.querySelector('#pinmsg').textContent='暗証番号がちがいます';w.querySelector('#pin').value='';return;}close();});
+  setTimeout(()=>{const i=document.getElementById('pin');i&&i.focus();},50);
+}
+function addProfile(){
+  modal(`<h3>メンバーを追加</h3><input id="pn" class="tin" placeholder="名前（例：山田）"><input id="pp" class="tin" type="password" inputmode="numeric" maxlength="8" placeholder="暗証番号（なしでもOK）"><p class="sub" style="margin-top:6px">暗証番号を決めると、ほかの人があなたの画面を開けなくなります。</p><div class="mrow2"><button class="btn ghost" data-x="no">やめる</button><button class="btn" data-x="ok">追加</button></div>`,(e,close,w)=>{
+    const x=e.target.closest('[data-x]');if(!x)return;if(x.dataset.x!=='ok'){close();return;}
+    const nm=w.querySelector('#pn').value.trim();if(!nm){w.querySelector('#pn').style.borderColor='var(--bad)';return;}
+    const id=uid()+uid();SH.profiles[id]={name:nm,pin:w.querySelector('#pp').value.trim(),S:{months:{},me:{id,name:nm},pendingCfg:SH.cfg||null}};SH.order.push(id);saveShared();close();enterProfile(id);});
+  setTimeout(()=>{const i=document.getElementById('pn');i&&i.focus();},50);
+}
+function withProfile(id,fn){const save=S;try{S=SH.profiles[id].S;if(!S.months)S.months={};if(!S.items)S.items=[];if(!S.me)S.me={id,name:SH.profiles[id].name};S.me.id=id;S.me.name=SH.profiles[id].name;return fn();}finally{SH.profiles[id].S=S;S=save;}}
+function distributeCfg(c){SH.cfg=c;SH.order.forEach(id=>{if(id===CUR)return;withProfile(id,()=>{if(S.pendingCfg)delete S.pendingCfg;applyCfg(c,true);});});saveShared();}
+function sharedMemberView(ym){
+  if(!mgrOK){
+    return `<div class="card" style="text-align:center"><div style="font-size:40px">🔒</div><div class="iname" style="margin:6px 0">メンバー欄は店長用です</div>
+      <div class="sub" style="line-height:1.7">${SH.mgrPin?'店長の暗証番号を入れると開きます。':'はじめに、店長の暗証番号を決めてください。'}</div>
+      <button class="btn" data-a="mgrunlock">${SH.mgrPin?'暗証番号を入れる':'暗証番号を決める'}</button></div>`;
+  }
+  const L=SH.order.filter(id=>SH.profiles[id]),mo=Number(ym.slice(5));
+  const P={};L.forEach(id=>{P[id]=withProfile(id,()=>S.items.length?payload(ym):null);});
+  const act=L.filter(id=>P[id]).sort((a,b)=>(P[b].pts||0)-(P[a].pts||0));
+  if(!view.member||!P[view.member])view.member=act[0]||null;
+  let h=`<div class="card"><div class="between" style="align-items:center"><div class="iname">店舗メンバー</div><span class="sub">${L.length}人</span></div>
+    ${act.length?`<div class="chips">${act.map(id=>`<button class="chip ${id===view.member?'on':''}" data-a="mem" data-id="${id}"><b>${esc(SH.profiles[id].name)}</b><small>${fmt(P[id].pts||0)}pt</small></button>`).join('')}</div>`:`<div class="sub" style="margin-top:8px">まだ項目を設定しているメンバーがいません。</div>`}
+    ${L.filter(id=>!P[id]).length?`<div class="sub" style="margin-top:8px">まだ使い始めていない人：${L.filter(id=>!P[id]).map(id=>esc(SH.profiles[id].name)).join('、')}</div>`:''}</div>`;
+  if(view.member)h+=memberCut({name:SH.profiles[view.member].name},P[view.member],view.member,true);
+  h+=`<div class="card"><div class="iname">店長メニュー</div>
+    <div class="sub" style="margin-top:4px">今開いている人（${esc(SH.profiles[CUR].name)}）の項目・種類・ポイント・足切りの設定を、全員に配ります。実績や個人目標はそのままです。新しく追加した人にも同じ設定が入ります。</div>
+    <button class="btn" data-a="dist">この設定を全員に配る</button>
+    <div style="margin-top:14px">${L.map(id=>`<div class="drow"><div><b>${esc(SH.profiles[id].name)}</b>${SH.profiles[id].pin?' <span class="sub">🔒</span>':''}</div><div class="flex">${SH.profiles[id].pin?`<button class="mini" data-a="pinreset" data-id="${id}">暗証番号を外す</button>`:''}${id===CUR?'<span class="sub">使用中</span>':`<button class="mini" data-a="pdel" data-id="${id}" style="color:var(--bad)">${view.pdel===id?'本当に削除':'削除'}</button>`}</div></div>`).join('')}</div>
+    <button class="btn ghost" data-a="mgrpin">店長の暗証番号を変える</button>
+    <button class="btn ghost" data-a="mgrlock">🔒 メンバー欄を閉じる</button></div>`;
+  return h;
+}
+let idleT=null;
+if(SHARED&&CUR){const reset=()=>{clearTimeout(idleT);idleT=setTimeout(leaveProfile,5*60*1000);};['click','touchstart','keydown','scroll'].forEach(ev=>document.addEventListener(ev,reset,{passive:true}));reset();}
 function backupRestore(){
   modal(`<h3>バックアップから戻す</h3><p class="sub">コピーしておいたバックアップの文字を貼り付けてください。<b>今このスマホにあるデータは置き換わります。</b></p><textarea id="bk" class="tin" rows="4" placeholder="TGTBK:..."></textarea><div class="mrow2"><button class="btn ghost" data-x="no">やめる</button><button class="btn" data-x="ok">戻す</button></div><p id="bkmsg" class="sub" style="color:var(--bad)"></p>`,async(e,close,w)=>{
     const x=e.target.closest('[data-x]');if(!x)return;if(x.dataset.x!=='ok'){close();return;}
@@ -537,6 +610,7 @@ function backupRestore(){
 
 // ---- 画面 ----
 function render(){
+  if(SHARED&&!CUR){$app.innerHTML=pickerView();return;}
   const ym=view.ym,[y,mo]=ym.split('-');
   const m=monthOf(ym);
   let body='';
@@ -545,10 +619,12 @@ function render(){
   else if(view.tab==='graph')body=graphView(ym,m);
   else if(view.tab==='cal')body=calView(ym,m);
   else if(view.tab==='member'&&MGR)body=memberView(ym);
+  else if(view.tab==='member'&&SHARED)body=sharedMemberView(ym);
   else body=setView(ym,m);
   const n=daysIn(ym),offs=m.off.length;
   $app.innerHTML=`
   <header>
+    ${SHARED?`<div class="whorow"><span>👤 <b>${esc(SH.profiles[CUR].name)}</b> さん</span><button class="who" data-a="switch">切り替え</button></div>`:''}
     <div class="mrow"><button data-a="prev">‹</button><div class="mtitle">${MGR?'<span class="mgrb">店長用</span>':''}${y}年${Number(mo)}月</div><button data-a="next">›</button></div>
     <div class="sub">営業日 ${n-offs}日（休み ${offs}日）${ym===curYM?` ／ 今日から残り ${calcRemain(ym,m)}日`:''}</div>
     <div class="save" id="savemsg">${esc(saveMsg)}</div>
@@ -559,7 +635,7 @@ function render(){
     <button data-tab="cut" class="${view.tab==='cut'?'on':''}"><span>🚩</span>足切り</button>
     <button data-tab="graph" class="${view.tab==='graph'?'on':''}"><span>📊</span>グラフ</button>
     <button data-tab="cal" class="${view.tab==='cal'?'on':''}"><span>📅</span>カレンダー</button>
-    ${MGR?`<button data-tab="member" class="${view.tab==='member'?'on':''}"><span>👥</span>メンバー</button>`:''}
+    ${MGR||SHARED?`<button data-tab="member" class="${view.tab==='member'?'on':''}"><span>👥</span>メンバー</button>`:''}
     <button data-tab="set" class="${view.tab==='set'?'on':''}"><span>⚙️</span>項目設定</button>
   </nav>`;
 }
@@ -636,7 +712,7 @@ function calView(ym,m){
 
 function setView(ym,m){
   const mo=Number(ym.split('-')[1]);
-  let h=`<div class="card"><div class="iname">あなたの名前</div><div class="sub">店長の画面に表示されます</div><div class="field"><input value="${esc(S.me.name)}" data-a="myname" placeholder="例：山田"></div></div>`;
+  let h=SHARED?'':`<div class="card"><div class="iname">あなたの名前</div><div class="sub">店長の画面に表示されます</div><div class="field"><input value="${esc(S.me.name)}" data-a="myname" placeholder="例：山田"></div></div>`;
   h+=`<div class="card"><div class="iname">項目</div><div class="sub">「設定」から足切り・目標・ポイントを決められます。足切りと目標は「毎月同じ」か「月ごと」を選べ、月ごとの値は上の ‹ › で月を切り替えて入力します。</div>`;
   if(!S.items.length)h+=`<div class="empty">項目がありません</div>`;
   S.items.forEach((it,i)=>{
@@ -679,7 +755,7 @@ function setView(ym,m){
   return h;
 }
 let delAsk=null,openId=null;
-function sendCard(){const mo=Number(view.ym.slice(5));return `<div class="card"><div class="iname">店長に送る</div><div class="sub" style="margin-top:4px">${mo}月の実績をLINEなどで店長に送ります${S.me.name?`（名前：${esc(S.me.name)}）`:''}。仕事終わりに送るのがおすすめです。</div><button class="btn" data-a="send">📤 ${mo}月の実績を店長に送る</button></div>`;}
+function sendCard(){if(SHARED)return '';const mo=Number(view.ym.slice(5));return `<div class="card"><div class="iname">店長に送る</div><div class="sub" style="margin-top:4px">${mo}月の実績をLINEなどで店長に送ります${S.me.name?`（名前：${esc(S.me.name)}）`:''}。仕事終わりに送るのがおすすめです。</div><button class="btn" data-a="send">📤 ${mo}月の実績を店長に送る</button></div>`;}
 const GC={done:'#ef4444',near:'#facc15',far:'#22c55e'};
 function subStats(ym,it,total){
   const sb=subsOf(it);if(!sb.length)return [];
@@ -784,6 +860,15 @@ $app.addEventListener('click',e=>{
   if(a==='cmode'){const it=findItem(id);if(!it)return;it.cut.mode=t.dataset.v;changed();render();return;}
   if(a==='sadd'){const it=findItem(id);if(!it)return;if(!Array.isArray(it.subs))it.subs=[];it.subs.push({id:uid(),name:'',pt:it.subs.length?'':(it.pt??'')});changed();render();return;}
   if(a==='sdel'){const it=findItem(id),sid=t.dataset.s;if(!it)return;if(delAsk===sid){it.subs=subsOf(it).filter(x=>x.id!==sid);delAsk=null;changed();}else delAsk=sid;render();return;}
+  if(a==='switch'){leaveProfile();return;}
+  if(a==='pickp'){const pr=SH.profiles[id];if(!pr)return;if(pr.pin)pinModal(esc(pr.name)+'さん','暗証番号を入れてください。',v=>{if(v!==pr.pin)return false;enterProfile(id);});else enterProfile(id);return;}
+  if(a==='addp'){addProfile();return;}
+  if(a==='mgrunlock'){if(SH.mgrPin)pinModal('店長の暗証番号','メンバー欄を開きます。',v=>{if(v!==SH.mgrPin)return false;mgrOK=true;render();});else pinModal('店長の暗証番号を決める','4けた以上の数字にしてください。忘れると開けなくなるので、メモしておいてください。',v=>{if(v.length<4)return false;SH.mgrPin=v;saveShared();mgrOK=true;render();});return;}
+  if(a==='mgrpin'){pinModal('新しい暗証番号','4けた以上の数字にしてください。',v=>{if(v.length<4)return false;SH.mgrPin=v;saveShared();render();});return;}
+  if(a==='mgrlock'){mgrOK=false;render();return;}
+  if(a==='dist'){distributeCfg(buildCfg(false));modal('<h3>全員に配りました</h3><p class="sub">項目・種類・ポイント・足切りの設定が、全員同じになりました。</p><button class="btn" data-x="no">OK</button>',(e2,c)=>{if(e2.target.closest('[data-x]'))c();});render();return;}
+  if(a==='pinreset'){if(SH.profiles[id]){SH.profiles[id].pin='';saveShared();render();}return;}
+  if(a==='pdel'){if(view.pdel===id){delete SH.profiles[id];SH.order=SH.order.filter(x=>x!==id);view.pdel=null;saveShared();}else view.pdel=id;render();return;}
   if(a==='mem'){view.member=id;view.mdel=null;render();return;}
   if(a==='memdel'){if(view.mdel===id){const T=loadTeam();delete T.staff[id];saveTeam(T);view.mdel=null;view.member=null;view.mmsg='削除しました';}else view.mdel=id;render();return;}
   if(a==='mimp'){const v=(document.getElementById('mimp')||{}).value||'';if(!v.trim())return;importReport(v).then(render).catch(()=>{view.merr='読み込めませんでした。届いたメッセージを全部コピーして貼り付けてください。';render();});return;}
@@ -821,6 +906,7 @@ $app.addEventListener('change',e=>{
   if(a==='setToday'||a==='setDay'||a==='tval'||a==='ipt'||a==='spt'||a==='sname'||a==='scut')render();
 });
 const _r=render;render=function(){_r();updPrev();};
+if(SHARED&&CUR&&S.pendingCfg){const c=S.pendingCfg;delete S.pendingCfg;applyCfg(c);}
 render();cfgFromHash();reportFromHash();
 })();
 </script>
