@@ -84,14 +84,14 @@ function ago(at){var d=new Date(at),mins=(Date.now()-at)/60000;var s=(d.getMonth
 function staffCard(id,s,p){
   var ideal=p.work?Math.min(100,p.el/p.work*100):null,rows='',cnt={done:0,near:0,far:0};
   p.items.forEach(function(it){
-    var base=it.g!=null?it.g:it.c;
+    var cy=!!it.cy,base=it.g!=null?it.g:it.c,bt=(it.g==null&&cy)?(it.ty||0):it.t,bu=(it.g==null&&cy)?'円':it.u;
     if(base==null){rows+='<div class="gr"><div class="between"><b>'+esc(it.n)+'</b><span class="sub">'+fmt(it.t)+esc(it.u)+'（目標なし）</span></div></div>';return}
-    var rate=base?it.t/base:0,st=rate>=1?'done':rate>=0.7?'near':'far';cnt[st]++;
-    var cut=(it.g!=null&&it.c!=null&&it.g)?Math.min(100,it.c/it.g*100):null;
-    rows+='<div class="gr"><div class="between"><b>'+esc(it.n)+'</b><span><b>'+fmt(it.t)+'</b><span class="sub"> / '+fmt(base)+esc(it.u)+'</span></span></div>'+
+    var rate=base?bt/base:0,st=rate>=1?'done':rate>=0.7?'near':'far';cnt[st]++;
+    var cut=(it.g!=null&&it.c!=null&&it.g&&!cy)?Math.min(100,it.c/it.g*100):null;
+    rows+='<div class="gr"><div class="between"><b>'+esc(it.n)+'</b><span><b>'+fmt(bt)+'</b><span class="sub"> / '+fmt(base)+esc(bu)+'</span></span></div>'+
       '<div class="gbar"><i style="width:'+Math.min(100,rate*100)+'%;background:'+GC[st]+'"></i><span class="gpct">'+Math.floor(rate*1000)/10+'%</span>'+
       (cut!=null?'<b class="gcut" style="left:'+cut+'%"></b>':'')+(ideal!=null&&p.ym===nowYM()?'<b class="gideal" style="left:'+ideal+'%"></b>':'')+'</div>'+
-      (it.c!=null&&it.g!=null?'<div class="sub">足切り '+fmt(it.c)+esc(it.u)+(it.t>=it.c?'（クリア）':'（あと'+fmt(it.c-it.t)+esc(it.u)+'）')+'</div>':'')+'</div>';
+      (it.c!=null&&it.g!=null?(function(){var ct=cy?(it.ty||0):it.t,cu=cy?'円':it.u;return '<div class="sub">足切り '+(cy?'売上'+fmt(ct)+'円/':'')+fmt(it.c)+esc(cu)+(ct>=it.c?'（クリア）':'（あと'+fmt(it.c-ct)+esc(cu)+'）')+'</div>'})():'')+'</div>';
   });
   var a=ago(p.at);
   return '<div class="card"><div class="hd"><div><div class="name">'+esc(s.name||'名前なし')+'</div><span class="tag'+(a.old?' old':'')+'">'+a.txt+'</span></div><div style="text-align:right"><div class="pts">'+fmt(p.pts||0)+'<small>pt</small></div>'+
@@ -112,7 +112,7 @@ function render(){
   if(view.err)h+='<div class="notice">'+esc(view.err)+'</div>';
   if(list.length){
     h+='<div class="card"><div class="name" style="font-size:15px;margin-bottom:4px">一覧</div><table><tr><th>名前</th><th>ポイント</th><th>達成</th><th>もう少し</th><th>送信</th></tr>';
-    list.forEach(function(id){var s=T.staff[id],p=s.months[ym],c={done:0,near:0};p.items.forEach(function(it){var b=it.g!=null?it.g:it.c;if(b==null)return;var r=b?it.t/b:0;if(r>=1)c.done++;else if(r>=0.7)c.near++});var d=new Date(p.at);
+    list.forEach(function(id){var s=T.staff[id],p=s.months[ym],c={done:0,near:0};p.items.forEach(function(it){var b=it.g!=null?it.g:it.c;if(b==null)return;var bt=(it.g==null&&it.cy)?(it.ty||0):it.t;var r=b?bt/b:0;if(r>=1)c.done++;else if(r>=0.7)c.near++});var d=new Date(p.at);
       h+='<tr data-a="jump" data-id="'+id+'"><td><b>'+esc(s.name||'名前なし')+'</b></td><td>'+fmt(p.pts||0)+'pt</td><td style="color:#ef4444;font-weight:700">'+c.done+'</td><td style="color:#ca8a04;font-weight:700">'+c.near+'</td><td class="sub">'+(d.getMonth()+1)+'/'+d.getDate()+'</td></tr>'});
     h+='</table></div>';
     list.forEach(function(id){h+='<div id="s-'+id+'">'+staffCard(id,T.staff[id],T.staff[id].months[ym])+'</div>'});

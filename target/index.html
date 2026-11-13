@@ -123,6 +123,8 @@ let lastAct=null,lastQty=1,lastSub=null;
 const ptOf=it=>Number(it&&it.pt||0);
 const subsOf=it=>(it&&Array.isArray(it.subs))?it.subs:[];
 function logPt(it,r){const sb=subsOf(it).find(x=>x.id===r.s);return sb?Number(sb.pt||0):ptOf(it);}
+const isYen=(it,k)=>k==='cut'&&it&&it.cut&&it.cut.mode==='yen';
+const uOf=(it,k)=>isYen(it,k)?'円':esc(it.unit||'');
 function logName(it,r){const sb=subsOf(it).find(x=>x.id===r.s);return esc(it.name)+(sb?`（${esc(sb.name||'種類')}）`:'');}
 function monthPts(ym){const m=monthOf(ym);let t=0;for(const k in (m.logs||{}))for(const r of m.logs[k]){const it=S.items.find(x=>x.id===r.i);if(it)t+=r.q*logPt(it,r);}return t;}
 function logBlock(k){
@@ -131,14 +133,15 @@ function logBlock(k){
   if(!S.items.length)return `<div class="card"><div class="iname">${ttl}</div><div class="sub" style="margin-top:6px">項目設定で項目（例：PayPayカード）と1件あたりのポイントを設定すると、ここで記録できます。</div><button class="btn ghost" data-tab="set">項目を設定する</button></div>`;
   let tot=0;
   const rows=L.map(r=>{const it=S.items.find(x=>x.id===r.i);if(!it)return '';const pp=logPt(it,r),p=r.q*pp;tot+=p;
-    return `<div class="drow"><div><b>${logName(it,r)}</b> ${r.q}${esc(it.unit||'')}</div><div class="flex"><span class="sub">${r.q}×${fmt(pp)}pt＝</span><b>${fmt(p)}pt</b><button class="mini" data-a="dellog" data-k="${k}" data-r="${r.id}">✕</button></div></div>`}).join('');
+    return `<div class="drow"><div><b>${logName(it,r)}</b> ${r.q}${esc(it.unit||'')}${r.y?`<span class="sub">（${fmt(r.y)}円）</span>`:''}</div><div class="flex"><span class="sub">${r.q}×${fmt(pp)}pt＝</span><b>${fmt(p)}pt</b><button class="mini" data-a="dellog" data-k="${k}" data-r="${r.id}">✕</button></div></div>`}).join('');
   const sel=S.items.some(a=>a.id===lastAct)?lastAct:S.items[0].id;
   return `<div class="card">
     <div class="between" style="align-items:center"><div class="iname">${ttl}</div><div style="text-align:right"><div class="big" style="font-size:26px;color:var(--acc)">${fmt(tot)}<small>pt</small></div></div></div>
     <div class="sub" style="text-align:right">${Number(ym.slice(5))}月の合計 ${fmt(monthPts(ym))}pt</div>
-    <div class="flex" style="margin-top:10px">
+    <div class="flex" style="margin-top:10px;flex-wrap:wrap">
       <select id="la" class="sel" style="flex:2">${S.items.map(a=>`<option value="${a.id}" ${a.id===sel?'selected':''}>${esc(a.name||'名前なし')}</option>`).join('')}</select>
       ${(()=>{const it=S.items.find(x=>x.id===sel),sb=subsOf(it);if(!sb.length)return '';const ss=sb.some(x=>x.id===lastSub)?lastSub:sb[0].id;return `<select id="ls" class="sel" style="flex:2">${sb.map(x=>`<option value="${x.id}" ${x.id===ss?'selected':''}>${esc(x.name||'種類')}</option>`).join('')}</select>`;})()}
+      ${isYen(S.items.find(x=>x.id===sel),'cut')?`<input id="ly" class="sel" type="number" inputmode="numeric" placeholder="金額（円）" style="flex:2;width:0">`:''}
       <select id="lq" class="sel" style="flex:1">${Array.from({length:10},(_,i)=>`<option value="${i+1}" ${i+1===lastQty?'selected':''}>${i+1}</option>`).join('')}</select>
       <button class="mini" data-a="addlog" data-k="${k}" style="height:44px;padding:0 14px;background:var(--acc);color:#fff;border:0;font-weight:700">追加</button>
     </div>
@@ -163,13 +166,16 @@ function calc(ym,item){
   const work=[];for(let d=1;d<=n;d++){const k=dkey(ym,d);if(!m.off.includes(k))work.push(k);}
   let total=0,before=0,todayV=0;
   for(const k in m.entries){const v=Number(m.entries[k][item.id]||0);total+=v;if(ym===curYM){if(k<todayKey)before+=v;else if(k===todayKey)todayV=v;}}
-  const r={total,work:work.length,todayV,t:{}};
+  let yT=0,yB=0,yToday=0;
+  for(const k in (m.logs||{}))for(const x of m.logs[k]){if(x.i!==item.id||!x.y)continue;yT+=x.y;if(ym===curYM){if(k<todayKey)yB+=x.y;else if(k===todayKey)yToday+=x.y;}}
+  const r={total,work:work.length,todayV,yT,yToday,t:{}};
   const remain=work.filter(k=>k>=todayKey).length,elapsed=work.filter(k=>k<=todayKey).length;
   if(ym===curYM){r.remain=remain;r.proj=elapsed?total/elapsed*work.length:0;r.ideal=work.length?elapsed/work.length:0;}
   for(const[kind]of KINDS){
     const T=tval(ym,item,kind);if(T===null)continue;
-    const o={T,rate:T?total/T:0,left:Math.max(0,T-total),done:total>=T};
-    if(ym===curYM)o.daily=remain?Math.max(0,Math.ceil((T-before)/remain)):null;
+    const yen=isYen(item,kind),tot=yen?yT:total,bef=yen?yB:before;
+    const o={T,yen,tot,now:yen?yToday:todayV,rate:T?tot/T:0,left:Math.max(0,T-tot),done:tot>=T,proj:elapsed?tot/elapsed*work.length:0};
+    if(ym===curYM)o.daily=remain?Math.max(0,Math.ceil((T-bef)/remain)):null;
     else if(ym>curYM)o.daily=work.length?Math.ceil(T/work.length):null;
     r.t[kind]=o;
   }
@@ -203,7 +209,7 @@ async function dec(code){
 function payload(ym){
   const m=monthOf(ym),n=daysIn(ym);let work=0,el=0;
   for(let d=1;d<=n;d++){const k=dkey(ym,d);if(m.off.includes(k))continue;work++;if(k<=todayKey)el++;}
-  const items=S.items.map(it=>{const r=calc(ym,it);return{n:it.name||'名前なし',u:it.unit||'',c:r.t.cut?r.t.cut.T:null,g:r.t.goal?r.t.goal.T:null,t:r.total,p:ptOf(it)};});
+  const items=S.items.map(it=>{const r=calc(ym,it);return{n:it.name||'名前なし',u:it.unit||'',c:r.t.cut?r.t.cut.T:null,cy:isYen(it,'cut')?1:0,ty:r.yT,g:r.t.goal?r.t.goal.T:null,t:r.total,p:ptOf(it)};});
   return{v:1,id:S.me.id,name:S.me.name,ym,at:Date.now(),items,pts:monthPts(ym),work,el};
 }
 function modal(html,onClick){
@@ -274,37 +280,38 @@ function todayView(ym,m){
   if(isCur&&!m.off.includes(todayKey))h+=logBlock(todayKey);
   if(isCur&&m.off.includes(todayKey))h+=`<div class="notice">今日は休みに設定されています。目標は次の出勤日からの残り日数で計算しています。</div>`;
   for(const it of S.items){
-    const r=calc(ym,it),u=esc(it.unit||''),g=r.t.goal,c=r.t.cut,main_=g||c;
+    const r=calc(ym,it),u=esc(it.unit||''),g=r.t.goal,c=r.t.cut,main_=g||c,cu=uOf(it,'cut'),mu=main_&&main_.yen?'円':u;
     let tag='';
     if(g&&g.done)tag='<span class="tag ok">目標達成！</span>';
     else if(c&&c.done)tag='<span class="tag">足切りクリア</span>';
-    else if(c&&isCur)tag=r.proj>=c.T?'<span class="tag warn">足切りペースOK</span>':'<span class="tag bad">足切り未達ペース</span>';
+    else if(c&&isCur)tag=c.proj>=c.T?'<span class="tag warn">足切りペースOK</span>':'<span class="tag bad">足切り未達ペース</span>';
     else if(c&&past)tag='<span class="tag bad">足切り未達</span>';
     let mid='';
     if(isCur){
-      const d=main_?main_.daily:null,done=d!==null&&d>0&&r.todayV>=d;
+      const d=main_?main_.daily:null,nowV=main_?main_.now:r.todayV,done=d!==null&&d>0&&nowV>=d;
       const lines=[];
-      if(c&&!c.done&&c.daily!==null)lines.push(`足切りまで：今日 <b>${fmt(c.daily)}${u}</b>（残り${fmt(c.left)}${u}）`);
+      if(c&&!c.done&&c.daily!==null)lines.push(`足切りまで：今日 <b>${fmt(c.daily)}${cu}</b>（残り${fmt(c.left)}${cu}）`);
       if(g&&!g.done&&g.daily!==null)lines.push(`目標まで：今日 <b>${fmt(g.daily)}${u}</b>（残り${fmt(g.left)}${u}）`);
-      mid=`<div class="between"><div><div class="sub">今日の${g?'目標':'足切り目標'}</div><div class="big">${d===null?'—':fmt(d)}<small>${u}</small></div></div>
-      <div style="text-align:right"><div class="sub">今日の実績</div><div class="big" style="color:${done?'var(--ok)':'var(--ink)'}">${fmt(r.todayV)}<small>${u}</small></div></div></div>
+      mid=`<div class="between"><div><div class="sub">今日の${g?'目標':'足切り目標'}</div><div class="big">${d===null?'—':fmt(d)}<small>${mu}</small></div></div>
+      <div style="text-align:right"><div class="sub">今日の${main_&&main_.yen?'売上':'実績'}</div><div class="big" style="color:${done?'var(--ok)':'var(--ink)'}">${fmt(nowV)}<small>${mu}</small></div></div></div>
       ${lines.length?`<div class="sub" style="margin-top:6px;line-height:1.7">${lines.join('<br>')}</div>`:''}
       ${m.off.includes(todayKey)?'':`<div class="step"><button data-a="dec" data-id="${it.id}">−</button><input type="number" inputmode="decimal" value="${r.todayV||''}" placeholder="0" data-a="setToday" data-id="${it.id}"><button data-a="inc" data-id="${it.id}">＋</button></div>`}`;
     }else if(!past&&main_){
-      mid=`<div class="sub">1日あたりの目安</div><div class="big">${main_.daily===null?'—':fmt(main_.daily)}<small>${u}</small></div>${g&&c?`<div class="sub">足切りなら1日 ${fmt(c.daily)}${u}</div>`:''}`;
+      mid=`<div class="sub">1日あたりの目安</div><div class="big">${main_.daily===null?'—':fmt(main_.daily)}<small>${mu}</small></div>${g&&c?`<div class="sub">足切りなら1日 ${fmt(c.daily)}${cu}</div>`:''}`;
     }
-    const full=g?g.T:(c?c.T:0),pct=full?Math.min(100,r.total/full*100):0;
-    const cutPos=c&&g&&g.T?Math.min(100,c.T/g.T*100):null;
+    const pct=main_?Math.min(100,main_.rate*100):0;
+    const cutPos=c&&g&&!c.yen&&g.T?Math.min(100,c.T/g.T*100):null;
     h+=`<div class="card">
       <div class="between" style="align-items:center;margin-bottom:8px"><div class="iname">${esc(it.name||'名前なし')}</div>${tag}</div>
       ${mid}
       <div class="bar"><i style="width:${pct}%"></i>${cutPos!==null?`<b style="left:${cutPos}%;background:var(--bad);opacity:.8"></b>`:''}${isCur?`<b style="left:${Math.min(100,r.ideal*100)}%"></b>`:''}</div>
       <div class="stats">
         <div class="stat"><div>月の実績</div><div>${fmt(r.total)}${u}</div></div>
-        <div class="stat"><div>足切り</div><div>${c?`${fmt(c.T)}${u}`:'—'}${c?`<span class="sub"> ${Math.floor(c.rate*1000)/10}%</span>`:''}</div></div>
+        <div class="stat"><div>足切り</div><div>${c?`${fmt(c.T)}${cu}`:'—'}${c?`<span class="sub"> ${Math.floor(c.rate*1000)/10}%</span>`:''}</div></div>
         <div class="stat"><div>目標</div><div>${g?`${fmt(g.T)}${u}`:'—'}${g?`<span class="sub"> ${Math.floor(g.rate*1000)/10}%</span>`:''}</div></div>
       </div>
-      ${isCur?`<div class="sub" style="margin-top:6px">着地予測：<b>${fmt(Math.round(r.proj*10)/10)}${u}</b></div>`:''}
+      ${c&&c.yen?`<div class="sub" style="margin-top:6px">足切り（金額）：売上合計 <b>${fmt(c.tot)}円</b> / ${fmt(c.T)}円${c.done?'（クリア）':`（あと${fmt(c.left)}円）`}</div>`:''}
+      ${isCur?`<div class="sub" style="margin-top:6px">着地予測：<b>${fmt(Math.round(r.proj*10)/10)}${u}</b>${c&&c.yen?`／売上 <b>${fmt(Math.round(c.proj))}円</b>`:''}</div>`:''}
     </div>`;
   }
   if(isCur)h+=`<div class="sub" style="text-align:center;margin-bottom:12px">バーの赤線＝足切りライン、黒線＝今日までに進んでいたい位置</div>`+sendCard();
@@ -335,7 +342,7 @@ function setView(ym,m){
   h+=`<div class="card"><div class="iname">項目</div><div class="sub">「設定」から足切り・目標・ポイントを決められます。足切りと目標は「毎月同じ」か「月ごと」を選べ、月ごとの値は上の ‹ › で月を切り替えて入力します。</div>`;
   if(!S.items.length)h+=`<div class="empty">項目がありません</div>`;
   S.items.forEach((it,i)=>{
-    const sm=KINDS.map(([k,l])=>{const v=tval(ym,it,k);return v===null?'':`${l} ${fmt(v)}${esc(it.unit||'')}`}).filter(Boolean).join('・')||'目標未設定';
+    const sm=KINDS.map(([k,l])=>{const v=tval(ym,it,k);return v===null?'':`${l} ${fmt(v)}${uOf(it,k)}`}).filter(Boolean).join('・')||'目標未設定';
     const ptS=subsOf(it).length?'・'+subsOf(it).map(x=>`${esc(x.name||'種類')} ${fmt(Number(x.pt||0))}pt`).join('／'):(it.pt===''||it.pt==null?'':`・1${esc(it.unit||'件')} ${fmt(Number(it.pt))}pt`);
     h+=`<button class="ihead" data-a="toggle" data-id="${it.id}"><span><b>${esc(it.name||'名前なし')}</b><span class="sub">${sm}${ptS}</span></span><span class="chev">${openId===it.id?'閉じる ▲':'設定 ▼'}</span></button>`;
     if(openId!==it.id)return;
@@ -344,8 +351,8 @@ function setView(ym,m){
       <div class="field"><label>単位</label><input value="${esc(it.unit||'')}" data-a="iunit" data-id="${it.id}" placeholder="件"></div></div>`;
     for(const[k,label]of KINDS){
       const c=it[k],v=c.fixed?c.value:((m.t||{})[it.id]||{})[k];
-      h+=`<div class="field"><label>${label}　<span class="seg"><button class="${c.fixed?'on':''}" data-a="fixed" data-k="${k}" data-v="1" data-id="${it.id}">毎月同じ</button><button class="${c.fixed?'':'on'}" data-a="fixed" data-k="${k}" data-v="0" data-id="${it.id}">月ごと</button></span></label>
-        <div class="flex"><input type="number" inputmode="decimal" value="${v??''}" data-a="tval" data-k="${k}" data-id="${it.id}" placeholder="${c.fixed?'未設定（使わないなら空欄）':mo+'月の'+label+'を入力'}"><span class="sub" style="white-space:nowrap">${c.fixed?'全月共通':mo+'月分'}</span></div></div>`;
+      h+=`<div class="field"><label>${label}　<span class="seg"><button class="${c.fixed?'on':''}" data-a="fixed" data-k="${k}" data-v="1" data-id="${it.id}">毎月同じ</button><button class="${c.fixed?'':'on'}" data-a="fixed" data-k="${k}" data-v="0" data-id="${it.id}">月ごと</button></span>${k==='cut'?`<span class="seg"><button class="${isYen(it,k)?'':'on'}" data-a="cmode" data-v="cnt" data-id="${it.id}">${esc(it.unit||'件')}</button><button class="${isYen(it,k)?'on':''}" data-a="cmode" data-v="yen" data-id="${it.id}">合計円</button></span>`:''}</label>
+        <div class="flex"><input type="number" inputmode="decimal" value="${v??''}" data-a="tval" data-k="${k}" data-id="${it.id}" placeholder="${c.fixed?'未設定（使わないなら空欄）':mo+'月の'+label+'を入力'}"><span class="sub" style="white-space:nowrap">${uOf(it,k)}・${c.fixed?'全月共通':mo+'月分'}</span></div>${isYen(it,k)?'<div class="sub" style="margin-top:4px">「今日の成果」で追加するときに入れた金額の合計で判定します</div>':''}</div>`;
     }
     const sbs=subsOf(it);
     h+=`<div class="field"><label>ポイント（今日の成果で使います）</label>`;
@@ -375,13 +382,13 @@ function graphView(ym,m){
   for(const it of S.items){
     const r=calc(ym,it),g=r.t.goal,c=r.t.cut,base=g||c,u=esc(it.unit||'');
     if(!base){rows+=`<div class="gr"><div class="between"><b>${esc(it.name||'名前なし')}</b><span class="sub">目標未設定</span></div><div class="gbar"></div></div>`;continue;}
-    const rate=base.T?r.total/base.T:0,st=rate>=1?'done':rate>=0.7?'near':'far';cnt[st]++;
-    const w=Math.min(100,rate*100),cutPos=g&&c&&g.T?Math.min(100,c.T/g.T*100):null,ideal=isCur?Math.min(100,r.ideal*100):null;
+    const rate=base.rate,st=rate>=1?'done':rate>=0.7?'near':'far';cnt[st]++;const bu=base.yen?'円':u,cu=uOf(it,'cut');
+    const w=Math.min(100,rate*100),cutPos=g&&c&&!c.yen&&g.T?Math.min(100,c.T/g.T*100):null,ideal=isCur?Math.min(100,r.ideal*100):null;
     rows+=`<div class="gr">
-      <div class="between"><b>${esc(it.name||'名前なし')}</b><span><b style="font-size:17px">${fmt(r.total)}</b><span class="sub"> / ${fmt(base.T)}${u}</span></span></div>
+      <div class="between"><b>${esc(it.name||'名前なし')}</b><span><b style="font-size:17px">${fmt(base.tot)}</b><span class="sub"> / ${fmt(base.T)}${bu}</span></span></div>
       <div class="gbar"><i style="width:${w}%;background:${GC[st]}"></i><span class="gpct">${Math.floor(rate*1000)/10}%</span>
         ${cutPos!==null?`<b class="gcut" style="left:${cutPos}%"></b>`:''}${ideal!==null?`<b class="gideal" style="left:${ideal}%"></b>`:''}</div>
-      <div class="sub">${st==='done'?'達成！':`あと ${fmt(base.left)}${u}`}${c&&g?`　足切り ${fmt(c.T)}${u}${c.done?'（クリア）':`（あと${fmt(c.left)}${u}）`}`:''}</div>
+      <div class="sub">${st==='done'?'達成！':`あと ${fmt(base.left)}${bu}`}${c&&g?`　足切り ${c.yen?`売上${fmt(c.tot)}円/`:''}${fmt(c.T)}${cu}${c.done?'（クリア）':`（あと${fmt(c.left)}${cu}）`}`:''}</div>
     </div>`;
   }
   return `<div class="card">
@@ -405,11 +412,12 @@ $app.addEventListener('click',e=>{
   const a=t.dataset.a,id=t.dataset.id;
   if(a==='prev'||a==='next'){const[y,mo]=view.ym.split('-').map(Number);const d=new Date(y,mo-1+(a==='next'?1:-1),1);view.ym=`${d.getFullYear()}-${pad(d.getMonth()+1)}`;render();return;}
   if(a==='inc'||a==='dec'){const m=ensure(view.ym);const cur=Number((m.entries[todayKey]||{})[id]||0);setEntry(m,todayKey,id,Math.max(0,cur+(a==='inc'?1:-1)));changed();render();return;}
-  if(a==='addlog'){const k=t.dataset.k,m=ensure(k.slice(0,7)),iid=document.getElementById('la').value,q=Number(document.getElementById('lq').value),ls=document.getElementById('ls'),sid=ls?ls.value:null;if(!S.items.some(x=>x.id===iid))return;lastAct=iid;lastQty=q;if(sid)lastSub=sid;
-    m.logs=m.logs||{};const rec={id:uid(),i:iid,q};if(sid)rec.s=sid;(m.logs[k]=m.logs[k]||[]).push(rec);
+  if(a==='addlog'){const k=t.dataset.k,m=ensure(k.slice(0,7)),iid=document.getElementById('la').value,q=Number(document.getElementById('lq').value),ls=document.getElementById('ls'),sid=ls?ls.value:null;if(!S.items.some(x=>x.id===iid))return;const ly=document.getElementById('ly'),yv=ly?Number(ly.value):0;if(ly&&!(yv>0)){ly.style.borderColor='var(--bad)';ly.focus();return;}lastAct=iid;lastQty=q;if(sid)lastSub=sid;
+    m.logs=m.logs||{};const rec={id:uid(),i:iid,q};if(sid)rec.s=sid;if(yv>0)rec.y=yv;(m.logs[k]=m.logs[k]||[]).push(rec);
     setEntry(m,k,iid,Number((m.entries[k]||{})[iid]||0)+q);changed();render();return;}
   if(a==='dellog'){const k=t.dataset.k,m=ensure(k.slice(0,7)),L=(m.logs||{})[k]||[],i=L.findIndex(r=>r.id===t.dataset.r);if(i<0)return;const r=L[i];L.splice(i,1);if(!L.length)delete m.logs[k];
     setEntry(m,k,r.i,Math.max(0,Number((m.entries[k]||{})[r.i]||0)-r.q));changed();render();return;}
+  if(a==='cmode'){const it=findItem(id);if(!it)return;it.cut.mode=t.dataset.v;changed();render();return;}
   if(a==='sadd'){const it=findItem(id);if(!it)return;if(!Array.isArray(it.subs))it.subs=[];it.subs.push({id:uid(),name:'',pt:it.subs.length?'':(it.pt??'')});changed();render();return;}
   if(a==='sdel'){const it=findItem(id),sid=t.dataset.s;if(!it)return;if(delAsk===sid){it.subs=subsOf(it).filter(x=>x.id!==sid);delAsk=null;changed();}else delAsk=sid;render();return;}
   if(a==='send'){sendToBoss();return;}
