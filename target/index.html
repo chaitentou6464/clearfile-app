@@ -89,6 +89,16 @@ nav button.on{color:var(--acc);font-weight:700}
 .offbtn.on{background:var(--bad);border-color:var(--bad);color:#fff}
 .omcard{box-shadow:0 0 0 2px var(--bad)}
 .omhint{margin-top:10px;background:#fef2f2;color:#991b1b;border-radius:10px;padding:8px 10px;font-size:12.5px}
+.cuthead{text-align:center}
+.cuthead.all{background:#f0fdf4;box-shadow:0 0 0 2px var(--ok)}
+.cutbig{font-size:44px;font-weight:800;line-height:1.1;margin:2px 0 6px}.cutbig small{font-size:16px;color:var(--sub);font-weight:700}
+.cutsum{display:flex;justify-content:center;gap:6px;flex-wrap:wrap;font-weight:700}
+.cb{display:inline-block;font-size:12px;font-weight:700;padding:3px 9px;border-radius:20px;white-space:nowrap}
+.cb.ok{background:#dcfce7;color:var(--ok)}.cb.pace{background:#e0e7ff;color:var(--acc)}.cb.bad{background:#fee2e2;color:var(--bad)}
+.crow{padding:10px 0;border-bottom:1px solid var(--line)}.crow:last-child{border:0}
+.cnum{font-size:20px}
+.cbar{height:8px;background:var(--line);border-radius:4px;overflow:hidden;margin:5px 0 4px}
+.cbar i{display:block;height:100%;border-radius:4px}.cbar i.ok{background:var(--ok)}.cbar i.pace{background:var(--acc)}.cbar i.bad,.cbar i.ng{background:var(--bad)}
 .dot{display:inline-block;width:9px;height:9px;border-radius:3px;margin-right:3px;vertical-align:middle}
 nav button{font-size:11px}
 .ihead{display:flex;width:100%;justify-content:space-between;align-items:center;gap:8px;text-align:left;background:none;border:0;border-top:1px solid var(--line);padding:12px 2px;margin-top:4px;font-size:15px;color:var(--ink)}
@@ -290,6 +300,7 @@ function render(){
   const m=monthOf(ym);
   let body='';
   if(view.tab==='today')body=todayView(ym,m);
+  else if(view.tab==='cut')body=cutView(ym,m);
   else if(view.tab==='graph')body=graphView(ym,m);
   else if(view.tab==='cal')body=calView(ym,m);
   else body=setView(ym,m);
@@ -303,6 +314,7 @@ function render(){
   <main>${body}</main>
   <nav>
     <button data-tab="today" class="${view.tab==='today'?'on':''}"><span>🎯</span>成果</button>
+    <button data-tab="cut" class="${view.tab==='cut'?'on':''}"><span>🚩</span>足切り</button>
     <button data-tab="graph" class="${view.tab==='graph'?'on':''}"><span>📊</span>グラフ</button>
     <button data-tab="cal" class="${view.tab==='cal'?'on':''}"><span>📅</span>カレンダー</button>
     <button data-tab="set" class="${view.tab==='set'?'on':''}"><span>⚙️</span>項目設定</button>
@@ -430,6 +442,38 @@ function subStats(ym,it,total){
 function subBarsHtml(list,sc,u,yen){
   if(!list||!list.length)return '';
   return '<div class="sbars">'+list.map(x=>`<div class="sbr"><span class="sbn">${x.c?'<i class="sbc">足切り</i>':''}${esc(x.n)}</span><span class="sbt"><i style="width:${Math.min(100,x.q/sc*100)}%" class="${x.c?'on':''}${x.o?' oth':''}"></i></span><span class="sbq">${fmt(x.q)}${u}${yen&&x.y?`<small> ${fmt(x.y)}円</small>`:''}</span></div>`).join('')+'</div>';
+}
+function cutView(ym,m){
+  const isCur=ym===curYM,past=ym<curYM,mo=Number(ym.slice(5));
+  let work=0,el=0,rem=0;for(let d=1;d<=daysIn(ym);d++){const k=dkey(ym,d);if(m.off.includes(k))continue;work++;if(k<=todayKey)el++;if(k>=todayKey)rem++;}
+  const rows=[];
+  const pc=ptCutOf();
+  if(pc!==null){const tot=monthPts(ym),bef=monthPts(ym,todayKey);
+    rows.push({n:'ポイント',sub:'今日の成果の合計',T:pc,tot,u:'pt',done:tot>=pc,left:Math.max(0,pc-tot),daily:isCur&&rem?Math.max(0,Math.ceil((pc-bef)/rem)):null,proj:isCur&&el?tot/el*work:null});}
+  for(const it of S.items){const r=calc(ym,it),c=r.t.cut;if(!c)continue;
+    rows.push({n:it.name||'名前なし',sub:c.yen?(cutSet(it)?cutNames(it)+'の売上合計':'売上合計'):(c.flt?cutNames(it)+'のみ':''),T:c.T,tot:c.tot,u:uOf(it,'cut'),done:c.done,left:c.left,daily:isCur?c.daily:null,proj:isCur?c.proj:null});}
+  if(!rows.length)return `<div class="card empty">足切りが設定されていません。<br>項目設定で、項目の足切りやポイントの足切りを入れてください。<button class="btn" data-tab="set">項目設定へ</button></div>`;
+  const st=x=>x.done?'ok':(isCur&&x.proj!=null&&x.proj>=x.T)?'pace':(past?'ng':'bad');
+  const cnt={ok:0,pace:0,bad:0,ng:0};rows.forEach(x=>cnt[st(x)]++);
+  const allOk=cnt.ok===rows.length;
+  let h=`<div class="card cuthead ${allOk?'all':''}">
+    <div class="sub">${mo}月の足切り</div>
+    <div class="cutbig">${cnt.ok}<small> / ${rows.length} クリア</small></div>
+    <div class="cutsum">${allOk?'🎉 全部クリア！':`<span class="cb ok">クリア ${cnt.ok}</span>${isCur?`<span class="cb pace">ペースOK ${cnt.pace}</span><span class="cb bad">ペース不足 ${cnt.bad}</span>`:`<span class="cb bad">未達 ${cnt.ng+cnt.bad}</span>`}`}</div>
+    ${isCur?`<div class="sub" style="margin-top:6px">残り出勤日 ${rem}日（今日を含む）</div>`:''}
+  </div>`;
+  const order={bad:0,ng:0,pace:1,ok:2};
+  rows.sort((a,b)=>order[st(a)]-order[st(b)]);
+  h+='<div class="card" style="padding:6px 14px">'+rows.map(x=>{const s_=st(x),rate=x.T?Math.min(100,x.tot/x.T*100):0;
+    const badge=s_==='ok'?'<span class="cb ok">✓ クリア</span>':s_==='pace'?'<span class="cb pace">ペースOK</span>':s_==='ng'?'<span class="cb bad">未達</span>':'<span class="cb bad">ペース不足</span>';
+    return `<div class="crow">
+      <div class="between"><div><b>${esc(x.n)}</b>${x.sub?`<span class="sub">　${esc(x.sub)}</span>`:''}</div>${badge}</div>
+      <div class="between" style="margin-top:4px"><span><b class="cnum">${fmt(x.tot)}</b><span class="sub"> / ${fmt(x.T)}${x.u}</span></span><span class="sub">${x.done?'':`あと <b style="color:var(--ink)">${fmt(x.left)}${x.u}</b>`}</span></div>
+      <div class="cbar"><i class="${s_}" style="width:${rate}%"></i></div>
+      ${isCur&&!x.done?`<div class="sub">今日の目安 <b style="color:var(--ink)">${x.daily==null?'—':fmt(x.daily)+x.u}</b>${x.proj!=null?`　着地予測 ${fmt(Math.round(x.proj))}${x.u}`:''}</div>`:''}
+    </div>`;}).join('')+'</div>';
+  h+=`<div class="sub" style="text-align:center">ペースOK＝今のペースなら月末に足切りを超える見込み</div>`;
+  return h;
 }
 function gBar(base,g,c,cu,color,cn,subs,u){
   // 線（足切り・個人目標）と、その下のラベル
