@@ -16,3 +16,8 @@
 - `store/` 店長用（スタッフ別グラフ・店舗内ランキング・店舗合計）
 - `hq/` 本部用（店舗合計・店舗ランキング・スタッフ別・全体ランキング・店舗追加）
 - どれも `target/index.html` のコピー（title と apple-touch-icon だけ違う）。パスで動きが変わる。
+
+## 施策キャンペーン確認
+- `campaign/` … https://chaitentou6464.github.io/clearfile-app/campaign/
+- 施策を登録して、手続き（MNP・機種変更など）や機種名・「一括1円」などで検索するアプリ。言い換え（機変＝機種変更、のりかえ＝MNP、アイフォン＝iPhone など）にも対応。
+- データは端末の中だけ（localStorage の `campaign_v1`、写真は IndexedDB の `campaign_photos`）。メニューからファイルで送る・読み込むができる。

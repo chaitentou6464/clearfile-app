@@ -1,0 +1,478 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>施策キャンペーン確認</title>
+<link rel="manifest" href="manifest.webmanifest?v=1">
+<link rel="apple-touch-icon" href="apple-touch-icon-v1.png">
+<meta name="theme-color" content="#1c2230">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="施策確認">
+<style>
+:root{--bg:#f4f5f7;--card:#fff;--ink:#1c2230;--sub:#6b7280;--line:#e5e7eb;--acc:#2563eb;--accbg:#eaf1ff;--ok:#16a34a;--warn:#ea580c;--bad:#dc2626;--off:#9ca3af;--hl:#fff1a8}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{margin:0}
+body{background:var(--bg);color:var(--ink);font-family:-apple-system,"Hiragino Sans","Noto Sans JP",sans-serif;font-size:15px;padding-bottom:calc(30px + env(safe-area-inset-bottom))}
+button{font:inherit;cursor:pointer}
+input,select,textarea{font:inherit;color:var(--ink);background:#fff;border:1px solid var(--line);border-radius:10px;padding:10px 12px;width:100%}
+textarea{resize:vertical;min-height:80px;line-height:1.5}
+header{position:sticky;top:0;z-index:5;background:var(--ink);color:#fff;padding:calc(10px + env(safe-area-inset-top)) 14px 12px}
+.mrow{display:flex;align-items:center;gap:8px}
+.mtitle{font-size:18px;font-weight:700;flex:1}
+.hbtn{background:rgba(255,255,255,.14);color:#fff;border:0;border-radius:10px;height:36px;padding:0 12px;font-size:14px;display:inline-flex;align-items:center;gap:4px}
+.search{position:relative;margin-top:10px}
+.search input{border:0;border-radius:12px;padding:13px 40px 13px 42px;font-size:16px}
+.search svg{position:absolute;left:12px;top:50%;transform:translateY(-50%);width:20px;height:20px;color:var(--sub)}
+.search .clr{position:absolute;right:6px;top:50%;transform:translateY(-50%);border:0;background:#eef0f3;border-radius:50%;width:28px;height:28px;color:var(--sub);display:none;font-size:15px}
+.chips{display:flex;gap:6px;overflow-x:auto;padding:10px 0 2px;scrollbar-width:none}
+.chips::-webkit-scrollbar{display:none}
+.chip{flex:none;border:0;border-radius:999px;padding:6px 12px;font-size:13px;background:rgba(255,255,255,.14);color:#fff}
+.chip.on{background:#fff;color:var(--ink);font-weight:700}
+main{padding:12px 12px 96px;max-width:760px;margin:0 auto}
+.bar{display:flex;align-items:center;justify-content:space-between;color:var(--sub);font-size:13px;margin:4px 2px 10px;gap:8px}
+.bar label{display:flex;align-items:center;gap:6px;white-space:nowrap}
+.bar input{width:auto}
+.card{background:var(--card);border-radius:14px;padding:14px;margin-bottom:10px;box-shadow:0 1px 2px rgba(0,0,0,.05);border:1px solid var(--line)}
+.card.ended{opacity:.6}
+.card .top{display:flex;align-items:flex-start;gap:8px}
+.card h3{margin:0;font-size:16px;flex:1;line-height:1.4}
+.badge{flex:none;font-size:11px;font-weight:700;border-radius:6px;padding:3px 7px;white-space:nowrap}
+.b-now{background:#dcfce7;color:var(--ok)}.b-soon{background:#ffedd5;color:var(--warn)}.b-end{background:#f3f4f6;color:var(--off)}.b-fut{background:var(--accbg);color:var(--acc)}
+.offer{margin-top:8px;font-size:17px;font-weight:700;color:var(--bad)}
+.tags{display:flex;flex-wrap:wrap;gap:5px;margin-top:8px}
+.tag{font-size:12px;border-radius:6px;padding:3px 8px;background:var(--accbg);color:var(--acc)}
+.tag.m{background:#f3f4f6;color:#374151}
+.meta{color:var(--sub);font-size:12px;margin-top:8px}
+.sec{margin-top:10px;font-size:14px;line-height:1.6;white-space:pre-wrap;word-break:break-word}
+.sec b{display:block;font-size:12px;color:var(--sub);font-weight:600;margin-bottom:2px}
+.memo{background:#fffbea;border-radius:8px;padding:8px 10px}
+mark{background:var(--hl);color:inherit;border-radius:3px;padding:0 1px}
+.more{color:var(--acc);border:0;background:none;padding:6px 0 0;font-size:13px}
+.thumbs{display:flex;gap:6px;margin-top:10px;overflow-x:auto}
+.thumbs img{width:76px;height:76px;object-fit:cover;border-radius:8px;border:1px solid var(--line);flex:none}
+.acts{display:flex;gap:8px;margin-top:12px;border-top:1px solid var(--line);padding-top:10px}
+.sbtn{border:1px solid var(--line);background:#fff;border-radius:9px;padding:7px 12px;font-size:13px;color:var(--ink)}
+.empty{text-align:center;color:var(--sub);padding:40px 16px;line-height:1.8}
+.fab{position:fixed;right:16px;bottom:calc(18px + env(safe-area-inset-bottom));z-index:6;background:var(--acc);color:#fff;border:0;border-radius:999px;padding:14px 20px;font-weight:700;font-size:15px;box-shadow:0 6px 18px rgba(37,99,235,.35);display:flex;align-items:center;gap:6px}
+.sheet{position:fixed;inset:0;z-index:20;background:rgba(15,20,30,.45);display:none;align-items:flex-end;justify-content:center}
+.sheet.on{display:flex}
+.panel{background:var(--bg);width:100%;max-width:760px;max-height:94vh;overflow:auto;border-radius:18px 18px 0 0;padding:0 0 calc(20px + env(safe-area-inset-bottom))}
+.phead{position:sticky;top:0;background:var(--bg);display:flex;align-items:center;gap:8px;padding:14px 14px 10px;border-bottom:1px solid var(--line);z-index:2}
+.phead h2{margin:0;font-size:17px;flex:1}
+.pbody{padding:6px 14px}
+.f{display:block;margin:14px 0 6px;color:var(--sub);font-size:13px;font-weight:600}
+.f small{font-weight:400}
+.pick{display:flex;flex-wrap:wrap;gap:6px}
+.pick button{border:1px solid var(--line);background:#fff;border-radius:999px;padding:7px 13px;font-size:14px;color:var(--ink)}
+.pick button.on{background:var(--acc);border-color:var(--acc);color:#fff}
+.row2{display:flex;gap:8px}.row2>*{flex:1}
+.pri{background:var(--acc);color:#fff;border:0;border-radius:12px;padding:14px;font-weight:700;width:100%;font-size:16px;margin-top:18px}
+.dng{background:#fff;color:var(--bad);border:1px solid #fecaca;border-radius:12px;padding:12px;width:100%;margin-top:10px}
+.gbtn{background:#fff;color:var(--ink);border:1px solid var(--line);border-radius:12px;padding:13px;width:100%;margin-top:10px;text-align:left;display:block}
+.gbtn small{display:block;color:var(--sub);font-size:12px;margin-top:2px}
+.ph{display:flex;gap:8px;flex-wrap:wrap}
+.ph .p{position:relative}
+.ph img{width:80px;height:80px;object-fit:cover;border-radius:8px}
+.ph .x{position:absolute;top:-6px;right:-6px;border:0;background:var(--ink);color:#fff;border-radius:50%;width:22px;height:22px;font-size:12px}
+.addph{width:80px;height:80px;border:1.5px dashed #c7cbd3;border-radius:8px;background:#fff;color:var(--sub);font-size:12px}
+.hint{color:var(--sub);font-size:12px;line-height:1.6;margin-top:6px}
+.prev{background:#fff;border:1px solid var(--line);border-radius:10px;padding:10px;margin-top:8px;font-size:13px}
+.prev b{font-size:14px}
+.viewer{position:fixed;inset:0;z-index:30;background:#000;display:none;align-items:center;justify-content:center}
+.viewer.on{display:flex}
+.viewer img{max-width:100%;max-height:100%}
+.viewer button{position:absolute;top:calc(12px + env(safe-area-inset-top));right:12px;background:rgba(255,255,255,.2);color:#fff;border:0;border-radius:50%;width:40px;height:40px;font-size:18px}
+.toast{position:fixed;left:50%;bottom:90px;transform:translateX(-50%);background:var(--ink);color:#fff;padding:10px 16px;border-radius:10px;font-size:14px;z-index:40;opacity:0;transition:.25s;pointer-events:none}
+.toast.on{opacity:1}
+</style>
+</head>
+<body>
+<header>
+  <div class="mrow">
+    <div class="mtitle">施策キャンペーン確認</div>
+    <button class="hbtn" id="menuBtn">⋯ メニュー</button>
+  </div>
+  <div class="search">
+    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round"><circle cx="11" cy="11" r="7"/><path d="M20 20l-3.5-3.5"/></svg>
+    <input id="q" type="text" inputmode="search" placeholder="例）MNP iPhone16　機種変更 一括1円" autocomplete="off" enterkeyhint="search">
+    <button class="clr" id="clr">✕</button>
+  </div>
+  <div class="chips" id="chips"></div>
+</header>
+
+<main>
+  <div class="bar"><span id="count"></span><label><input type="checkbox" id="showEnded">終了した施策も表示</label></div>
+  <div id="list"></div>
+</main>
+
+<button class="fab" id="addBtn">＋ 施策を登録</button>
+
+<!-- 登録・編集 -->
+<div class="sheet" id="editSheet"><div class="panel">
+  <div class="phead"><h2 id="editTitle">施策を登録</h2><button class="sbtn" data-close>閉じる</button></div>
+  <div class="pbody">
+    <label class="f">施策名 <small>（必須）</small></label>
+    <input id="e_title" placeholder="例）iPhone16 のりかえ割">
+    <label class="f">手続き <small>（当てはまるものを全部）</small></label>
+    <div class="pick" id="e_procs"></div>
+    <label class="f">対象機種 <small>（「、」で区切る）</small></label>
+    <input id="e_models" placeholder="例）iPhone16、Pixel 9a、全機種">
+    <label class="f">価格・特典 <small>（一言で）</small></label>
+    <input id="e_offer" placeholder="例）一括1円 ／ 22,000円割引 ／ PayPay 5,000pt">
+    <label class="f">期間</label>
+    <div class="row2"><input id="e_start" type="date"><input id="e_end" type="date"></div>
+    <div class="hint">終わりの日を入れると「終了まであと○日」が出て、終わったら自動で隠れます。</div>
+    <label class="f">条件</label>
+    <textarea id="e_cond" placeholder="例）22歳以下／トクサポ加入／指定プラン（ペイトク）／回線同時契約 など"></textarea>
+    <label class="f">内容・説明</label>
+    <textarea id="e_body" placeholder="案内文や通達の内容をそのまま貼り付けてもOK"></textarea>
+    <label class="f">自分用メモ <small>（トーク例・注意点など）</small></label>
+    <textarea id="e_memo" placeholder="例）併用NG：○○割　お客様への言い方：…"></textarea>
+    <label class="f">写真 <small>（通達・POPのスクショなど）</small></label>
+    <div class="ph" id="e_photos"></div>
+    <input type="file" id="e_file" accept="image/*" multiple hidden>
+    <label class="f">検索用キーワード <small>（言い換え・略称など）</small></label>
+    <input id="e_kw" placeholder="例）のりかえ 乗り換え アイフォン">
+    <button class="pri" id="saveBtn">保存する</button>
+    <button class="dng" id="delBtn">この施策を削除</button>
+  </div>
+</div></div>
+
+<!-- メニュー -->
+<div class="sheet" id="menuSheet"><div class="panel">
+  <div class="phead"><h2>メニュー</h2><button class="sbtn" data-close>閉じる</button></div>
+  <div class="pbody">
+    <button class="gbtn" id="m_bulk">📋 まとめて貼り付け登録<small>LINEや通達の文章を貼ると、空行ごとに施策として登録</small></button>
+    <button class="gbtn" id="m_share">📤 施策データを送る・保存<small>ファイルにしてLINE等で送れます（写真も含む）</small></button>
+    <button class="gbtn" id="m_import">📥 施策データを読み込む<small>送られてきたファイルを追加（同じ施策は新しい方で上書き）</small></button>
+    <input type="file" id="importFile" accept=".json,application/json" hidden>
+    <button class="gbtn" id="m_clean">🧹 終了した施策を整理<small>終了から30日以上たった施策をまとめて削除</small></button>
+    <div class="hint" style="margin-top:16px">データはこのスマホの中だけに保存されます。機種変更前や念のために「送る・保存」でバックアップしておくと安心です。<br>ブラウザのメニューから「ホーム画面に追加」すると、アプリのように使えます。</div>
+  </div>
+</div></div>
+
+<!-- まとめて登録 -->
+<div class="sheet" id="bulkSheet"><div class="panel">
+  <div class="phead"><h2>まとめて貼り付け登録</h2><button class="sbtn" data-close>閉じる</button></div>
+  <div class="pbody">
+    <div class="hint">1つの施策ごとに<b>空行（何も書いてない行）</b>で区切って貼り付けてください。1行目が施策名になります。手続き・期間・「一括1円」などは文章から自動で読み取ります（あとで直せます）。</div>
+    <textarea id="bulkText" style="min-height:200px;margin-top:10px" placeholder="iPhone16 のりかえ一括1円&#10;MNP 22歳以下 11/1〜11/30&#10;&#10;Pixel 9a 機種変更 22,000円割引&#10;11月30日まで"></textarea>
+    <div id="bulkPrev"></div>
+    <button class="pri" id="bulkSave">この内容で登録する</button>
+  </div>
+</div></div>
+
+<div class="viewer" id="viewer"><img id="viewerImg" alt=""><button id="viewerClose">✕</button></div>
+<div class="toast" id="toast"></div>
+
+<script>
+(()=>{
+'use strict';
+const KEY='campaign_v1';
+const PROCS=['新規','MNP','機種変更','番号移行','名義変更','オプション','光・でんき','全手続き'];
+const $=s=>document.querySelector(s);
+const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const uid=()=>Date.now().toString(36)+Math.random().toString(36).slice(2,7);
+const toast=m=>{const t=$('#toast');t.textContent=m;t.classList.add('on');clearTimeout(toast.t);toast.t=setTimeout(()=>t.classList.remove('on'),1800)};
+
+/* ---------- 保存 ---------- */
+let items=[];
+try{items=JSON.parse(localStorage.getItem(KEY)||'[]')}catch(e){items=[]}
+const save=()=>{try{localStorage.setItem(KEY,JSON.stringify(items))}catch(e){alert('保存できませんでした（容量不足の可能性）')}};
+
+// 写真は IndexedDB に入れる
+const dbp=new Promise((res,rej)=>{const r=indexedDB.open('campaign_photos',1);r.onupgradeneeded=()=>r.result.createObjectStore('p');r.onsuccess=()=>res(r.result);r.onerror=()=>rej(r.error)});
+const pPut=async(id,data)=>{const db=await dbp;return new Promise(r=>{const t=db.transaction('p','readwrite');t.objectStore('p').put(data,id);t.oncomplete=()=>r()})};
+const pGet=async id=>{const db=await dbp;return new Promise(r=>{const q=db.transaction('p').objectStore('p').get(id);q.onsuccess=()=>r(q.result);q.onerror=()=>r(null)})};
+const pDel=async id=>{const db=await dbp;return new Promise(r=>{const t=db.transaction('p','readwrite');t.objectStore('p').delete(id);t.oncomplete=()=>r()})};
+
+if(!localStorage.getItem(KEY)){
+  items=[{id:uid(),title:'【見本】iPhone のりかえ一括1円（この見本は消してOK）',procs:['MNP'],models:'iPhone16、iPhone16e',offer:'一括1円',start:'',end:'',cond:'例）指定プランに加入／トクサポ加入 など',body:'ここに通達や案内の内容を貼り付けておくと、検索でヒットします。\n右下の「＋ 施策を登録」から自分の店の施策を登録してください。',memo:'例）併用できない割引、お客様への言い方など',kw:'',photos:[],updated:Date.now()}];
+  save();
+}
+
+/* ---------- 検索の正規化 ---------- */
+const kata2hira=s=>s.replace(/[ァ-ヶ]/g,c=>String.fromCharCode(c.charCodeAt(0)-0x60));
+const norm=s=>kata2hira(String(s||'').normalize('NFKC').toLowerCase())
+  .replace(/[一壱]円/g,'1円').replace(/ゼロ円|〇円|零円/g,'0円')
+  .replace(/[\s・,，、。\/／\-‐―〜~（）()「」【】\[\]]+/g,' ');
+const squash=s=>norm(s).replace(/ /g,'');
+// 言い換えグループ（どれで検索しても同じ扱い）
+const SYN=[
+  ['mnp','のりかえ','乗り換え','乗換え','乗換','他社から','他社のりかえ','転入'],
+  ['機種変更','機変','きへん','機種変','買い替え','買替'],
+  ['新規','新規契約','新規回線','しんき'],
+  ['番号移行','ymからsb','わいもばいるから'],
+  ['一括1円','1円','いっかつ1円','一括いちえん','いちえん'],
+  ['一括','いっかつ'],
+  ['iphone','あいふぉん','あいほん'],
+  ['pixel','ぴくせる'],
+  ['galaxy','ぎゃらくしー','ぎゃらくしい'],
+  ['xperia','えくすぺりあ'],
+  ['aquos','あくおす'],
+  ['android','あんどろいど'],
+  ['ipad','あいぱっど'],
+  ['光','ひかり','softbank光','そふとばんく光','sb光'],
+  ['でんき','電気','おうちでんき'],
+  ['paypay','ぺいぺい'],
+  ['ymobile','y!mobile','わいもばいる','わいも'],
+  ['softbank','そふとばんく'],
+  ['トクサポ','とくさぽ','新トクするサポート','とくするさぽーと'],
+  ['22歳以下','u22','22歳','若者','学割','学生'],
+  ['60歳以上','シニア','しにあ'],
+  ['割引','割','値引き','値引'],
+  ['ポイント','pt','ぽいんと'],
+  ['下取り','したどり','下取'],
+].map(g=>[...new Set(g.map(squash))]);
+const synOf=t=>{for(const g of SYN){if(g.includes(t))return g}return [t]};
+const STOP=['機種','対象機種','対象','施策','きゃんぺーん','について','どれ','なに','何'].map(squash);
+const ALLV=[...SYN.flat().filter(v=>/[^\x00-\x7f]/.test(v)),...STOP].sort((a,b)=>b.length-a.length);
+const PROC_GROUPS=[0,1,2,3].map(i=>SYN[i]);
+
+// 「機種変更iphone16」のようにくっついていても分ける
+function tokenize(q){
+  const out=[];
+  q=String(q||'').normalize('NFKC').replace(/(^|[^\u3040-\u309f])[のでをはがとも](?=[^\u3040-\u309f]|$)/g,'$1 ');
+  for(const part of norm(q).split(' ').filter(Boolean)){
+    let buf='',i=0;
+    while(i<part.length){
+      const v=ALLV.find(v=>part.startsWith(v,i));
+      if(v){if(buf)out.push(buf);buf='';out.push(v);i+=v.length}else{buf+=part[i++]}
+    }
+    if(buf)out.push(buf);
+  }
+  return [...new Set(out)].filter(t=>!STOP.includes(t));
+}
+
+function hay(it){
+  const f=k=>squash(it[k]||'');
+  return {title:f('title'),procs:squash((it.procs||[]).join(' ')),models:f('models'),offer:f('offer'),kw:f('kw'),cond:f('cond'),body:f('body'),memo:f('memo')};
+}
+const W={title:6,procs:5,models:5,offer:4,kw:4,cond:2,body:1,memo:1};
+function score(it,terms){
+  if(!terms.length)return 1;
+  const h=hay(it);const allProc=(it.procs||[]).includes('全手続き');
+  let total=0;
+  for(const t of terms){
+    const vars=synOf(t);let best=0;
+    for(const k in W){if(vars.some(v=>h[k].includes(v)))best=Math.max(best,W[k])}
+    if(!best&&allProc&&PROC_GROUPS.some(g=>g.includes(t)))best=3;
+    if(!best)return 0; // すべての言葉にヒットしたものだけ
+    total+=best;
+  }
+  return total;
+}
+
+/* ---------- 期間 ---------- */
+const today=()=>{const d=new Date();d.setHours(0,0,0,0);return d};
+const pd=s=>{if(!s)return null;const[y,m,d]=s.split('-').map(Number);return new Date(y,m-1,d)};
+function status(it){
+  const t=today(),s=pd(it.start),e=pd(it.end);
+  if(e&&e<t)return{k:'end',label:'終了',cls:'b-end'};
+  if(s&&s>t)return{k:'fut',label:fmt(it.start)+'〜開始',cls:'b-fut'};
+  if(e){const n=Math.round((e-t)/864e5);if(n<=7)return{k:'soon',label:n===0?'今日まで':'あと'+n+'日',cls:'b-soon'}}
+  return{k:'now',label:'実施中',cls:'b-now'};
+}
+const fmt=s=>{const d=pd(s);return d?`${d.getMonth()+1}/${d.getDate()}`:''};
+const period=it=>(it.start||it.end)?`${it.start?fmt(it.start):''}〜${it.end?fmt(it.end):''}`:'';
+
+/* ---------- 表示 ---------- */
+let activeChip='';
+function highlight(text,terms){
+  let h=esc(text);
+  if(!terms.length||!text)return h;
+  // 表示用に、元の文字のまま当たった部分に印をつける
+  const src=String(text);const n=[...src].map(c=>squash(c));
+  const marks=new Array(src.length).fill(false);
+  const flat=n.join('');const idx=[];n.forEach((c,i)=>{for(let k=0;k<c.length;k++)idx.push(i)});
+  for(const t of terms)for(const v of synOf(t)){if(!v)continue;let p=flat.indexOf(v);while(p>=0){for(let k=p;k<p+v.length;k++)marks[idx[k]]=true;p=flat.indexOf(v,p+1)}}
+  let out='',on=false;[...src].forEach((c,i)=>{if(marks[i]&&!on){out+='<mark>';on=true}if(!marks[i]&&on){out+='</mark>';on=false}out+=esc(c)});
+  if(on)out+='</mark>';return out;
+}
+const sortKey={soon:0,now:1,fut:2,end:3};
+function render(){
+  const q=$('#q').value;$('#clr').style.display=q?'block':'none';
+  const terms=tokenize([q,activeChip].filter(Boolean).join(' '));
+  const showEnded=$('#showEnded').checked;
+  let res=items.map(it=>({it,s:score(it,terms),st:status(it)})).filter(r=>r.s>0);
+  const endedHidden=items.filter(it=>status(it).k==='end'&&score(it,terms)>0).length;
+  if(!showEnded)res=res.filter(r=>r.st.k!=='end');
+  res.sort((a,b)=>sortKey[a.st.k]-sortKey[b.st.k]||b.s-a.s||(a.it.end||'9').localeCompare(b.it.end||'9')||b.it.updated-a.it.updated);
+  $('#count').textContent=terms.length?`${res.length}件ヒット`+(!showEnded&&endedHidden?`（終了${endedHidden}件は非表示）`:''):`実施中・予定 ${res.length}件`;
+  const L=$('#list');
+  if(!items.length){L.innerHTML='<div class="empty">まだ施策がありません。<br>右下の「＋ 施策を登録」か、<br>メニューの「まとめて貼り付け登録」から始めましょう。</div>';return}
+  if(!res.length){L.innerHTML=`<div class="empty">「${esc(q||activeChip)}」に当てはまる施策は見つかりませんでした。<br>言葉を減らすか、別の言い方で試してください。${!showEnded&&endedHidden?'<br>（終了した施策に'+endedHidden+'件あります）':''}</div>`;return}
+  L.innerHTML=res.map(({it,st})=>{
+    const long=(it.body||'').length>140;
+    return `<div class="card ${st.k==='end'?'ended':''}" data-id="${it.id}">
+      <div class="top"><h3>${highlight(it.title,terms)}</h3><span class="badge ${st.cls}">${st.label}</span></div>
+      ${it.offer?`<div class="offer">${highlight(it.offer,terms)}</div>`:''}
+      <div class="tags">${(it.procs||[]).map(p=>`<span class="tag">${highlight(p,terms)}</span>`).join('')}${(it.models||'').split(/[、,，]/).map(s=>s.trim()).filter(Boolean).map(m=>`<span class="tag m">${highlight(m,terms)}</span>`).join('')}</div>
+      ${period(it)?`<div class="meta">期間：${period(it)}</div>`:''}
+      ${it.cond?`<div class="sec"><b>条件</b>${highlight(it.cond,terms)}</div>`:''}
+      ${it.body?`<div class="sec body" data-full="0"><b>内容</b><span>${highlight(long?it.body.slice(0,140)+'…':it.body,terms)}</span></div>${long?'<button class="more" data-act="more">続きを読む</button>':''}`:''}
+      ${it.memo?`<div class="sec memo"><b>メモ</b>${highlight(it.memo,terms)}</div>`:''}
+      ${(it.photos||[]).length?`<div class="thumbs">${it.photos.map(p=>`<img data-pid="${p}" alt="">`).join('')}</div>`:''}
+      <div class="acts"><button class="sbtn" data-act="edit">編集</button><button class="sbtn" data-act="copy">コピーして新しく</button></div>
+    </div>`}).join('');
+  L.querySelectorAll('img[data-pid]').forEach(async img=>{const d=await pGet(img.dataset.pid);if(d)img.src=d});
+}
+function renderChips(){
+  const base=['MNP','機種変更','新規','番号移行','一括1円','iPhone','Pixel','Galaxy','22歳以下','光'];
+  $('#chips').innerHTML=base.map(c=>`<button class="chip ${activeChip===c?'on':''}" data-c="${c}">${c}</button>`).join('');
+}
+$('#chips').onclick=e=>{const b=e.target.closest('[data-c]');if(!b)return;activeChip=activeChip===b.dataset.c?'':b.dataset.c;renderChips();render()};
+$('#q').addEventListener('input',render);
+$('#q').addEventListener('keydown',e=>{if(e.key==='Enter')e.target.blur()});
+$('#clr').onclick=()=>{$('#q').value='';activeChip='';renderChips();render();$('#q').focus()};
+$('#showEnded').onchange=render;
+
+$('#list').onclick=e=>{
+  const card=e.target.closest('.card');if(!card)return;
+  const it=items.find(x=>x.id===card.dataset.id);
+  const img=e.target.closest('img[data-pid]');
+  if(img&&img.src){$('#viewerImg').src=img.src;$('#viewer').classList.add('on');return}
+  const act=e.target.closest('[data-act]')?.dataset.act;
+  if(act==='edit')openEdit(it);
+  if(act==='copy')openEdit({...it,id:null,title:it.title,start:'',end:'',photos:[...(it.photos||[])]},true);
+  if(act==='more'){const terms=tokenize([$('#q').value,activeChip].filter(Boolean).join(' '));card.querySelector('.body span').innerHTML=highlight(it.body,terms);e.target.remove()}
+};
+$('#viewerClose').onclick=()=>$('#viewer').classList.remove('on');
+$('#viewer').onclick=e=>{if(e.target.id==='viewer')$('#viewer').classList.remove('on')};
+
+/* ---------- シート ---------- */
+const open=id=>{$(id).classList.add('on');document.body.style.overflow='hidden'};
+const close=el=>{el.classList.remove('on');if(!document.querySelector('.sheet.on'))document.body.style.overflow=''};
+document.querySelectorAll('.sheet').forEach(s=>{s.addEventListener('click',e=>{if(e.target===s||e.target.closest('[data-close]'))close(s)})});
+
+/* ---------- 登録・編集 ---------- */
+let editing=null,ePhotos=[],newPhotoIds=[];
+$('#e_procs').innerHTML=PROCS.map(p=>`<button data-p="${p}">${p}</button>`).join('');
+$('#e_procs').onclick=e=>{const b=e.target.closest('[data-p]');if(b)b.classList.toggle('on')};
+function openEdit(it,isCopy){
+  editing=it&&it.id?it:null;newPhotoIds=[];
+  const v=it||{};
+  $('#editTitle').textContent=editing?'施策を編集':isCopy?'コピーして新しく登録':'施策を登録';
+  $('#e_title').value=v.title||'';$('#e_models').value=v.models||'';$('#e_offer').value=v.offer||'';
+  $('#e_start').value=v.start||'';$('#e_end').value=v.end||'';$('#e_cond').value=v.cond||'';
+  $('#e_body').value=v.body||'';$('#e_memo').value=v.memo||'';$('#e_kw').value=v.kw||'';
+  $('#e_procs').querySelectorAll('button').forEach(b=>b.classList.toggle('on',(v.procs||[]).includes(b.dataset.p)));
+  ePhotos=[...(v.photos||[])];renderPhotos();
+  $('#delBtn').style.display=editing?'block':'none';
+  open('#editSheet');
+  if(isCopy)toast('期間を入れ直して保存してください');
+}
+async function renderPhotos(){
+  const box=$('#e_photos');
+  box.innerHTML=ePhotos.map(p=>`<div class="p"><img data-pid="${p}" alt=""><button class="x" data-x="${p}">✕</button></div>`).join('')+'<button class="addph" id="addPh">＋ 写真</button>';
+  box.querySelectorAll('img').forEach(async img=>{const d=await pGet(img.dataset.pid);if(d)img.src=d});
+}
+$('#e_photos').onclick=e=>{
+  if(e.target.id==='addPh')return $('#e_file').click();
+  const x=e.target.dataset.x;if(x){ePhotos=ePhotos.filter(p=>p!==x);renderPhotos()}
+};
+const shrink=file=>new Promise(res=>{const fr=new FileReader();fr.onload=()=>{const im=new Image();im.onload=()=>{const M=1400;let w=im.width,h=im.height;if(Math.max(w,h)>M){const r=M/Math.max(w,h);w=Math.round(w*r);h=Math.round(h*r)}const c=document.createElement('canvas');c.width=w;c.height=h;c.getContext('2d').drawImage(im,0,0,w,h);res(c.toDataURL('image/jpeg',.75))};im.onerror=()=>res(null);im.src=fr.result};fr.readAsDataURL(file)});
+$('#e_file').onchange=async e=>{
+  for(const f of e.target.files){const d=await shrink(f);if(!d)continue;const id='p'+uid();await pPut(id,d);ePhotos.push(id);newPhotoIds.push(id)}
+  e.target.value='';renderPhotos();
+};
+$('#saveBtn').onclick=async()=>{
+  const title=$('#e_title').value.trim();
+  if(!title){toast('施策名を入れてください');$('#e_title').focus();return}
+  const s=$('#e_start').value,en=$('#e_end').value;
+  if(s&&en&&s>en){toast('期間の始まりと終わりが逆です');return}
+  const data={title,procs:[...$('#e_procs').querySelectorAll('.on')].map(b=>b.dataset.p),models:$('#e_models').value.trim(),offer:$('#e_offer').value.trim(),start:s,end:en,cond:$('#e_cond').value.trim(),body:$('#e_body').value.trim(),memo:$('#e_memo').value.trim(),kw:$('#e_kw').value.trim(),photos:ePhotos,updated:Date.now()};
+  if(editing){
+    const removed=(editing.photos||[]).filter(p=>!ePhotos.includes(p));
+    Object.assign(editing,data);
+    for(const p of removed)if(!items.some(i=>(i.photos||[]).includes(p)))await pDel(p);
+  }else items.unshift({id:uid(),...data});
+  save();newPhotoIds=[];close($('#editSheet'));render();toast('保存しました');
+};
+$('#delBtn').onclick=async()=>{
+  if(!editing||!confirm(`「${editing.title}」を削除しますか？`))return;
+  const ph=editing.photos||[];items=items.filter(i=>i!==editing);
+  for(const p of ph)if(!items.some(i=>(i.photos||[]).includes(p)))await pDel(p);
+  save();close($('#editSheet'));render();toast('削除しました');
+};
+$('#addBtn').onclick=()=>{const q=$('#q').value.trim();openEdit(null);if(q&&!items.length)$('#e_title').value=q};
+
+/* ---------- まとめて登録 ---------- */
+const z2=n=>String(n).padStart(2,'0');
+function guessDate(m,d,y){const t=today();if(!y){y=t.getFullYear();if(m<t.getMonth()+1-5)y++}if(m<1||m>12||d<1||d>31)return '';return `${y}-${z2(m)}-${z2(d)}`}
+function parseBlock(txt){
+  const lines=txt.split('\n').map(s=>s.trim()).filter(Boolean);
+  const title=lines[0].slice(0,60);const n=squash(txt);
+  const procs=[];
+  if(SYN[0].some(v=>n.includes(v)))procs.push('MNP');
+  if(SYN[1].some(v=>n.includes(v)))procs.push('機種変更');
+  if(SYN[2].some(v=>n.includes(v)))procs.push('新規');
+  if(/番号移行/.test(txt))procs.push('番号移行');
+  if(/光|でんき|電気/.test(txt))procs.push('光・でんき');
+  let offer='';const nf=txt.normalize('NFKC');
+  const o=nf.match(/一括\s*[1１一]\s*円|一括\s*[\d,]+\s*円|[\d,]+\s*円\s*(?:割引|引き|値引|off|OFF)|[\d,]+\s*(?:pt|ポイント)(?:還元|付与|プレゼント)?/);
+  if(o)offer=o[0].replace(/一円/,'1円').replace(/\s+/g,'');
+  let start='',end='';
+  const r=nf.match(/(?:(\d{4})[\/年.])?(\d{1,2})[\/月.](\d{1,2})日?\s*(?:\(.\))?\s*[〜~～\-ー－から]+\s*(?:(\d{4})[\/年.])?(?:(\d{1,2})[\/月.])?(\d{1,2})日?/);
+  if(r){start=guessDate(+r[2],+r[3],r[1]&&+r[1]);end=guessDate(r[5]?+r[5]:+r[2],+r[6],(r[4]||r[1])&&+(r[4]||r[1]))}
+  else{const u=nf.match(/(?:(\d{4})[\/年.])?(\d{1,2})[\/月.](\d{1,2})日?\s*(?:\(.\))?\s*(?:まで|迄|終了)/);if(u)end=guessDate(+u[2],+u[3],u[1]&&+u[1])}
+  const mm=nf.match(/(?:iPhone|Pixel|Galaxy|Xperia|AQUOS|arrows|Redmi|Xiaomi|OPPO|motorola|iPad)\s?[\w+]*(?:\s?(?:Pro|Plus|Max|mini|Ultra|Fold|Flip|a|e)\b)*/gi)||[];
+  const models=[...new Set(mm.map(s=>s.trim()))].join('、');
+  return{id:uid(),title,procs,models,offer,start,end,cond:'',body:lines.slice(1).join('\n'),memo:'',kw:'',photos:[],updated:Date.now()};
+}
+let bulkItems=[];
+function bulkPreview(){
+  const t=$('#bulkText').value.replace(/\r/g,'');
+  bulkItems=t.split(/\n\s*\n/).map(b=>b.trim()).filter(Boolean).map(parseBlock);
+  $('#bulkPrev').innerHTML=bulkItems.length?`<div class="f">読み取り結果（${bulkItems.length}件）</div>`+bulkItems.map(b=>`<div class="prev"><b>${esc(b.title)}</b><br>手続き：${esc(b.procs.join('・')||'―')}　特典：${esc(b.offer||'―')}<br>機種：${esc(b.models||'―')}　期間：${esc(period(b)||'―')}</div>`).join(''):'';
+}
+$('#bulkText').addEventListener('input',bulkPreview);
+$('#bulkSave').onclick=()=>{
+  if(!bulkItems.length){toast('文章を貼り付けてください');return}
+  items=[...bulkItems,...items];save();
+  toast(`${bulkItems.length}件登録しました`);$('#bulkText').value='';bulkPreview();close($('#bulkSheet'));render();
+};
+
+/* ---------- メニュー ---------- */
+$('#menuBtn').onclick=()=>open('#menuSheet');
+$('#m_bulk').onclick=()=>{close($('#menuSheet'));open('#bulkSheet');setTimeout(()=>$('#bulkText').focus(),200)};
+$('#m_share').onclick=async()=>{
+  const photos={};
+  for(const it of items)for(const p of it.photos||[]){const d=await pGet(p);if(d)photos[p]=d}
+  const json=JSON.stringify({app:'campaign',v:1,exported:new Date().toISOString(),items,photos});
+  const d=new Date();const name=`施策データ_${d.getFullYear()}${z2(d.getMonth()+1)}${z2(d.getDate())}.json`;
+  const file=new File([json],name,{type:'application/json'});
+  try{
+    if(navigator.canShare&&navigator.canShare({files:[file]})){await navigator.share({files:[file],title:'施策データ'});return}
+  }catch(e){if(e.name==='AbortError')return}
+  const a=document.createElement('a');a.href=URL.createObjectURL(file);a.download=name;a.click();setTimeout(()=>URL.revokeObjectURL(a.href),3000);
+  toast('ファイルを保存しました');
+};
+$('#m_import').onclick=()=>$('#importFile').click();
+$('#importFile').onchange=async e=>{
+  const f=e.target.files[0];e.target.value='';if(!f)return;
+  try{
+    const d=JSON.parse(await f.text());
+    if(!Array.isArray(d.items))throw 0;
+    for(const [k,v] of Object.entries(d.photos||{}))await pPut(k,v);
+    let add=0,upd=0;
+    for(const it of d.items){const cur=items.find(x=>x.id===it.id);if(!cur){items.push(it);add++}else if((it.updated||0)>(cur.updated||0)){Object.assign(cur,it);upd++}}
+    save();render();close($('#menuSheet'));toast(`追加${add}件・更新${upd}件`);
+  }catch(err){alert('このファイルは読み込めませんでした')}
+};
+$('#m_clean').onclick=async()=>{
+  const lim=today();lim.setDate(lim.getDate()-30);
+  const old=items.filter(it=>{const e=pd(it.end);return e&&e<lim});
+  if(!old.length){toast('整理する施策はありません');return}
+  if(!confirm(`終了から30日以上たった施策 ${old.length}件を削除しますか？`))return;
+  items=items.filter(it=>!old.includes(it));
+  for(const it of old)for(const p of it.photos||[])if(!items.some(i=>(i.photos||[]).includes(p)))await pDel(p);
+  save();render();close($('#menuSheet'));toast(`${old.length}件削除しました`);
+};
+
+renderChips();render();
+})();
+</script>
+</body>
+</html>

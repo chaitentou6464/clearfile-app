@@ -1,0 +1,17 @@
+{
+  "id": "./index.html",
+  "name": "施策キャンペーン確認",
+  "short_name": "施策確認",
+  "description": "毎月変わる施策・キャンペーンを手続きや機種で検索できるアプリ",
+  "lang": "ja",
+  "start_url": "./index.html",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#f4f5f7",
+  "theme_color": "#1c2230",
+  "icons": [
+    {"src": "icon-192-v1.png", "sizes": "192x192", "type": "image/png"},
+    {"src": "icon-512-v1.png", "sizes": "512x512", "type": "image/png"},
+    {"src": "maskable-512-v1.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable"}
+  ]
+}
