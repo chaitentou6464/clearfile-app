@@ -144,6 +144,13 @@ textarea.tin{font-size:12px;word-break:break-all}
 .pbtn small{font-size:11px;color:var(--sub)}
 .pav{width:54px;height:54px;border-radius:27px;background:var(--ink);color:#fff;display:flex;align-items:center;justify-content:center;font-size:22px;font-weight:800}
 .pbtn.add{border-style:dashed}.pbtn.add .pav{background:var(--line);color:var(--ink)}
+.rrow{display:flex;gap:10px;align-items:center;width:100%;text-align:left;background:none;border:0;border-bottom:1px solid var(--line);padding:10px 2px;color:var(--ink);font-size:15px}
+.rrow:last-child{border:0}
+.rmd{width:34px;text-align:center;font-size:24px;flex:none}.rk{display:inline-block;width:28px;height:28px;border-radius:14px;background:var(--bg);font-size:14px;font-weight:800;line-height:28px;color:var(--sub)}
+.rmain{flex:1;display:flex;flex-direction:column;gap:3px;min-width:0}.rmain small{margin-left:2px}
+.rbar{display:block;height:7px;background:var(--line);border-radius:4px;overflow:hidden}.rbar i{display:block;height:100%;background:var(--acc);border-radius:4px}
+.seg2{display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-bottom:10px}.seg2 button{height:40px;border-radius:10px;border:1px solid var(--line);background:#fff;font-size:15px;font-weight:700;color:var(--sub)}.seg2 button.on{background:var(--ink);color:#fff;border-color:var(--ink)}
+.shoprow{padding:10px 0;border-bottom:1px solid var(--line)}.shoprow .mini{padding:0 8px;font-size:12px}
 .notice{background:#fff7ed;color:#9a3412;border-radius:10px;padding:9px 11px;font-size:12.5px;margin-bottom:12px}
 </style>
 </head>
@@ -155,7 +162,8 @@ textarea.tin{font-size:12px;word-break:break-all}
 (function(){
 const $app=document.getElementById('app');
 const ID_RE=/^[A-Za-z0-9_-]{1,64}$/,YM_RE=/^\d{4}-\d{2}$/,DAY_RE=/^\d{4}-\d{2}-\d{2}$/;
-const CLOUD=/\/cloud\//.test(location.pathname); // サーバー版（cloud/）
+const APP=(location.pathname.match(/\/(staff|store|hq|cloud)\//)||[])[1]||''; // staff=スタッフ用 store=店長用 hq=本部用 cloud=旧サーバー版
+const CLOUD=!!APP,VIEWER=APP==='store'||APP==='hq';
 const LS=CLOUD?'cloud_v1':'target_v1';
 let S;
 try{S=JSON.parse(localStorage.getItem(LS)||'null')}catch(e){S=null}
@@ -614,7 +622,7 @@ let mgrOK=false;
 // ======== サーバー版（cloud/）========
 const SB_URL='https://xpqlmqutjzhqwbbysdfg.supabase.co',SB_KEY='sb_publishable__OwvLcYWjVxmTWX8Gn0Xgg_Yc3jxZW7';
 const CL={ok:false,stage:'loading',client:null,user:null,member:null,shop:null,err:'',info:'',pushT:null,pending:false,lastSync:null,team:null,teamAt:0,teamLoading:false,chan:null};
-const isCloudMgr=()=>CLOUD&&CL.member&&CL.member.role==='manager';
+const isCloudMgr=()=>APP==='cloud'&&CL.member&&CL.member.role==='manager';
 const idToEmail=id=>String(id).trim().toLowerCase();
 function loadSB(){return new Promise((ok,ng)=>{if(window.supabase)return ok(window.supabase);const sc=document.createElement('script');sc.src='../cloud/supabase.js';sc.onload=()=>ok(window.supabase);sc.onerror=ng;document.head.appendChild(sc);});}
 function jaErr(e){const m=String(e&&(e.message||e.error_description||e)||'');
@@ -626,6 +634,7 @@ function jaErr(e){const m=String(e&&(e.message||e.error_description||e)||'');
   if(/bad_code/.test(m))return '店舗コードが見つかりません。店長に確認してください。';
   if(/already_member/.test(m))return 'このアカウントは、もう店舗に参加しています。';
   if(/not_manager/.test(m))return '店長だけができる操作です。';
+  if(/not_hq/.test(m))return '本部の人だけができる操作です。';
   if(/last_manager/.test(m))return '店長が1人もいなくなるので、変更できません。';
   if(/Email not confirmed/i.test(m))return 'サーバー側の設定（メールの確認）がオンになっています。管理者に「Confirm email をオフに」と伝えてください。';
   if(/Failed to fetch|NetworkError|network/i.test(m))return 'ネットにつながっていないようです。電波のよい所でもう一度試してください。';
@@ -634,7 +643,7 @@ async function cloudBoot(){
   render();
   try{await loadSB();}catch(e){CL.stage='offline';render();return;}
   CL.client=window.supabase.createClient(SB_URL,SB_KEY,{auth:{persistSession:true,autoRefreshToken:true,storageKey:'cloud_auth'}});
-  const jm=location.hash.match(/[#&]join=([A-Za-z0-9]+)/);if(jm){CL.joinCode=jm[1].toUpperCase();try{history.replaceState(null,'',location.pathname)}catch(e){}}
+  const jm=location.hash.match(/[#&](join|mjoin|ojoin)=([A-Za-z0-9]+)/);if(jm){CL.joinCode=jm[2].toUpperCase();try{history.replaceState(null,'',location.pathname)}catch(e){}}
   let ses=null;try{ses=(await CL.client.auth.getSession()).data.session;}catch(e){}
   if(!ses){CL.stage=CL.joinCode?'signup':'login';render();return;}
   CL.user=ses.user;await cloudAfterLogin();
@@ -643,6 +652,18 @@ async function cloudAfterLogin(){
   const c=CL.client;
   const {data:mem,error}=await c.from('members').select('user_id,shop_id,name,role').eq('user_id',CL.user.id).maybeSingle();
   if(error){CL.stage='login';CL.err=jaErr(error);render();return;}
+  const {data:hq}=await c.from('hq_members').select('user_id,org_id,name').eq('user_id',CL.user.id).maybeSingle();
+  const wrong=msg=>{CL.stage='wrongapp';CL.err=msg;render();};
+  if(APP==='hq'){
+    if(!hq){if(mem)return wrong('このアカウントは店舗のメンバーです。本部用アプリは、本部の人が使います。');CL.stage='join';render();return;}
+    CL.hq=hq;const {data:org}=await c.from('orgs').select('id,name,code').eq('id',hq.org_id).maybeSingle();CL.org=org||{name:'',code:''};
+    CL.ok=true;render();await cloudLoadTeam(true);cloudWatchTeam();viewerListeners();return;}
+  if(hq)return wrong('このアカウントは本部用です。本部用アプリを使ってください。');
+  if(APP==='store'){
+    if(!mem){CL.stage='join';render();return;}
+    if(mem.role!=='manager')return wrong('このアカウントはスタッフです。店長用アプリは店長が使います。スタッフ用アプリを使ってください。');
+    CL.member=mem;const {data:shop}=await c.from('shops').select('id,name,code,mgr_code,org_id,cfg,cfg_at').eq('id',mem.shop_id).maybeSingle();CL.shop=shop||{name:'',code:''};
+    CL.ok=true;render();await cloudLoadTeam(true);cloudWatchTeam();viewerListeners();return;}
   if(!mem){CL.stage='join';render();return;}
   CL.member=mem;
   const {data:shop}=await c.from('shops').select('id,name,code,cfg,cfg_at').eq('id',mem.shop_id).maybeSingle();CL.shop=shop||{name:'',code:''};
@@ -684,24 +705,29 @@ function cloudGate(){
     <div class="field"><label>パスワード</label><input id="cpw" type="password" autocomplete="current-password"></div>
     <button class="btn" data-a="clogin">ログイン</button>
     <button class="btn ghost" data-a="cstage" data-v="signup">はじめての人はこちら（登録）</button>`);
-  if(st==='signup')return wrap(`<div class="iname">はじめての登録</div>
-    <div class="field"><label>メールアドレス（ログインに使います）</label><input id="cid" type="email" autocomplete="username" autocapitalize="off" placeholder="例：yamada@gmail.com"></div>
-    <div class="field"><label>パスワード（8文字以上）</label><input id="cpw" type="password" autocomplete="new-password"></div>
-    <div class="field"><label>名前（店長やメンバーに表示されます）</label><input id="cnm" placeholder="例：山田"></div>
-    <div class="field"><label>店舗コード（店長から聞いた英数字）</label><input id="ccode" autocapitalize="characters" value="${esc(CL.joinCode||'')}" placeholder="例：A1B2C3"></div>
-    <button class="btn" data-a="csignup" data-v="join">登録して店舗に参加</button>
-    <div class="sub" style="margin-top:14px">店長の方で、まだ店舗を作っていない場合は、店舗コードを空けたまま次を押してください。</div>
-    <div class="field"><label>新しく作る店舗の名前</label><input id="cshop" placeholder="例：◯◯店"></div>
-    <button class="btn ghost" data-a="csignup" data-v="create">登録して店舗を作る（店長）</button>
-    <button class="btn ghost" data-a="cstage" data-v="login">ログイン画面にもどる</button>
-    <p class="sub" style="margin-top:10px">メールが届くことはありません。パスワードは忘れないようにメモしてください。</p>`);
-  if(st==='join')return wrap(`<div class="iname">店舗に参加</div><div class="sub">ログインできました。最後に、参加する店舗を決めてください。</div>
-    <div class="field"><label>名前</label><input id="cnm" placeholder="例：山田"></div>
-    <div class="field"><label>店舗コード</label><input id="ccode" autocapitalize="characters" value="${esc(CL.joinCode||'')}" placeholder="例：A1B2C3"></div>
-    <button class="btn" data-a="cjoin" data-v="join">店舗に参加</button>
-    <div class="field"><label>または、新しく作る店舗の名前（店長）</label><input id="cshop" placeholder="例：◯◯店"></div>
-    <button class="btn ghost" data-a="cjoin" data-v="create">店舗を作る</button>
-    <button class="btn ghost" data-a="clogout">ログアウト</button>`);
+  if(st==='wrongapp')return wrap(`<div class="sub" style="line-height:1.7">別のアプリ用のアカウントでログインしています。</div><button class="btn ghost" data-a="clogout">ログアウトして別のアカウントで入る</button>`);
+  const acct=`<div class="field"><label>メールアドレス（ログインに使います）</label><input id="cid" type="email" autocomplete="username" autocapitalize="off" placeholder="例：yamada@gmail.com"></div>
+    <div class="field"><label>パスワード（8文字以上）</label><input id="cpw" type="password" autocomplete="new-password"></div>`;
+  const nmF=`<div class="field"><label>名前（ほかの人の画面に表示されます）</label><input id="cnm" placeholder="例：山田"></div>`;
+  const codeF=lab=>`<div class="field"><label>${lab}</label><input id="ccode" autocapitalize="characters" value="${esc(CL.joinCode||'')}" placeholder="例：A1B2C3D4E5"></div>`;
+  const act=st==='signup'?'csignup':'cjoin',tail=st==='signup'?`<button class="btn ghost" data-a="cstage" data-v="login">ログイン画面にもどる</button><p class="sub" style="margin-top:10px">メールが届くことはありません。パスワードは忘れないようにメモしてください。</p>`:`<button class="btn ghost" data-a="clogout">ログアウト</button>`;
+  const head=st==='signup'?'<div class="iname">はじめての登録</div>':'<div class="iname">参加先を決める</div><div class="sub">ログインできました。最後に、参加先を決めてください。</div>';
+  const body0=st==='signup'?acct:'';
+  if(st==='signup'||st==='join'){
+    if(APP==='hq')return wrap(`${head}${body0}${nmF}${codeF('本部コード（ほかの本部の人から聞いた英数字）')}
+      <button class="btn" data-a="${act}" data-v="ojoin">本部メンバーとして参加</button>
+      <div class="sub" style="margin-top:14px">会社をまだ登録していない場合（最初の1人）は、本部コードを空けたまま、会社の名前を入れてください。</div>
+      <div class="field"><label>会社の名前</label><input id="cshop" placeholder="例：株式会社◯◯"></div>
+      <button class="btn ghost" data-a="${act}" data-v="ocreate">会社を登録する（本部）</button>${tail}`);
+    if(APP==='store')return wrap(`${head}${body0}${nmF}${codeF('店長コード（本部から聞いた英数字）')}
+      <button class="btn" data-a="${act}" data-v="mjoin">店長として参加</button>
+      <div class="sub" style="margin-top:14px">本部を使わず、自分で店舗を作る場合は、店長コードを空けたまま店舗の名前を入れてください。</div>
+      <div class="field"><label>店舗の名前</label><input id="cshop" placeholder="例：◯◯店"></div>
+      <button class="btn ghost" data-a="${act}" data-v="create">店舗を作る（店長）</button>${tail}`);
+    return wrap(`${head}${body0}${nmF}${codeF('店舗コード（店長から聞いた英数字）')}
+      <button class="btn" data-a="${act}" data-v="join">店舗に参加</button>
+      ${APP==='cloud'?`<div class="sub" style="margin-top:14px">店長の方で、まだ店舗を作っていない場合は、店舗の名前を入れてください。</div><div class="field"><label>新しく作る店舗の名前</label><input id="cshop" placeholder="例：◯◯店"></div><button class="btn ghost" data-a="${act}" data-v="create">店舗を作る（店長）</button>`:''}${tail}`);
+  }
   return wrap('');
 }
 async function cloudAction(a,t){
@@ -716,8 +742,9 @@ async function cloudAction(a,t){
     if(a==='csignup'||a==='cjoin'){
       const nm=v('cnm'),code=v('ccode').toUpperCase(),shopName=v('cshop'),mode=t.dataset.v;
       if(!nm){CL.err='名前を入れてください。';render();return;}
-      if(mode==='join'&&!code){CL.err='店舗コードを入れてください。';render();return;}
+      if(['join','mjoin','ojoin'].includes(mode)&&!code){CL.err='コードを入れてください。';render();return;}
       if(mode==='create'&&!shopName){CL.err='作る店舗の名前を入れてください。';render();return;}
+      if(mode==='ocreate'&&!shopName){CL.err='会社の名前を入れてください。';render();return;}
       if(a==='csignup'){const id=v('cid'),pw=v('cpw');
         if(!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(id)){CL.err='メールアドレスを正しく入れてください。';render();return;}
         if(pw.length<8){CL.err='パスワードは8文字以上にしてください。';render();return;}busy();
@@ -726,6 +753,9 @@ async function cloudAction(a,t){
         CL.user=data.user;}
       else busy();
       if(mode==='join'){const {error}=await c.rpc('join_shop',{shop_code:code,member_name:nm});if(error)throw error;}
+      else if(mode==='mjoin'){const {error}=await c.rpc('join_shop_manager',{code_in:code,member_name:nm});if(error)throw error;}
+      else if(mode==='ojoin'){const {error}=await c.rpc('join_org',{org_code:code,member_name:nm});if(error)throw error;}
+      else if(mode==='ocreate'){const {error}=await c.rpc('create_org',{org_name:shopName,member_name:nm});if(error)throw error;}
       else{const {data:newCode,error}=await c.rpc('create_shop',{shop_name:shopName,member_name:nm});if(error)throw error;CL.newCode=newCode;}
       CL.stage='loading';render();await cloudAfterLogin();
       if(CL.newCode)modal(`<h3>店舗を作りました</h3><p class="sub">店舗コードは <b style="font-size:20px;letter-spacing:2px;color:var(--ink)">${esc(CL.newCode)}</b> です。スタッフは登録のときにこのコードを入れて参加します。項目設定の「アカウント」からいつでも確認・共有できます。</p><button class="btn" data-x="no">OK</button>`,(e,cl)=>{if(e.target.closest('[data-x]'))cl();});
@@ -744,17 +774,160 @@ function cloudAccountCard(){const m=CL.member||{},sh=CL.shop||{},id=(CL.user&&CL
 function cloudCfgCard(){if(!isCloudMgr())return `<div class="card"><div class="iname">店舗の設定</div><div class="sub" style="margin-top:4px">項目・種類・ポイント・足切りは、店長が配った設定が自動で入ります。${S.cfgAt?'（最終反映：'+new Date(S.cfgAt).toLocaleString('ja-JP',{month:'numeric',day:'numeric',hour:'2-digit',minute:'2-digit'})+'）':''}</div></div>`;
   return `<div class="card"><div class="iname">店舗全員に設定を配る（店長）</div><div class="sub" style="margin-top:4px">今の項目・種類・ポイント・足切りを、店舗の全員に配ります。スタッフが次にアプリを開いたとき、自動で反映されます。実績や個人目標はそのままです。</div><button class="btn" data-a="cdist">この設定を全員に配る</button></div>`;}
 async function cloudLoadTeam(force){
-  if(!isCloudMgr()||CL.teamLoading)return;if(!force&&CL.team&&Date.now()-CL.teamAt<20000)return;
-  CL.teamLoading=true;
-  const c=CL.client;const [m,st]=await Promise.all([c.from('members').select('user_id,name,role').eq('shop_id',CL.member.shop_id),c.from('states').select('user_id,data,updated_at').eq('shop_id',CL.member.shop_id)]);
+  if(!(isCloudMgr()||VIEWER)||CL.teamLoading)return;if(!force&&CL.team&&Date.now()-CL.teamAt<20000)return;
+  CL.teamLoading=true;const c=CL.client;let shops,m,st;
+  if(APP==='hq'){[shops,m,st]=await Promise.all([c.from('shops').select('id,name,code,mgr_code,cfg,cfg_at'),c.from('members').select('user_id,shop_id,name,role'),c.from('states').select('user_id,shop_id,data,updated_at')]);}
+  else{const sid=CL.member.shop_id;[shops,m,st]=await Promise.all([c.from('shops').select('id,name,code,mgr_code,org_id,cfg,cfg_at').eq('id',sid),c.from('members').select('user_id,shop_id,name,role').eq('shop_id',sid),c.from('states').select('user_id,shop_id,data,updated_at').eq('shop_id',sid)]);}
   CL.teamLoading=false;
-  if(m.error||st.error){CL.teamErr=jaErr(m.error||st.error);}else{CL.teamErr='';CL.team={members:m.data||[],states:Object.fromEntries((st.data||[]).map(r=>[r.user_id,r]))};CL.teamAt=Date.now();}
-  if(view.tab==='member')render();
+  const er=shops.error||m.error||st.error;
+  if(er){CL.teamErr=jaErr(er);}else{CL.teamErr='';CL.team={shops:shops.data||[],members:m.data||[],states:Object.fromEntries((st.data||[]).map(r=>[r.user_id,r]))};CL.teamAt=Date.now();CL.pcache={};
+    if(APP==='store'&&CL.team.shops[0])CL.shop=Object.assign(CL.shop||{},CL.team.shops[0]);}
+  if(VIEWER||view.tab==='member')render();
 }
 function cloudWatchTeam(){
-  try{CL.chan=CL.client.channel('team-'+CL.member.shop_id).on('postgres_changes',{event:'*',schema:'public',table:'states',filter:'shop_id=eq.'+CL.member.shop_id},()=>{if(view.tab==='member')cloudLoadTeam(true);else CL.teamAt=0;}).subscribe();}catch(e){}
+  try{const opt={event:'*',schema:'public',table:'states'};if(APP!=='hq')opt.filter='shop_id=eq.'+CL.member.shop_id;
+    CL.chan=CL.client.channel('team-'+(APP==='hq'?CL.hq.org_id:CL.member.shop_id)).on('postgres_changes',opt,()=>{clearTimeout(CL.rtT);CL.rtT=setTimeout(()=>{if(VIEWER||view.tab==='member')cloudLoadTeam(true);else CL.teamAt=0;},800);}).subscribe();}catch(e){}
 }
+function viewerListeners(){document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='visible'&&CL.ok)cloudLoadTeam(true);});}
 function withData(data,id,name,fn){const save=S;try{S=sanitizeState(JSON.parse(JSON.stringify(data||{})));if(!S.months)S.months={};if(!S.items)S.items=[];S.me={id,name};return fn();}finally{S=save;}}
+
+// ======== 店長用（store）・本部用（hq）の画面 ========
+let VIEWONLY=false;
+function vPayloads(ym){
+  const T=CL.team;if(!T)return [];CL.pcache=CL.pcache||{};const key=ym+'|'+CL.teamAt;if(CL.pcache[key])return CL.pcache[key];
+  const shopName=Object.fromEntries(T.shops.map(x=>[x.id,x.name]));
+  const out=T.members.map(mb=>{const r=T.states[mb.user_id];const p=r&&r.data&&r.data.items&&r.data.items.length?withData(r.data,mb.user_id,mb.name,()=>payload(ym)):null;
+    return{uid:mb.user_id,name:mb.name,role:mb.role,shop:mb.shop_id,shopName:shopName[mb.shop_id]||'',p,at:r?new Date(r.updated_at):null};});
+  CL.pcache={[key]:out};return out;
+}
+function cutClear(p){let n=0,c=0;(p.items||[]).forEach(it=>{if(it.c==null)return;n++;const tot=it.cy?(it.ty||0):(it.ct!=null?it.ct:it.t);if(tot>=it.c)c++;});if(p.pc!=null){n++;if((p.pts||0)>=p.pc)c++;}return{n,c};}
+function aggregate(list){
+  const items={},order=[];let pts=0,pc=0,pcN=0,staff=0;
+  list.forEach(x=>{if(!x.p)return;staff++;pts+=x.p.pts||0;if(x.p.pc!=null){pc+=x.p.pc;pcN++;}
+    x.p.items.forEach(it=>{const k=it.n+'|'+it.u;if(!items[k]){items[k]={n:it.n,u:it.u,t:0,ty:0,c:0,cN:0,cClear:0,cy:0,g:0,gN:0,gClear:0};order.push(k);}
+      const A=items[k];A.t+=it.t||0;A.ty+=it.ty||0;
+      if(it.c!=null){A.c+=it.c;A.cN++;if(it.cy)A.cy=1;const tot=it.cy?(it.ty||0):(it.ct!=null?it.ct:it.t);if(tot>=it.c)A.cClear++;}
+      if(it.g!=null){A.g+=it.g;A.gN++;if((it.t||0)>=it.g)A.gClear++;}});});
+  return{items:order.map(k=>items[k]),pts,pc:pcN?pc:null,staff};
+}
+function aggBars(A,compact){
+  if(!A.items.length)return '<div class="sub">まだデータがありません。</div>';
+  return A.items.map(it=>{
+    const useG=it.gN&&(it.gN>=it.cN||it.cy),base=useG?it.g:(it.cN&&!it.cy?it.c:it.g),tot=it.t,sc=Math.max(base,it.cN&&!it.cy?it.c:0,tot)*1.08||1;
+    const rate=base?tot/base:0,st=rate>=1?'done':rate>=0.7?'near':'far',col=base?GC[st]:'#94a3b8';
+    const lines=[];if(it.cN&&!it.cy)lines.push({x:it.c/sc*100,cls:'gcut',txt:`足切り合計 ${fmt(it.c)}${esc(it.u)}`});if(it.gN&&useG)lines.push({x:it.g/sc*100,cls:'ggoal',txt:'目標合計'});
+    const two=lines.length===2&&Math.abs(lines[0].x-lines[1].x)<34;
+    const lab=lines.map((l,i)=>{const tf=l.x>82?'translateX(-100%)':l.x<18?'translateX(0)':'translateX(-50%)';return `<span class="gl ${l.cls}l" style="left:${l.x}%;top:${two&&i===1?16:0}px;transform:${tf}">${l.txt}</span>`;}).join('');
+    const info=[];if(it.cN)info.push(`足切りクリア ${it.cClear}/${it.cN}人`);if(it.gN)info.push(`目標達成 ${it.gClear}/${it.gN}人`);if(it.cy)info.push(`売上合計 ${fmt(it.ty)}円 / 足切り合計 ${fmt(it.c)}円`);
+    return `<div class="gr"><div class="between"><b>${esc(it.n)}</b><span><b style="font-size:${compact?15:17}px">${fmt(tot)}</b><span class="sub"> / ${base?fmt(base):'—'}${esc(it.u)}</span>${base?`　<b style="font-size:13px">${Math.floor(rate*1000)/10}%</b>`:''}</span></div>
+      <div class="gwrap"><div class="gbar"><i style="width:${Math.min(100,tot/sc*100)}%;background:${col}"></i></div>${lines.map(l=>`<b class="${l.cls}" style="left:${l.x}%"></b>`).join('')}<div class="glab" style="height:${two?32:lines.length?16:0}px">${lab}</div></div>
+      ${info.length?`<div class="sub">${info.join('　')}</div>`:''}</div>`;}).join('');
+}
+function ptsHead(A,label){const pc=A.pc,ok=pc!=null&&A.pts>=pc;return `<div class="cuttop" style="justify-content:space-around"><div><div class="sub">${label}</div><div class="cutbig" style="color:${pc!=null?(ok?'var(--ok)':'var(--acc)'):'var(--ink)'}">${fmt(A.pts)}<small>${pc!=null?' / '+fmt(pc):''}pt</small></div></div><div class="cutdiv"></div><div><div class="sub">人数</div><div class="cutbig">${A.staff}<small>人</small></div></div></div>`;}
+function rankRows(rows,opt){
+  if(!rows.length)return '<div class="sub" style="padding:10px 0">まだデータがありません。</div>';
+  const max=Math.max(1,...rows.map(r=>r.v));
+  return rows.map((r,i)=>{const md=i===0?'🥇':i===1?'🥈':i===2?'🥉':`<span class="rk">${i+1}</span>`;
+    return `<button class="rrow" ${r.go?`data-a="vgo" data-id="${r.go}" data-s="${r.shop||''}"`:''}><span class="rmd">${md}</span><span class="rmain"><span class="between"><b>${esc(r.name)}</b><b>${fmt(r.v)}<small class="sub">${r.unit||'pt'}</small></b></span>
+      <span class="rbar"><i style="width:${Math.max(2,r.v/max*100)}%"></i></span><span class="sub">${r.sub||''}</span></span></button>`;}).join('');
+}
+function staffDetail(x,ym){
+  if(!x||!x.p)return '<div class="card empty">まだデータがありません。</div>';
+  const r=CL.team.states[x.uid],sub=view.vsub==='cut'?'cut':'graph';
+  let h=`<div class="seg2"><button class="${sub==='graph'?'on':''}" data-a="vsub" data-v="graph">📊 グラフ</button><button class="${sub==='cut'?'on':''}" data-a="vsub" data-v="cut">🚩 足切り</button></div>`;
+  h+=`<div class="sub" style="text-align:right;margin:-4px 2px 8px">${esc(x.name)}さん　${x.at?`最終更新 ${x.at.getMonth()+1}/${x.at.getDate()} ${pad(x.at.getHours())}:${pad(x.at.getMinutes())}`:''}</div>`;
+  VIEWONLY=true;try{h+=withData(r.data,x.uid,x.name,()=>sub==='cut'?cutView(ym,monthOf(ym)):graphView(ym,monthOf(ym)));}finally{VIEWONLY=false;}
+  return h.replace(/<button class="btn"[^>]*data-tab="set"[^>]*>[^<]*<\/button>/g,'');
+}
+function staffChips(list){return `<div class="chips">${list.map(x=>`<button class="chip ${x.uid===view.vmem?'on':''}" data-a="vmem" data-id="${x.uid}"><b>${esc(x.name)}</b><small>${x.p?fmt(x.p.pts||0)+'pt':'未入力'}</small></button>`).join('')}</div>`;}
+function viewerRender(){
+  const ym=view.ym,[y,mo]=ym.split('-'),M=Number(mo);
+  const tabs=APP==='store'?[['staff','👤','スタッフ'],['rank','🏆','ランキング'],['total','🏪','店舗合計'],['vset','⚙️','設定']]:[['shops','🏪','店舗'],['srank','🏆','店舗順位'],['staff','👤','スタッフ'],['arank','🥇','全体順位'],['vset','⚙️','設定']];
+  if(!tabs.some(t=>t[0]===view.vtab))view.vtab=tabs[0][0];
+  const title=APP==='store'?(CL.shop&&CL.shop.name||'店舗'):(CL.org&&CL.org.name||'本部');
+  let body='';
+  if(!CL.team)body=`<div class="card empty">${CL.teamErr?esc(CL.teamErr):'データを読み込んでいます…'}</div>`;
+  else{
+    const P=vPayloads(ym),T=CL.team;
+    const byPts=(a,b)=>((b.p&&b.p.pts)||0)-((a.p&&a.p.pts)||0);
+    if(view.vtab==='staff'){
+      let list=P.filter(x=>x.role!=='manager'||x.p).sort(byPts);
+      if(APP==='hq'){if(!view.vshop||!T.shops.some(s_=>s_.id===view.vshop))view.vshop=T.shops[0]&&T.shops[0].id;
+        body+=`<div class="card"><div class="iname">店舗</div><div class="chips">${T.shops.map(s_=>`<button class="chip ${s_.id===view.vshop?'on':''}" data-a="vshop" data-id="${s_.id}"><b>${esc(s_.name)}</b></button>`).join('')}</div></div>`;
+        list=list.filter(x=>x.shop===view.vshop);}
+      if(!list.some(x=>x.uid===view.vmem))view.vmem=(list.find(x=>x.p)||list[0]||{}).uid;
+      body+=`<div class="card"><div class="between" style="align-items:center"><div class="iname">スタッフ</div><span class="sub">${list.length}人</span></div>${list.length?staffChips(list):'<div class="sub" style="margin-top:8px">まだメンバーがいません。</div>'}</div>`;
+      if(view.vmem)body+=staffDetail(list.find(x=>x.uid===view.vmem),ym);
+    }else if(view.vtab==='rank'){
+      const rows=P.filter(x=>x.p).sort(byPts).map(x=>{const cc=cutClear(x.p);return{name:x.name,v:x.p.pts||0,sub:`足切りクリア ${cc.c}/${cc.n}`,go:x.uid};});
+      body=`<div class="card"><div class="iname">${M}月のポイントランキング</div><div class="sub" style="margin:2px 0 8px">${esc(title)}　タップするとその人のグラフが開きます</div>${rankRows(rows)}</div>`;
+    }else if(view.vtab==='total'){
+      const A=aggregate(P);
+      body=`<div class="card cuthead">${ptsHead(A,`${esc(title)} ${M}月の合計ポイント`)}</div><div class="card"><div class="iname">${esc(title)} 合計</div><div class="sub" style="margin:2px 0 6px">全スタッフの実績の合計と、一人ひとりの足切り・目標の合計です</div>${aggBars(A)}</div>`;
+    }else if(view.vtab==='shops'){
+      body=T.shops.length?T.shops.map(s_=>{const A=aggregate(P.filter(x=>x.shop===s_.id));return `<div class="card"><div class="between" style="align-items:center"><div class="iname">${esc(s_.name)}</div><button class="mini" data-a="vgoshop" data-id="${s_.id}">スタッフを見る</button></div>${ptsHead(A,M+'月の合計ポイント')}<div style="margin-top:6px">${aggBars(A,true)}</div></div>`;}).join(''):`<div class="card empty">まだ店舗がありません。設定タブで店舗を追加してください。</div>`;
+    }else if(view.vtab==='srank'){
+      const rows=T.shops.map(s_=>{const A=aggregate(P.filter(x=>x.shop===s_.id));return{name:s_.name,v:A.pts,sub:`${A.staff}人　1人平均 ${fmt(A.staff?Math.round(A.pts/A.staff):0)}pt`,go:'',shop:s_.id};}).sort((a,b)=>b.v-a.v);
+      const rows2=T.shops.map(s_=>{const A=aggregate(P.filter(x=>x.shop===s_.id));return{name:s_.name,v:A.staff?Math.round(A.pts/A.staff):0,sub:`${A.staff}人　合計 ${fmt(A.pts)}pt`};}).sort((a,b)=>b.v-a.v);
+      body=`<div class="card"><div class="iname">${M}月 店舗ランキング（合計ポイント）</div>${rankRows(rows)}</div><div class="card"><div class="iname">${M}月 店舗ランキング（1人あたり平均）</div><div class="sub">人数のちがう店舗どうしを比べるときに</div>${rankRows(rows2)}</div>`;
+    }else if(view.vtab==='arank'){
+      const rows=P.filter(x=>x.p).sort(byPts).map(x=>{const cc=cutClear(x.p);return{name:x.name,v:x.p.pts||0,sub:`${esc(x.shopName)}　足切りクリア ${cc.c}/${cc.n}`,go:x.uid,shop:x.shop};});
+      body=`<div class="card"><div class="iname">${M}月 全体ランキング（ポイント）</div><div class="sub" style="margin:2px 0 8px">全店舗のスタッフ　タップするとその人のグラフが開きます</div>${rankRows(rows)}</div>`;
+    }else body=viewerSettings();
+  }
+  return `<header>
+    <div class="whorow"><span>${APP==='hq'?'🏢 本部':'🏪 店長'}　<b>${esc(title)}</b></span><button class="who" data-a="vrefresh">↻ 更新</button></div>
+    <div class="mrow"><button data-a="prev">‹</button><div class="mtitle">${y}年${M}月</div><button data-a="next">›</button></div>
+    <div class="sub">${CL.teamAt?`最終更新 ${new Date(CL.teamAt).toLocaleTimeString('ja-JP',{hour:'2-digit',minute:'2-digit'})}　スタッフが入力すると自動で反映されます`:''}</div>
+  </header><main>${body}</main>
+  <nav>${tabs.map(t=>`<button data-a="vtab" data-v="${t[0]}" class="${view.vtab===t[0]?'on':''}"><span>${t[1]}</span>${t[2]}</button>`).join('')}</nav>`;
+}
+function viewerSettings(){
+  const T=CL.team,me=APP==='hq'?CL.hq:CL.member,email=(CL.user&&CL.user.email)||'';
+  let h=`<div class="card"><div class="iname">アカウント</div><div class="drow"><span class="sub">名前</span><b>${esc(me&&me.name||'')}</b></div><div class="drow"><span class="sub">メール</span><b style="font-size:13px">${esc(email)}</b></div>
+    <div class="drow"><span class="sub">${APP==='hq'?'会社':'店舗'}</span><b>${esc(APP==='hq'?(CL.org&&CL.org.name||''):(CL.shop&&CL.shop.name||''))}</b></div><button class="btn ghost" data-a="clogout">ログアウト</button></div>`;
+  if(APP==='store'){const sh=CL.shop||{};
+    h+=`<div class="card"><div class="iname">スタッフを招待</div><div class="drow"><span class="sub">店舗コード</span><b style="letter-spacing:2px">${esc(sh.code||'')}</b></div><div class="sub">スタッフは「スタッフ用アプリ」で、このコードを入れて登録します。</div><button class="btn" data-a="vinvite">スタッフ用アプリの招待を送る</button></div>`;
+    h+=`<div class="card"><div class="iname">設定を全員に配る</div><div class="sub" style="margin-top:4px">あなたがスタッフ用アプリで作った項目・種類・ポイント・足切りの設定を、店舗の全員に配ります。スタッフが次にアプリを開いたとき、自動で同じになります。</div><button class="btn" data-a="vdist">自分の設定を全員に配る</button></div>`;
+    h+=`<div class="card"><div class="iname">メンバーの管理</div>${T.members.map(mb=>`<div class="drow"><div><b>${esc(mb.name)}</b> <span class="sub">${mb.role==='manager'?'店長':'スタッフ'}</span></div><div class="flex">${mb.user_id===CL.user.id?'<span class="sub">あなた</span>':`<button class="mini" data-a="crole" data-id="${mb.user_id}" data-v="${mb.role==='manager'?'staff':'manager'}">${mb.role==='manager'?'スタッフにする':'店長にする'}</button><button class="mini" data-a="cremove" data-id="${mb.user_id}" style="color:var(--bad)">${view.cdel===mb.user_id?'本当に外す':'外す'}</button>`}</div></div>`).join('')}</div>`;
+    if(!sh.org_id)h+=`<div class="card"><div class="iname">会社（本部）につなぐ</div><div class="sub" style="margin-top:4px">本部から聞いた本部コードを入れると、本部の画面にこの店舗の数字が出るようになります。</div><input id="vorg" class="tin" autocapitalize="characters" placeholder="本部コード"><button class="btn ghost" data-a="vlink">本部につなぐ</button></div>`;
+  }else{
+    h+=`<div class="card"><div class="iname">本部コード</div><div class="drow"><span class="sub">本部コード</span><b style="letter-spacing:2px">${esc(CL.org&&CL.org.code||'')}</b></div><div class="sub">ほかの本部の人は、本部用アプリでこのコードを入れて参加します。すでにある店舗を本部につなぐときも、店長にこのコードを伝えます。</div><button class="btn ghost" data-a="vinvitehq">本部の人を招待する</button></div>`;
+    h+=`<div class="card"><div class="iname">店舗</div><div class="sub" style="margin-bottom:6px">店舗ごとに「店長コード」（店長用アプリで使う）と「店舗コード」（スタッフ用アプリで使う）があります。</div>${T.shops.map(s_=>`<div class="shoprow"><div class="between"><b>${esc(s_.name)}</b><span class="flex"><button class="mini" data-a="vmgrinv" data-id="${s_.id}">店長に送る</button><button class="mini" data-a="vrename" data-id="${s_.id}">名前</button><button class="mini" data-a="vregen" data-id="${s_.id}">${view.vregen===s_.id?'本当に作り直す':'コード作り直し'}</button></span></div>
+      <div class="sub">店長コード <b style="color:var(--ink);letter-spacing:1px">${esc(s_.mgr_code||'（なし）')}</b>　店舗コード <b style="color:var(--ink);letter-spacing:1px">${esc(s_.code||'')}</b></div></div>`).join('')||'<div class="sub">まだ店舗がありません。</div>'}
+      <div class="field"><label>店舗を追加</label><input id="vnewshop" placeholder="例：ソフトバンク津駅西"></div><button class="btn" data-a="vaddshop">＋ 店舗を追加</button></div>`;
+    const withCfg=T.shops.filter(s_=>s_.cfg);
+    h+=`<div class="card"><div class="iname">設定を全店舗に配る</div><div class="sub" style="margin-top:4px">選んだ店舗の設定（項目・種類・ポイント・足切り）を、全店舗に配ります。各スタッフが次にアプリを開いたとき、自動で反映されます。</div>${withCfg.length?`<select id="vcfgsrc" class="sel" style="width:100%;margin-top:8px">${withCfg.map(s_=>`<option value="${s_.id}">${esc(s_.name)}の設定</option>`).join('')}</select><button class="btn" data-a="vhqdist">全店舗に配る</button>`:'<div class="sub" style="margin-top:6px">まだ設定を配った店舗がありません。どこかの店長が「設定を全員に配る」を使うと、ここで選べるようになります。</div>'}</div>`;
+  }
+  return h;
+}
+async function viewerAction(a,t){
+  const c=CL.client,id=t.dataset.id;
+  const ok=(ttl,msg)=>modal(`<h3>${ttl}</h3><p class="sub">${msg}</p><button class="btn" data-x="no">OK</button>`,(e,cl)=>{if(e.target.closest('[data-x]'))cl();});
+  const share=async txt=>{if(navigator.share){try{await navigator.share({text:txt});return;}catch(e){if(e&&e.name==='AbortError')return;}}const cp=await copyText(txt);modal(`<h3>${cp?'コピーしました':'下の文をコピーしてください'}</h3><p class="sub">LINEなどで送ってください。</p><textarea class="tin" rows="5" readonly>${esc(txt)}</textarea><button class="btn" data-x="no">閉じる</button>`,(e,cl)=>{if(e.target.closest('[data-x]'))cl();});};
+  const appUrl=(p,h)=>new URL('../'+p+'/',location.href).href+(h?'#'+h:'');
+  try{
+    if(a==='vtab'){view.vtab=t.dataset.v;view.vregen=null;render();window.scrollTo(0,0);return;}
+    if(a==='vsub'){view.vsub=t.dataset.v;render();return;}
+    if(a==='vmem'){view.vmem=id;render();return;}
+    if(a==='vshop'){view.vshop=id;view.vmem=null;render();return;}
+    if(a==='vgo'){view.vtab='staff';view.vmem=id;if(t.dataset.s)view.vshop=t.dataset.s;render();window.scrollTo(0,0);return;}
+    if(a==='vgoshop'){view.vtab='staff';view.vshop=id;view.vmem=null;render();window.scrollTo(0,0);return;}
+    if(a==='vrefresh'){t.textContent='更新中…';await cloudLoadTeam(true);return;}
+    if(a==='vinvite'){const sh=CL.shop;await share(`【目標達成マネージャー】${sh.name}のスタッフ用アプリです。\nChromeで開いて「はじめての人はこちら」から登録してください。店舗コード：${sh.code}\n${appUrl('staff','join='+sh.code)}`);return;}
+    if(a==='vinvitehq'){await share(`【目標達成マネージャー】${CL.org.name}の本部用アプリです。\nChromeで開いて「はじめての人はこちら」から登録してください。本部コード：${CL.org.code}\n${appUrl('hq','ojoin='+CL.org.code)}`);return;}
+    if(a==='vmgrinv'){const sh=CL.team.shops.find(x=>x.id===id);if(!sh)return;if(!sh.mgr_code){ok('店長コードがありません','この店舗には店長コードがありません。「コード作り直し」を押すと作られます。');return;}
+      await share(`【目標達成マネージャー】${sh.name}の店長用アプリです。\nChromeで開いて「はじめての人はこちら」から登録してください。店長コード：${sh.mgr_code}\n${appUrl('store','mjoin='+sh.mgr_code)}\n\nスタッフ用アプリ（スタッフに送ってください）\n店舗コード：${sh.code}\n${appUrl('staff','join='+sh.code)}`);return;}
+    if(a==='vdist'){const {data:row,error}=await c.from('states').select('data').eq('user_id',CL.user.id).maybeSingle();if(error)throw error;
+      if(!row||!row.data||!row.data.items||!row.data.items.length){ok('設定がまだありません','先にスタッフ用アプリで、項目・ポイント・足切りを作ってください。そのあとでここから配れます。');return;}
+      const cfg=withData(row.data,CL.user.id,CL.member.name,()=>buildCfg(false));const {error:e2}=await c.rpc('share_cfg',{new_cfg:cfg});if(e2)throw e2;await cloudLoadTeam(true);ok('全員に配りました','スタッフが次にアプリを開いたとき、自動で同じ設定になります。');return;}
+    if(a==='vlink'){const code=((document.getElementById('vorg')||{}).value||'').trim();if(!code)return;const {data:nm,error}=await c.rpc('link_shop_org',{org_code:code});if(error)throw error;CL.shop.org_id='linked';render();ok('本部につなぎました',esc(nm)+'の本部の画面に、この店舗の数字が出るようになりました。');return;}
+    if(a==='vaddshop'){const nm=((document.getElementById('vnewshop')||{}).value||'').trim();if(!nm)return;t.disabled=true;const {data,error}=await c.rpc('hq_add_shop',{shop_name:nm});if(error)throw error;await cloudLoadTeam(true);ok('店舗を追加しました',`${esc(nm)}　店長コード <b>${esc(data.mgr_code)}</b>　店舗コード <b>${esc(data.code)}</b><br>「店長に送る」から、店長に招待を送れます。`);return;}
+    if(a==='vregen'){if(view.vregen!==id){view.vregen=id;render();return;}view.vregen=null;const {error}=await c.rpc('hq_regen_codes',{target:id});if(error)throw error;await cloudLoadTeam(true);ok('コードを作り直しました','前のコードでは、もう参加できません。すでに参加している人はそのまま使えます。');return;}
+    if(a==='vrename'){const sh=CL.team.shops.find(x=>x.id===id);if(!sh)return;modal(`<h3>店舗の名前</h3><input id="rn" class="tin" value="${esc(sh.name)}"><div class="mrow2"><button class="btn ghost" data-x="no">やめる</button><button class="btn" data-x="ok">変更</button></div>`,async(e,cl,w)=>{const x=e.target.closest('[data-x]');if(!x)return;if(x.dataset.x!=='ok'){cl();return;}const nn=w.querySelector('#rn').value.trim();if(!nn)return;const {error}=await c.rpc('hq_rename_shop',{target:id,new_name:nn});cl();if(error){ok('変更できませんでした',esc(jaErr(error)));return;}await cloudLoadTeam(true);});return;}
+    if(a==='vhqdist'){const sid=(document.getElementById('vcfgsrc')||{}).value;const sh=CL.team.shops.find(x=>x.id===sid);if(!sh||!sh.cfg)return;const {error}=await c.rpc('hq_share_cfg',{new_cfg:sh.cfg});if(error)throw error;await cloudLoadTeam(true);ok('全店舗に配りました',`${esc(sh.name)}の設定を、全店舗に配りました。`);return;}
+  }catch(err){ok('うまくいきませんでした',esc(jaErr(err)));}
+}
 function cloudMemberView(ym){
   if(!CL.team){cloudLoadTeam(true);return `<div class="card empty">${CL.teamErr?esc(CL.teamErr):'メンバーのデータを読み込んでいます…'}</div>`;}
   cloudLoadTeam(false);
@@ -851,6 +1024,7 @@ function backupRestore(){
 function render(){
   if(SHARED&&!CUR){$app.innerHTML=pickerView();return;}
   if(CLOUD&&!CL.ok){$app.innerHTML=cloudGate();return;}
+  if(VIEWER){$app.innerHTML=viewerRender();return;}
   const ym=view.ym,[y,mo]=ym.split('-');
   const m=monthOf(ym);
   let body='';
@@ -997,7 +1171,7 @@ function setView(ym,m){
   return h;
 }
 let delAsk=null,openId=null;
-function sendCard(){if(SHARED)return '';if(CLOUD)return cloudSyncCard();const mo=Number(view.ym.slice(5));return `<div class="card"><div class="iname">店長に送る</div><div class="sub" style="margin-top:4px">${mo}月の実績をLINEなどで店長に送ります${S.me.name?`（名前：${esc(S.me.name)}）`:''}。仕事終わりに送るのがおすすめです。</div><button class="btn" data-a="send">📤 ${mo}月の実績を店長に送る</button></div>`;}
+function sendCard(){if(SHARED||VIEWONLY)return '';if(CLOUD)return cloudSyncCard();const mo=Number(view.ym.slice(5));return `<div class="card"><div class="iname">店長に送る</div><div class="sub" style="margin-top:4px">${mo}月の実績をLINEなどで店長に送ります${S.me.name?`（名前：${esc(S.me.name)}）`:''}。仕事終わりに送るのがおすすめです。</div><button class="btn" data-a="send">📤 ${mo}月の実績を店長に送る</button></div>`;}
 const GC={done:'#ef4444',near:'#facc15',far:'#22c55e'};
 function subStats(ym,it,total){
   const sb=subsOf(it);if(!sb.length)return [];
@@ -1104,6 +1278,7 @@ $app.addEventListener('click',e=>{
   if(a==='sdel'){const it=findItem(id),sid=t.dataset.s;if(!it)return;if(delAsk===sid){it.subs=subsOf(it).filter(x=>x.id!==sid);delAsk=null;changed();}else delAsk=sid;render();return;}
   if(CLOUD&&['cstage','reload','clogout','clogin','csignup','cjoin'].includes(a)){cloudAction(a,t);return;}
   if(CLOUD&&['crefresh','cdist','crole','cremove','cinvite','crename','cregen'].includes(a)){cloudMgrAction(a,t);return;}
+  if(VIEWER&&a.startsWith('v')){viewerAction(a,t);return;}
   if(a==='switch'){leaveProfile();return;}
   if(a==='pickp'){const pr=SH.profiles[id];if(!pr)return;if(pr.pin)pinModal(esc(pr.name)+'さん','暗証番号を入れてください。',v=>{if(v!==pr.pin)return false;enterProfile(id);});else enterProfile(id);return;}
   if(a==='addp'){addProfile();return;}
