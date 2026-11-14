@@ -2,6 +2,8 @@
 <html lang="ja">
 <head>
 <meta charset="utf-8">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data:; connect-src 'self'; object-src 'none'; base-uri 'none'; form-action 'none'">
+<meta name="referrer" content="no-referrer">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>スタッフ実績（店長用）</title>
 <meta name="theme-color" content="#1c2230">
@@ -83,7 +85,7 @@ function dec(code){
 function importCode(raw){
   var m=String(raw).match(/[#&?]d=([A-Za-z0-9_\-]+)/),code=m?m[1]:String(raw).trim();
   return dec(code).then(function(p){
-    if(!p||p.v!==1||!p.id||!p.ym||!Array.isArray(p.items))throw new Error('bad');
+    p=cleanP(p);if(!p)throw new Error('bad');
     var s=T.staff[p.id]||(T.staff[p.id]={name:'',months:{}});
     if(p.name)s.name=p.name;
     var cur=s.months[p.ym];
@@ -92,6 +94,18 @@ function importCode(raw){
     save();view.ym=p.ym;view.err='';
   });
 }
+// 安全対策：届いたデータは、IDは英数字だけ・数は数字だけ・文字は文字だけにそろえる
+var ID_RE=/^[A-Za-z0-9_-]{1,64}$/,YM_RE=/^\d{4}-\d{2}$/;
+function cN(v){var n=Number(v);return isFinite(n)?n:0}
+function cNN(v){return v==null||v===''?null:cN(v)}
+function cS(v,m){return (v==null?'':String(v)).slice(0,m||60)}
+function cleanP(p){
+  if(!p||p.v!==1||!ID_RE.test(String(p.id||''))||!YM_RE.test(String(p.ym||''))||!Array.isArray(p.items))return null;
+  return{v:1,id:String(p.id),name:cS(p.name,30),ym:p.ym,at:cN(p.at)||Date.now(),pts:cN(p.pts),pc:cNN(p.pc),work:Math.max(0,Math.round(cN(p.work))),el:Math.max(0,Math.round(cN(p.el))),
+    items:p.items.slice(0,60).map(function(it){it=it||{};return{n:cS(it.n),u:cS(it.u,10),c:cNN(it.c),g:cNN(it.g),t:cN(it.t),ct:cNN(it.ct),ty:cN(it.ty),cy:it.cy?1:0,cn:cS(it.cn,120),p:cN(it.p),
+      sb:(Array.isArray(it.sb)?it.sb:[]).slice(0,30).map(function(x){x=x||{};return{n:cS(x.n),q:cN(x.q),y:cN(x.y),c:x.c?1:0,o:x.o?1:0}})}})};
+}
+(function(){var o={staff:{}};for(var id in T.staff){if(!ID_RE.test(id))continue;var st=T.staff[id]||{},ms={};for(var ym in (st.months||{})){var q=cleanP(st.months[ym]);if(q&&q.ym===ym)ms[ym]=q}o.staff[id]={name:cS(st.name,30),months:ms}}T=o})();
 function months(){var set={};set[nowYM()]=1;Object.keys(T.staff).forEach(function(id){Object.keys(T.staff[id].months).forEach(function(k){set[k]=1})});return Object.keys(set).sort()}
 function ago(at){var d=new Date(at),mins=(Date.now()-at)/60000;var s=(d.getMonth()+1)+'/'+d.getDate()+' '+pad(d.getHours())+':'+pad(d.getMinutes());return{txt:s+' 時点',old:mins>60*24}}
 

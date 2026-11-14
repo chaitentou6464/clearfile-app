@@ -2,6 +2,8 @@
 <html lang="ja">
 <head>
 <meta charset="utf-8">
+<meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; font-src 'self' data:; connect-src 'self' https://xpqlmqutjzhqwbbysdfg.supabase.co wss://xpqlmqutjzhqwbbysdfg.supabase.co; worker-src 'self' blob:; manifest-src 'self'; object-src 'none'; base-uri 'none'; form-action 'none'">
+<meta name="referrer" content="no-referrer">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>目標達成マネージャー（店長用）</title>
 <link rel="manifest" href="manifest.webmanifest?v=2">
@@ -152,11 +154,13 @@ textarea.tin{font-size:12px;word-break:break-all}
 <script id="appjs">
 (function(){
 const $app=document.getElementById('app');
+const ID_RE=/^[A-Za-z0-9_-]{1,64}$/,YM_RE=/^\d{4}-\d{2}$/,DAY_RE=/^\d{4}-\d{2}-\d{2}$/;
 const CLOUD=/\/cloud\//.test(location.pathname); // サーバー版（cloud/）
 const LS=CLOUD?'cloud_v1':'target_v1';
 let S;
 try{S=JSON.parse(localStorage.getItem(LS)||'null')}catch(e){S=null}
 if(!S||typeof S!=='object')S={months:{}};
+S=sanitizeState(S);
 // ---- 共用端末モード（shared/）：1台の中に、メンバーごとのデータを持つ ----
 const SHARED=/\/shared\//.test(location.pathname),SHL='shared_v1';
 let SH=null,CUR=null;
@@ -164,7 +168,7 @@ if(SHARED){try{SH=JSON.parse(localStorage.getItem(SHL)||'null')}catch(e){SH=null
   if(!SH||!SH.profiles)SH={profiles:{},order:[],mgrPin:'',cfg:null};
   try{CUR=sessionStorage.getItem('shared_cur')}catch(e){CUR=null}
   if(CUR&&!SH.profiles[CUR])CUR=null;
-  S=CUR?SH.profiles[CUR].S:{months:{}};if(!S.months)S.months={};}
+  S=sanitizeState(CUR?SH.profiles[CUR].S:{months:{}});}
 function saveShared(){try{localStorage.setItem(SHL,JSON.stringify(SH));return true;}catch(e){return false;}}
 if(!S.months)S.months={};
 
@@ -176,6 +180,54 @@ let view={ym:curYM,tab:'today',sel:todayKey};
 const MGR=/\/manager\//.test(location.pathname); // 店長用アプリ（manager/）として開いているか
 const fmt=n=>(Math.round(n*100)/100).toLocaleString('ja-JP');
 const uid=()=>Math.random().toString(36).slice(2,9);
+// ======== 安全対策：外から入ってくるデータ（共有リンク・バックアップ・サーバー・他の人のデータ）を整える ========
+// 画面に出す前に、IDは英数字だけ・数は数字だけ・文字は文字だけにそろえ、おかしな値（画面を乗っ取る文字など）を無害にする
+function cleanId(v){v=v==null?'':String(v);return ID_RE.test(v)?v:'x'+Math.random().toString(36).slice(2,10);}
+function cNum(v){const n=Number(v);return isFinite(n)?n:0;}
+function cNumB(v){return v===''||v==null?'':cNum(v);}
+function cStr(v,max){return (v==null?'':String(v)).slice(0,max||60);}
+function sanitizeState(D){
+  if(!D||typeof D!=='object'||Array.isArray(D))D={};
+  if(!Array.isArray(D.items)&&D.months&&typeof D.months==='object'){ // いちばん古い形式（月ごとに項目）からの移行
+    const keys=Object.keys(D.months).sort(),last=keys.length?D.months[keys[keys.length-1]]:null;
+    D=Object.assign({},D,{items:(last&&Array.isArray(last.items)?last.items:[]).map(i=>({id:i&&i.id,name:i&&i.name,unit:i&&i.unit,cut:{fixed:true,value:''},goal:{fixed:false,value:''}}))});
+    const mm={};for(const k of keys){const m=Object.assign({},D.months[k]);m.t=Object.assign({},m.t||{});(Array.isArray(m.items)?m.items:[]).forEach(i=>{if(i&&i.id!=null)m.t[i.id]={goal:i.target};});mm[k]=m;}D.months=mm;}
+  const idMap={},subMap={},out={};
+  out.items=(Array.isArray(D.items)?D.items:[]).filter(it=>it&&typeof it==='object').slice(0,60).map(it=>{
+    const id=cleanId(it.id);idMap[String(it.id)]=id;const sm={};subMap[id]=sm;
+    const c=it.cut&&typeof it.cut==='object'?it.cut:{},g=it.goal&&typeof it.goal==='object'?it.goal:{};
+    return{id,name:cStr(it.name),unit:cStr(it.unit,10),pt:cNumB(it.pt),
+      subs:(Array.isArray(it.subs)?it.subs:[]).filter(x=>x&&typeof x==='object').slice(0,30).map(x=>{const sid=cleanId(x.id);sm[String(x.id)]=sid;return{id:sid,name:cStr(x.name),pt:cNumB(x.pt),cut:!!x.cut};}),
+      cut:{fixed:c.fixed===undefined?true:!!c.fixed,value:cNumB(c.value),mode:c.mode==='yen'?'yen':'cnt'},
+      goal:{fixed:!!g.fixed,value:cNumB(g.value)}};});
+  const mapI=v=>idMap[String(v)]||(ID_RE.test(String(v))?String(v):null);
+  out.months={};
+  const M=D.months&&typeof D.months==='object'?D.months:{};
+  for(const ym of Object.keys(M)){if(!YM_RE.test(ym))continue;const m=M[ym]||{},o={off:[],entries:{},t:{},logs:{}};
+    o.off=(Array.isArray(m.off)?m.off:[]).filter(k=>typeof k==='string'&&DAY_RE.test(k));
+    for(const k in (m.entries||{})){if(!DAY_RE.test(k))continue;const e=m.entries[k]||{},oe={};for(const i in e){const ni=mapI(i);if(ni)oe[ni]=cNum(e[i]);}o.entries[k]=oe;}
+    for(const i in (m.t||{})){const ni=mapI(i);if(!ni)continue;const tv=m.t[i]||{},ot={};if('cut' in tv)ot.cut=cNumB(tv.cut);if('goal' in tv)ot.goal=cNumB(tv.goal);o.t[ni]=ot;}
+    for(const k in (m.logs||{})){if(!DAY_RE.test(k)||!Array.isArray(m.logs[k]))continue;
+      o.logs[k]=m.logs[k].filter(r=>r&&typeof r==='object').map(r=>{const ni=mapI(r.i!==undefined?r.i:r.a);if(!ni)return null;const rec={id:cleanId(r.id),i:ni,q:Math.max(0,Math.round(cNum(r.q)))};
+        if(r.s!=null){const ns=(subMap[ni]||{})[String(r.s)]||(ID_RE.test(String(r.s))?String(r.s):null);if(ns)rec.s=ns;}if(r.y)rec.y=Math.max(0,cNum(r.y));if(r.a!==undefined&&r.i===undefined)rec.a=r.a;return rec;}).filter(Boolean);}
+    out.months[ym]=o;}
+  if(Array.isArray(D.acts))out.acts=D.acts; // 旧形式（あとで移行）
+  out.ptCut=D.ptCut===undefined?undefined:cNumB(D.ptCut);
+  out.me={id:cleanId(D.me&&D.me.id),name:cStr(D.me&&D.me.name,30)};
+  if(D.savedAt)out.savedAt=cNum(D.savedAt);
+  if(typeof D.cfgAt==='string')out.cfgAt=D.cfgAt.slice(0,40);
+  if(typeof D.cloudUser==='string'&&/^[0-9a-f-]{36}$/.test(D.cloudUser))out.cloudUser=D.cloudUser;
+  if(D.pendingCfg&&typeof D.pendingCfg==='object')out.pendingCfg=D.pendingCfg;
+  return out;
+}
+function sanitizePayload(p){
+  if(!p||p.v!==1||!ID_RE.test(String(p.id||''))||!YM_RE.test(String(p.ym||''))||!Array.isArray(p.items))return null;
+  const nOrNull=v=>v==null||v===''?null:cNum(v);
+  return{v:1,id:String(p.id),name:cStr(p.name,30),ym:p.ym,at:cNum(p.at)||Date.now(),pts:cNum(p.pts),pc:nOrNull(p.pc),work:Math.max(0,Math.round(cNum(p.work))),el:Math.max(0,Math.round(cNum(p.el))),
+    items:p.items.slice(0,60).map(it=>({n:cStr(it&&it.n),u:cStr(it&&it.u,10),c:nOrNull(it&&it.c),g:nOrNull(it&&it.g),t:cNum(it&&it.t),ct:nOrNull(it&&it.ct),ty:cNum(it&&it.ty),cy:it&&it.cy?1:0,cn:cStr(it&&it.cn,120),p:cNum(it&&it.p),
+      sb:(Array.isArray(it&&it.sb)?it.sb:[]).slice(0,30).map(x=>({n:cStr(x&&x.n),q:cNum(x&&x.q),y:cNum(x&&x.y),c:x&&x.c?1:0,o:x&&x.o?1:0}))}))};
+}
+
 const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 
 // ---- データ構造 ----
@@ -348,6 +400,8 @@ async function shareCfg(withGoal){
   modal(`<h3>${ok?'コピーしました':'下の文をコピーしてください'}</h3><p class="sub">LINEなどでみんなに送ってください。</p><textarea class="tin" rows="5" readonly>${esc(txt)}</textarea><button class="btn" data-x="no">閉じる</button>`,(e,close)=>{if(e.target.closest('[data-x]'))close();});
 }
 function applyCfg(c,noSave){
+  if(!c||!Array.isArray(c.items))return;
+  {const cs=sanitizeState({items:c.items,months:{}});const oldIds=c.items.map(x=>x&&x.id);c={...c,items:cs.items.map((it,i)=>({...it,id:it.id}))};const t2={};for(const ym in (c.t||{})){if(!YM_RE.test(ym))continue;t2[ym]={};for(const oid in c.t[ym]){const idx=oldIds.findIndex(x=>String(x)===oid);const nid=idx>=0?cs.items[idx].id:(ID_RE.test(oid)?oid:null);if(!nid)continue;const tv=c.t[ym][oid]||{},o={};if('cut' in tv)o.cut=cNumB(tv.cut);if('goal' in tv)o.goal=cNumB(tv.goal);t2[ym][nid]=o;}}c.t=t2;c.ptCut=cNumB(c.ptCut);}
   const byName={};S.items.forEach(i=>{if(i.name)byName[i.name]=i;});
   const idMap={};
   S.items=c.items.map(x=>{const ex=byName[x.name];const id=ex?ex.id:x.id;idMap[x.id]=id;
@@ -356,6 +410,7 @@ function applyCfg(c,noSave){
     return{id,name:x.name,unit:x.unit,pt:x.pt,subs,cut:x.cut,goal};});
   S.ptCut=c.ptCut;
   for(const ym in (c.t||{})){const m=ensure(ym);for(const oid in c.t[ym]){const id=idMap[oid]||oid;m.t[id]=Object.assign(m.t[id]||{},c.t[ym][oid]);}}
+  S=sanitizeState(S);
   if(!noSave)changed();
 }
 async function cfgFromHash(){
@@ -456,7 +511,9 @@ function exportTables(ym){
   day.push(['合計','','',...cols.map(c=>{let t=0;for(let d=1;d<=n;d++)t+=c.f(dkey(ym,d));return t;}),tp]);
   const rec=[['日付','項目','種類','数','単位','ポイント','金額（円）']];
   Object.keys(logs).sort().forEach(k=>logs[k].forEach(r=>{const it=S.items.find(x=>x.id===r.i);if(!it)return;const sb=subsOf(it).find(x=>x.id===r.s);rec.push([k,it.name,sb?sb.name:'',r.q,it.unit||'',r.q*logPt(it,r),r.y||'']);}));
-  return{sum,day,rec};
+  const safe=v=>typeof v==='string'&&/^[=+\-@\t\r]/.test(v)?"'"+v:v;
+  const fix=rows=>rows.map(r=>r.map(safe));
+  return{sum:fix(sum),day:fix(day),rec:fix(rec)};
 }
 function loadXLSX(){return new Promise((ok,ng)=>{if(window.XLSX)return ok(window.XLSX);const sc=document.createElement('script');sc.src='../target/xlsx.full.min.js';sc.onload=()=>ok(window.XLSX);sc.onerror=ng;document.head.appendChild(sc);});}
 async function shareFile(blob,name){
@@ -484,11 +541,11 @@ async function exportData(fmt){
 }
 // ---- 店長用：店舗メンバー（スタッフから届いた報告。クリアファイルの「スタッフ実績」と同じ保存場所）----
 const TL='team_v1';
-function loadTeam(){let T;try{T=JSON.parse(localStorage.getItem(TL)||'null')}catch(e){T=null}return T&&T.staff?T:{staff:{}};}
+function loadTeam(){let T;try{T=JSON.parse(localStorage.getItem(TL)||'null')}catch(e){T=null}if(!T||!T.staff)return{staff:{}};const out={staff:{}};for(const id in T.staff){if(!ID_RE.test(id))continue;const st=T.staff[id]||{},ms={};for(const ym in (st.months||{})){const p=sanitizePayload(st.months[ym]);if(p&&p.ym===ym)ms[ym]=p;}out.staff[id]={name:cStr(st.name,30),months:ms};}return out;}
 function saveTeam(T){try{localStorage.setItem(TL,JSON.stringify(T))}catch(e){}}
 async function importReport(raw){
   const mm=String(raw).match(/[#&?]d=([A-Za-z0-9_\-]+)/),code=mm?mm[1]:String(raw).trim();
-  const p=await dec(code);if(!p||p.v!==1||!p.id||!p.ym||!Array.isArray(p.items))throw new Error('bad');
+  const p=sanitizePayload(await dec(code));if(!p)throw new Error('bad');
   const T=loadTeam(),st=T.staff[p.id]||(T.staff[p.id]={name:'',months:{}});if(p.name)st.name=p.name;
   const cur=st.months[p.ym];let msg;
   if(cur&&cur.at>p.at)msg=`${st.name||'スタッフ'}さんの${Number(p.ym.slice(5))}月分は、もっと新しいデータが入っています`;
@@ -565,6 +622,7 @@ function jaErr(e){const m=String(e&&(e.message||e.error_description||e)||'');
   if(/invalid/i.test(m)&&/email/i.test(m))return 'メールアドレスの形がちがうようです。もう一度確認してください。';
   if(/already registered|already exists/i.test(m))return 'そのメールアドレスはもう登録されています。ログインしてください。';
   if(/Password should be at least/i.test(m))return 'パスワードは6文字以上にしてください。';
+  if(/bad_name/.test(m))return '名前が長すぎるか、空になっています。';
   if(/bad_code/.test(m))return '店舗コードが見つかりません。店長に確認してください。';
   if(/already_member/.test(m))return 'このアカウントは、もう店舗に参加しています。';
   if(/not_manager/.test(m))return '店長だけができる操作です。';
@@ -628,9 +686,9 @@ function cloudGate(){
     <button class="btn ghost" data-a="cstage" data-v="signup">はじめての人はこちら（登録）</button>`);
   if(st==='signup')return wrap(`<div class="iname">はじめての登録</div>
     <div class="field"><label>メールアドレス（ログインに使います）</label><input id="cid" type="email" autocomplete="username" autocapitalize="off" placeholder="例：yamada@gmail.com"></div>
-    <div class="field"><label>パスワード（6文字以上）</label><input id="cpw" type="password" autocomplete="new-password"></div>
+    <div class="field"><label>パスワード（8文字以上）</label><input id="cpw" type="password" autocomplete="new-password"></div>
     <div class="field"><label>名前（店長やメンバーに表示されます）</label><input id="cnm" placeholder="例：山田"></div>
-    <div class="field"><label>店舗コード（店長から聞いた6文字）</label><input id="ccode" autocapitalize="characters" value="${esc(CL.joinCode||'')}" placeholder="例：A1B2C3"></div>
+    <div class="field"><label>店舗コード（店長から聞いた英数字）</label><input id="ccode" autocapitalize="characters" value="${esc(CL.joinCode||'')}" placeholder="例：A1B2C3"></div>
     <button class="btn" data-a="csignup" data-v="join">登録して店舗に参加</button>
     <div class="sub" style="margin-top:14px">店長の方で、まだ店舗を作っていない場合は、店舗コードを空けたまま次を押してください。</div>
     <div class="field"><label>新しく作る店舗の名前</label><input id="cshop" placeholder="例：◯◯店"></div>
@@ -662,7 +720,7 @@ async function cloudAction(a,t){
       if(mode==='create'&&!shopName){CL.err='作る店舗の名前を入れてください。';render();return;}
       if(a==='csignup'){const id=v('cid'),pw=v('cpw');
         if(!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(id)){CL.err='メールアドレスを正しく入れてください。';render();return;}
-        if(pw.length<6){CL.err='パスワードは6文字以上にしてください。';render();return;}busy();
+        if(pw.length<8){CL.err='パスワードは8文字以上にしてください。';render();return;}busy();
         const {data,error}=await c.auth.signUp({email:idToEmail(id),password:pw});if(error)throw error;
         if(!data.session){CL.err='登録はできましたが、サーバー側の設定（メールの確認）がオンのためログインできません。管理者に「Confirm email をオフに」と伝えてください。';render();return;}
         CL.user=data.user;}
@@ -670,7 +728,7 @@ async function cloudAction(a,t){
       if(mode==='join'){const {error}=await c.rpc('join_shop',{shop_code:code,member_name:nm});if(error)throw error;}
       else{const {data:newCode,error}=await c.rpc('create_shop',{shop_name:shopName,member_name:nm});if(error)throw error;CL.newCode=newCode;}
       CL.stage='loading';render();await cloudAfterLogin();
-      if(CL.newCode)modal(`<h3>店舗を作りました</h3><p class="sub">店舗コードは <b style="font-size:22px;letter-spacing:2px;color:var(--ink)">${esc(CL.newCode)}</b> です。スタッフは登録のときにこのコードを入れて参加します。項目設定の「アカウント」からいつでも確認・共有できます。</p><button class="btn" data-x="no">OK</button>`,(e,cl)=>{if(e.target.closest('[data-x]'))cl();});
+      if(CL.newCode)modal(`<h3>店舗を作りました</h3><p class="sub">店舗コードは <b style="font-size:20px;letter-spacing:2px;color:var(--ink)">${esc(CL.newCode)}</b> です。スタッフは登録のときにこのコードを入れて参加します。項目設定の「アカウント」からいつでも確認・共有できます。</p><button class="btn" data-x="no">OK</button>`,(e,cl)=>{if(e.target.closest('[data-x]'))cl();});
       return;}
   }catch(err){CL.err=jaErr(err);if(!CL.ok)render();else modal(`<h3>うまくいきませんでした</h3><p class="sub">${esc(CL.err)}</p><button class="btn" data-x="no">閉じる</button>`,(e,cl)=>{if(e.target.closest('[data-x]'))cl();});}
 }
@@ -681,7 +739,7 @@ function cloudAccountCard(){const m=CL.member||{},sh=CL.shop||{},id=(CL.user&&CL
     <div class="drow"><span class="sub">メール</span><b style="font-size:13px">${esc(id)}</b></div>
     <div class="drow"><span class="sub">店舗</span><b>${esc(sh.name||'')}</b></div>
     <div class="drow"><span class="sub">役割</span><b>${m.role==='manager'?'店長':'スタッフ'}</b></div>
-    ${m.role==='manager'?`<div class="drow"><span class="sub">店舗コード</span><span class="flex"><b style="letter-spacing:2px">${esc(sh.code||'')}</b><button class="mini" data-a="cinvite">招待を送る</button></span></div>`:''}
+    ${m.role==='manager'?`<div class="drow"><span class="sub">店舗コード</span><span class="flex"><b style="letter-spacing:2px">${esc(sh.code||'')}</b><button class="mini" data-a="cinvite">招待を送る</button><button class="mini" data-a="cregen">作り直す</button></span></div>`:''}
     <button class="btn ghost" data-a="clogout">ログアウト</button></div>`;}
 function cloudCfgCard(){if(!isCloudMgr())return `<div class="card"><div class="iname">店舗の設定</div><div class="sub" style="margin-top:4px">項目・種類・ポイント・足切りは、店長が配った設定が自動で入ります。${S.cfgAt?'（最終反映：'+new Date(S.cfgAt).toLocaleString('ja-JP',{month:'numeric',day:'numeric',hour:'2-digit',minute:'2-digit'})+'）':''}</div></div>`;
   return `<div class="card"><div class="iname">店舗全員に設定を配る（店長）</div><div class="sub" style="margin-top:4px">今の項目・種類・ポイント・足切りを、店舗の全員に配ります。スタッフが次にアプリを開いたとき、自動で反映されます。実績や個人目標はそのままです。</div><button class="btn" data-a="cdist">この設定を全員に配る</button></div>`;}
@@ -696,7 +754,7 @@ async function cloudLoadTeam(force){
 function cloudWatchTeam(){
   try{CL.chan=CL.client.channel('team-'+CL.member.shop_id).on('postgres_changes',{event:'*',schema:'public',table:'states',filter:'shop_id=eq.'+CL.member.shop_id},()=>{if(view.tab==='member')cloudLoadTeam(true);else CL.teamAt=0;}).subscribe();}catch(e){}
 }
-function withData(data,id,name,fn){const save=S;try{S=JSON.parse(JSON.stringify(data||{}));if(!S.months)S.months={};if(!S.items)S.items=[];S.me={id,name};return fn();}finally{S=save;}}
+function withData(data,id,name,fn){const save=S;try{S=sanitizeState(JSON.parse(JSON.stringify(data||{})));if(!S.months)S.months={};if(!S.items)S.items=[];S.me={id,name};return fn();}finally{S=save;}}
 function cloudMemberView(ym){
   if(!CL.team){cloudLoadTeam(true);return `<div class="card empty">${CL.teamErr?esc(CL.teamErr):'メンバーのデータを読み込んでいます…'}</div>`;}
   cloudLoadTeam(false);
@@ -721,6 +779,8 @@ async function cloudMgrAction(a,t){
     if(a==='crefresh'){t.textContent='更新中…';await cloudLoadTeam(true);return;}
     if(a==='cdist'){const cfg=buildCfg(false);const {error}=await c.rpc('share_cfg',{new_cfg:cfg});if(error)throw error;
       modal('<h3>全員に配りました</h3><p class="sub">スタッフが次にアプリを開いたとき、自動で同じ設定になります。</p><button class="btn" data-x="no">OK</button>',(e,cl)=>{if(e.target.closest('[data-x]'))cl();});return;}
+    if(a==='cregen'){if(!view.cregen){view.cregen=1;t.textContent='本当に作り直す';return;}view.cregen=0;const {data:nc,error}=await c.rpc('regenerate_code');if(error)throw error;CL.shop.code=nc;render();
+      modal(`<h3>店舗コードを作り直しました</h3><p class="sub">新しいコードは <b style="font-size:20px;letter-spacing:2px;color:var(--ink)">${esc(nc)}</b> です。前のコードでは、もう参加できません。すでに参加している人はそのまま使えます。</p><button class="btn" data-x="no">OK</button>`,(e,cl)=>{if(e.target.closest('[data-x]'))cl();});return;}
     if(a==='crole'){const {error}=await c.rpc('set_member_role',{target:id,new_role:t.dataset.v});if(error)throw error;await cloudLoadTeam(true);return;}
     if(a==='cremove'){if(view.cdel!==id){view.cdel=id;render();return;}const {error}=await c.rpc('remove_member',{target:id});if(error)throw error;view.cdel=null;await cloudLoadTeam(true);return;}
     if(a==='cinvite'){const url=new URL('../cloud/',location.href).href+'#join='+CL.shop.code;const txt=`【目標達成マネージャー】${CL.shop.name}への招待です。\nChromeで開いて「はじめての人はこちら」から登録してください。店舗コード：${CL.shop.code}\n${url}`;
@@ -753,7 +813,7 @@ function addProfile(){
     const id=uid()+uid();SH.profiles[id]={name:nm,pin:w.querySelector('#pp').value.trim(),S:{months:{},me:{id,name:nm},pendingCfg:SH.cfg||null}};SH.order.push(id);saveShared();close();enterProfile(id);});
   setTimeout(()=>{const i=document.getElementById('pn');i&&i.focus();},50);
 }
-function withProfile(id,fn){const save=S;try{S=SH.profiles[id].S;if(!S.months)S.months={};if(!S.items)S.items=[];if(!S.me)S.me={id,name:SH.profiles[id].name};S.me.id=id;S.me.name=SH.profiles[id].name;return fn();}finally{SH.profiles[id].S=S;S=save;}}
+function withProfile(id,fn){const save=S;try{S=sanitizeState(SH.profiles[id].S);if(!S.months)S.months={};if(!S.items)S.items=[];if(!S.me)S.me={id,name:SH.profiles[id].name};S.me.id=id;S.me.name=SH.profiles[id].name;return fn();}finally{SH.profiles[id].S=S;S=save;}}
 function distributeCfg(c){SH.cfg=c;SH.order.forEach(id=>{if(id===CUR)return;withProfile(id,()=>{if(S.pendingCfg)delete S.pendingCfg;applyCfg(c,true);});});saveShared();}
 function sharedMemberView(ym){
   if(!mgrOK){
@@ -782,7 +842,7 @@ if(SHARED&&CUR){const reset=()=>{clearTimeout(idleT);idleT=setTimeout(leaveProfi
 function backupRestore(){
   modal(`<h3>バックアップから戻す</h3><p class="sub">コピーしておいたバックアップの文字を貼り付けてください。<b>今このスマホにあるデータは置き換わります。</b></p><textarea id="bk" class="tin" rows="4" placeholder="TGTBK:..."></textarea><div class="mrow2"><button class="btn ghost" data-x="no">やめる</button><button class="btn" data-x="ok">戻す</button></div><p id="bkmsg" class="sub" style="color:var(--bad)"></p>`,async(e,close,w)=>{
     const x=e.target.closest('[data-x]');if(!x)return;if(x.dataset.x!=='ok'){close();return;}
-    try{const v=w.querySelector('#bk').value.trim().replace(/^TGTBK:/,'');const d=await dec(v);if(!d||!d.months)throw 0;S=d;if(!S.me)S.me={id:Math.random().toString(36).slice(2,12),name:''};changed();close();render();}
+    try{const v=w.querySelector('#bk').value.trim().replace(/^TGTBK:/,'');const d=await dec(v);if(!d||!d.months)throw 0;S=sanitizeState(d);if(!S.me)S.me={id:Math.random().toString(36).slice(2,12),name:''};changed();close();render();}
     catch(err){w.querySelector('#bkmsg').textContent='読み込めませんでした。全部コピーできているか確認してください。';}
   });
 }
@@ -1043,7 +1103,7 @@ $app.addEventListener('click',e=>{
   if(a==='sadd'){const it=findItem(id);if(!it)return;if(!Array.isArray(it.subs))it.subs=[];it.subs.push({id:uid(),name:'',pt:it.subs.length?'':(it.pt??'')});changed();render();return;}
   if(a==='sdel'){const it=findItem(id),sid=t.dataset.s;if(!it)return;if(delAsk===sid){it.subs=subsOf(it).filter(x=>x.id!==sid);delAsk=null;changed();}else delAsk=sid;render();return;}
   if(CLOUD&&['cstage','reload','clogout','clogin','csignup','cjoin'].includes(a)){cloudAction(a,t);return;}
-  if(CLOUD&&['crefresh','cdist','crole','cremove','cinvite','crename'].includes(a)){cloudMgrAction(a,t);return;}
+  if(CLOUD&&['crefresh','cdist','crole','cremove','cinvite','crename','cregen'].includes(a)){cloudMgrAction(a,t);return;}
   if(a==='switch'){leaveProfile();return;}
   if(a==='pickp'){const pr=SH.profiles[id];if(!pr)return;if(pr.pin)pinModal(esc(pr.name)+'さん','暗証番号を入れてください。',v=>{if(v!==pr.pin)return false;enterProfile(id);});else enterProfile(id);return;}
   if(a==='addp'){addProfile();return;}

@@ -67,8 +67,9 @@ declare new_code text; sid uuid;
 begin
   if auth.uid() is null then raise exception 'not_logged_in'; end if;
   if exists (select 1 from members where user_id = auth.uid()) then raise exception 'already_member'; end if;
+  if length(trim(member_name)) = 0 or length(member_name) > 30 or length(shop_name) > 40 then raise exception 'bad_name'; end if;
   loop
-    new_code := upper(substr(md5(random()::text || clock_timestamp()::text), 1, 6));
+    new_code := upper(substr(replace(gen_random_uuid()::text, '-', ''), 1, 10));
     exit when not exists (select 1 from shops where code = new_code);
   end loop;
   insert into shops(name, code) values (coalesce(nullif(trim(shop_name), ''), 'お店'), new_code) returning id into sid;
@@ -83,6 +84,7 @@ declare sid uuid; sname text;
 begin
   if auth.uid() is null then raise exception 'not_logged_in'; end if;
   if exists (select 1 from members where user_id = auth.uid()) then raise exception 'already_member'; end if;
+  if length(trim(member_name)) = 0 or length(member_name) > 30 then raise exception 'bad_name'; end if;
   select id, name into sid, sname from shops where code = upper(trim(shop_code));
   if sid is null then raise exception 'bad_code'; end if;
   insert into members(user_id, shop_id, name, role) values (auth.uid(), sid, trim(member_name), 'staff');
@@ -92,7 +94,7 @@ end $$;
 -- 自分の名前を変える
 create or replace function public.set_my_name(new_name text) returns void
 language sql security definer set search_path = public as
-$$ update members set name = trim(new_name) where user_id = auth.uid() and trim(new_name) <> '' $$;
+$$ update members set name = trim(new_name) where user_id = auth.uid() and trim(new_name) <> '' and length(new_name) <= 30 $$;
 
 -- 店長：設定を店舗全員に配る
 create or replace function public.share_cfg(new_cfg jsonb) returns void
@@ -124,12 +126,36 @@ begin
   delete from members where user_id = target and shop_id = public.my_shop();
 end $$;
 
+-- 店長：店舗コードを作り直す（前のコードは使えなくなる）
+create or replace function public.regenerate_code() returns text
+language plpgsql security definer set search_path = public as $$
+declare new_code text;
+begin
+  if public.my_role() <> 'manager' then raise exception 'not_manager'; end if;
+  loop
+    new_code := upper(substr(replace(gen_random_uuid()::text, '-', ''), 1, 10));
+    exit when not exists (select 1 from shops where code = new_code);
+  end loop;
+  update shops set code = new_code where id = public.my_shop();
+  return new_code;
+end $$;
+
+-- 1人分のデータが大きくなりすぎないように（約2MBまで）
+do $$ begin
+  if not exists (select 1 from pg_constraint where conname = 'states_data_size') then
+    alter table public.states add constraint states_data_size check (pg_column_size(data) < 2000000);
+  end if;
+end $$;
+
+-- ログインしていない人（anon）は、表に一切さわれないようにする
+revoke all on public.shops, public.members, public.states from anon;
+
 -- 外から直接は呼べないようにして、ログインした人だけに許可
 revoke all on function public.create_shop(text,text), public.join_shop(text,text), public.set_my_name(text),
-  public.share_cfg(jsonb), public.set_member_role(uuid,text), public.remove_member(uuid),
+  public.share_cfg(jsonb), public.set_member_role(uuid,text), public.remove_member(uuid), public.regenerate_code(),
   public.my_shop(), public.my_role() from public, anon;
 grant execute on function public.create_shop(text,text), public.join_shop(text,text), public.set_my_name(text),
-  public.share_cfg(jsonb), public.set_member_role(uuid,text), public.remove_member(uuid),
+  public.share_cfg(jsonb), public.set_member_role(uuid,text), public.remove_member(uuid), public.regenerate_code(),
   public.my_shop(), public.my_role() to authenticated;
 
 -- 店長の画面に自動で反映するため（リアルタイム通知）
