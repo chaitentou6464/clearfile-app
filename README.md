@@ -21,3 +21,8 @@
 - `campaign/` … https://chaitentou6464.github.io/clearfile-app/campaign/
 - 施策を登録して、手続き（MNP・機種変更など）や機種名・「一括1円」などで検索するアプリ。言い換え（機変＝機種変更、のりかえ＝MNP、アイフォン＝iPhone など）にも対応。
 - データは端末の中だけ（localStorage の `campaign_v1`、写真は IndexedDB の `campaign_photos`）。メニューからファイルで送る・読み込むができる。
+
+## ブラックジャック戦略
+- `blackjack/` … https://chaitentou6464.github.io/clearfile-app/blackjack/
+- 判定（ディーラーの1枚と手札を押すと最善の動き）・戦略表（設定のルールに合わせて自動で変わる）・練習（正解率・よく間違える手）・カウント（Hi-Lo、トゥルーカウントで判定を切り替え）。
+- データは端末の中だけ（localStorage の `blackjack_v1`）。

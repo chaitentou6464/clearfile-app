@@ -1,0 +1,423 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>ブラックジャック戦略</title>
+<link rel="manifest" href="manifest.webmanifest?v=1">
+<link rel="apple-touch-icon" href="apple-touch-icon-v1.png">
+<meta name="theme-color" content="#0f3d2e">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="BJ戦略">
+<style>
+:root{--bg:#f3f5f4;--card:#fff;--ink:#16211c;--sub:#66726c;--line:#e2e7e4;--felt:#0f3d2e;--acc:#0e7a55;
+--H:#ef4444;--S:#22c55e;--D:#3b82f6;--P:#a855f7;--R:#9ca3af}
+*{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
+html,body{margin:0}
+body{background:var(--bg);color:var(--ink);font-family:-apple-system,"Hiragino Sans","Noto Sans JP",sans-serif;font-size:15px;padding-bottom:calc(76px + env(safe-area-inset-bottom))}
+button{font:inherit;cursor:pointer;color:inherit}
+header{position:sticky;top:0;z-index:5;background:var(--felt);color:#fff;padding:calc(10px + env(safe-area-inset-top)) 14px 10px;display:flex;align-items:center;gap:8px}
+header h1{font-size:18px;margin:0;flex:1}
+.hbtn{background:rgba(255,255,255,.15);border:0;border-radius:10px;height:34px;padding:0 12px;color:#fff;font-size:14px}
+.cnt{font-size:12px;background:rgba(255,255,255,.15);border-radius:8px;padding:4px 8px;display:none}
+main{padding:12px;max-width:640px;margin:0 auto}
+.page{display:none}.page.on{display:block}
+.card{background:var(--card);border:1px solid var(--line);border-radius:14px;padding:12px;margin-bottom:10px}
+.lbl{font-size:13px;color:var(--sub);font-weight:700;margin-bottom:8px;display:flex;align-items:center;gap:8px}
+.lbl .r{margin-left:auto;font-weight:400}
+.keys{display:grid;grid-template-columns:repeat(5,1fr);gap:6px}
+.k{border:1px solid var(--line);background:#fff;border-radius:10px;height:46px;font-size:18px;font-weight:700}
+.k.on{background:var(--felt);color:#fff;border-color:var(--felt)}
+.k:active{transform:scale(.96)}
+.hand{display:flex;flex-wrap:wrap;gap:6px;min-height:58px;align-items:center;margin-bottom:8px}
+.pc{width:40px;height:56px;border-radius:7px;background:#fff;border:1.5px solid #cfd6d2;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:18px;box-shadow:0 1px 2px rgba(0,0,0,.08)}
+.ph{color:var(--sub);font-size:13px}
+.tot{margin-left:auto;font-size:14px;color:var(--sub);text-align:right}
+.tot b{font-size:22px;color:var(--ink)}
+.small{border:1px solid var(--line);background:#fff;border-radius:9px;padding:6px 12px;font-size:13px}
+.res{border-radius:16px;padding:16px;color:#fff;text-align:center;margin-bottom:10px;background:#9aa5a0}
+.res .a{font-size:30px;font-weight:800;letter-spacing:.05em}
+.res .w{font-size:14px;margin-top:6px;opacity:.95;line-height:1.6}
+.res .dv{margin-top:8px;background:rgba(0,0,0,.18);border-radius:8px;padding:6px 8px;font-size:13px}
+.note{font-size:13px;color:var(--sub);line-height:1.7}
+.ins{background:#fff7e6;border:1px solid #fde3a7;border-radius:10px;padding:8px 10px;font-size:13px;margin-bottom:10px;display:none}
+nav{position:fixed;left:0;right:0;bottom:0;z-index:6;background:#fff;border-top:1px solid var(--line);display:flex;padding-bottom:env(safe-area-inset-bottom)}
+nav button{flex:1;border:0;background:none;padding:8px 0 10px;font-size:11px;color:var(--sub);display:flex;flex-direction:column;align-items:center;gap:2px}
+nav button .i{font-size:20px;line-height:1.2}
+nav button.on{color:var(--acc);font-weight:700}
+table{border-collapse:collapse;width:100%;table-layout:fixed;font-size:12px}
+th{font-weight:700;color:var(--sub);padding:3px 0}
+td{text-align:center;padding:0;height:24px;border:1px solid #fff;color:#fff;font-weight:700}
+td.rh{color:var(--ink);background:#eef1ef;width:46px}
+.cH{background:var(--H)}.cS{background:var(--S)}.cD{background:var(--D)}.cDs{background:linear-gradient(135deg,var(--D) 50%,var(--S) 50%)}.cP{background:var(--P)}.cR{background:var(--R)}
+.leg{display:flex;flex-wrap:wrap;gap:6px 12px;font-size:12px;margin:4px 0 10px}
+.leg span{display:inline-flex;align-items:center;gap:4px}
+.leg i{width:14px;height:14px;border-radius:3px;display:inline-block}
+.acts{display:grid;grid-template-columns:1fr 1fr;gap:8px}
+.ab{border:0;border-radius:12px;height:52px;font-size:17px;font-weight:800;color:#fff}
+.ab:disabled{opacity:.3}
+.stat{display:flex;gap:8px;margin-bottom:10px}
+.stat div{flex:1;background:#fff;border:1px solid var(--line);border-radius:12px;padding:8px;text-align:center}
+.stat b{display:block;font-size:20px}
+.stat small{color:var(--sub);font-size:11px}
+.fb{border-radius:12px;padding:10px 12px;margin-top:10px;font-size:14px;line-height:1.6;display:none}
+.fb.ok{background:#dcfce7;color:#14532d;display:block}.fb.ng{background:#fee2e2;color:#7f1d1d;display:block}
+.big{font-size:56px;font-weight:800;text-align:center;line-height:1}
+.cb{display:grid;grid-template-columns:repeat(3,1fr);gap:8px}
+.cb button{border:0;border-radius:14px;height:84px;color:#fff;font-weight:800;font-size:22px;display:flex;flex-direction:column;align-items:center;justify-content:center}
+.cb small{font-size:12px;font-weight:600;opacity:.9}
+.row{display:flex;align-items:center;justify-content:space-between;padding:10px 0;border-bottom:1px solid var(--line);gap:10px}
+.row:last-child{border:0}
+.row span{flex:1;line-height:1.5}
+.row small{display:block;color:var(--sub);font-size:12px}
+select{font:inherit;border:1px solid var(--line);border-radius:9px;padding:6px 8px;background:#fff}
+.sw{position:relative;width:48px;height:28px;flex:none}
+.sw input{opacity:0;width:0;height:0}
+.sw i{position:absolute;inset:0;background:#cfd6d2;border-radius:999px;transition:.2s}
+.sw i:after{content:"";position:absolute;width:22px;height:22px;left:3px;top:3px;background:#fff;border-radius:50%;transition:.2s}
+.sw input:checked+i{background:var(--acc)}
+.sw input:checked+i:after{left:23px}
+.weak{font-size:13px;line-height:1.8}
+h3{font-size:15px;margin:4px 0 8px}
+ul.tips{margin:0;padding-left:18px;line-height:1.8;font-size:14px}
+</style>
+</head>
+<body>
+<header><h1>ブラックジャック戦略</h1><span class="cnt" id="hcnt"></span><button class="hbtn" onclick="go('set')">設定</button></header>
+<main>
+
+<!-- 判定 -->
+<section class="page on" id="p-judge">
+  <div class="card">
+    <div class="lbl">ディーラーの見えているカード</div>
+    <div class="keys" id="dkeys"></div>
+  </div>
+  <div class="card">
+    <div class="lbl">自分の手札 <span class="r"><button class="small" onclick="undo()">1枚戻す</button> <button class="small" onclick="clearHand()">クリア</button></span></div>
+    <div class="hand" id="hand"></div>
+    <div class="keys" id="pkeys"></div>
+  </div>
+  <div class="ins" id="ins"></div>
+  <div class="res" id="res"><div class="a">カードを選んでね</div><div class="w">ディーラーの1枚と、自分の手札（2枚〜）を押すと、いちばん損しない動きが出ます</div></div>
+  <p class="note">※10・J・Q・K はすべて「10」を押してください。</p>
+</section>
+
+<!-- 表 -->
+<section class="page" id="p-chart">
+  <div class="card">
+    <div class="leg">
+      <span><i class="cH"></i>ヒット</span><span><i class="cS"></i>スタンド</span><span><i class="cD"></i>ダブル（できなければヒット）</span>
+      <span><i class="cDs"></i>ダブル（できなければスタンド）</span><span><i class="cP"></i>スプリット</span><span><i class="cR"></i>サレンダー</span>
+    </div>
+    <p class="note" id="ruleNote" style="margin:0"></p>
+  </div>
+  <div class="card"><h3>ふつうの手（Aなし・Aを1で数える）</h3><div id="tHard"></div></div>
+  <div class="card"><h3>Aを11で数える手（ソフト）</h3><div id="tSoft"></div></div>
+  <div class="card"><h3>同じ数字のペア</h3><div id="tPair"></div></div>
+</section>
+
+<!-- 練習 -->
+<section class="page" id="p-drill">
+  <div class="stat">
+    <div><b id="sAcc">-</b><small>正解率</small></div>
+    <div><b id="sStreak">0</b><small>連続正解</small></div>
+    <div><b id="sBest">0</b><small>最高連続</small></div>
+  </div>
+  <div class="card">
+    <div class="lbl">ディーラー</div>
+    <div class="hand" id="qd"></div>
+    <div class="lbl">あなた <span class="r" id="qt"></span></div>
+    <div class="hand" id="qp"></div>
+  </div>
+  <div class="acts" id="qa"></div>
+  <div class="fb" id="qfb"></div>
+  <div class="card" style="margin-top:10px">
+    <div class="lbl">よく間違える手 <span class="r"><button class="small" onclick="resetDrill()">記録を消す</button></span></div>
+    <div class="weak" id="weak"></div>
+  </div>
+</section>
+
+<!-- カウント -->
+<section class="page" id="p-count">
+  <div class="card" style="text-align:center">
+    <div class="lbl" style="justify-content:center">トゥルーカウント（判定に使う数字）</div>
+    <div class="big" id="tc">0</div>
+    <div class="note" id="rc" style="margin-top:6px"></div>
+    <div id="bet" style="margin-top:8px;font-weight:700"></div>
+  </div>
+  <div class="cb">
+    <button style="background:#16a34a" onclick="cnt(1)">+1<small>2〜6</small></button>
+    <button style="background:#6b7280" onclick="cnt(0)">0<small>7・8・9</small></button>
+    <button style="background:#dc2626" onclick="cnt(-1)">−1<small>10・絵札・A</small></button>
+  </div>
+  <div style="display:flex;gap:8px;margin-top:8px">
+    <button class="small" style="flex:1;height:40px" onclick="cntUndo()">1枚戻す</button>
+    <button class="small" style="flex:1;height:40px" onclick="cntReset()">シャッフル（リセット）</button>
+  </div>
+  <div class="card" style="margin-top:10px">
+    <div class="row"><span>判定にカウントを反映<small>カウントで動きが変わる手（16対10など）を自動で切り替え</small></span><label class="sw"><input type="checkbox" id="useCount" onchange="setOpt('useCount',this.checked)"><i></i></label></div>
+    <div class="row"><span>使っているデッキ数</span><select id="decks2" onchange="setOpt('decks',+this.value)"></select></div>
+  </div>
+  <div class="card note">
+    <b>使い方：</b>テーブルに出たカードを全部（自分・他の人・ディーラー）見たら、そのたびにボタンを押します。<br>
+    数字がプラスで大きいほど、残りのカードに10とAが多く、<b>プレイヤーが有利</b>。<br>
+    ※オンラインカジノは毎回シャッフルされることが多く、カウントは効きません。カジノによってはカウントをしているとプレイを断られることもあります。
+  </div>
+</section>
+
+<!-- 設定・コツ -->
+<section class="page" id="p-set">
+  <div class="card">
+    <h3>テーブルのルール</h3>
+    <div class="row"><span>ディーラーはソフト17でヒットする<small>テーブルに「DEALER HITS SOFT 17」と書いてあればオン</small></span><label class="sw"><input type="checkbox" id="h17" onchange="setOpt('h17',this.checked)"><i></i></label></div>
+    <div class="row"><span>スプリットの後にダブルできる</span><label class="sw"><input type="checkbox" id="das" onchange="setOpt('das',this.checked)"><i></i></label></div>
+    <div class="row"><span>サレンダー（半分返して降りる）ができる</span><label class="sw"><input type="checkbox" id="sur" onchange="setOpt('sur',this.checked)"><i></i></label></div>
+    <div class="row"><span>デッキ数</span><select id="decks" onchange="setOpt('decks',+this.value)"></select></div>
+  </div>
+  <div class="card">
+    <h3>勝率を上げるコツ</h3>
+    <ul class="tips">
+      <li><b>このアプリの通りに打つ</b>のが一番の近道。感覚で打つより負け額がかなり減ります。</li>
+      <li><b>インシュランス（保険）はかけない。</b>カウントが+3以上のときだけ例外。</li>
+      <li><b>ブラックジャックの配当が「6:5」の台は避ける。</b>「3:2」の台を選ぶだけで大きく違います。</li>
+      <li>負けを取り返そうと賭け金を上げない。<b>1回の賭けは持ち金の1〜2%</b>が目安。</li>
+      <li>「ここまで負けたらやめる」「ここまで勝ったらやめる」を先に決めておく。</li>
+    </ul>
+    <p class="note">正直なところ、基本戦略どおりに打っても<b>カジノ側が少し有利（約0.5%）</b>なのは変わりません。カウントをうまく使えたときだけ、わずかにプレイヤー有利になります。</p>
+  </div>
+</section>
+
+</main>
+<nav>
+  <button class="on" data-p="judge" onclick="go('judge')"><span class="i">🃏</span>判定</button>
+  <button data-p="chart" onclick="go('chart')"><span class="i">📋</span>戦略表</button>
+  <button data-p="drill" onclick="go('drill')"><span class="i">🎯</span>練習</button>
+  <button data-p="count" onclick="go('count')"><span class="i">🔢</span>カウント</button>
+</nav>
+
+<script>
+const KEY='blackjack_v1';
+const RANKS=['A','2','3','4','5','6','7','8','9','10'];
+const UPS=[2,3,4,5,6,7,8,9,10,11]; // 11 = A
+let st={opt:{h17:false,das:true,sur:false,decks:6,useCount:false},hand:[],dealer:null,count:{rc:0,seen:0,log:[]},drill:{n:0,ok:0,streak:0,best:0,miss:{}}};
+try{const s=JSON.parse(localStorage.getItem(KEY)||'null');if(s){st.opt={...st.opt,...s.opt};st.count={...st.count,...s.count};st.drill={...st.drill,...s.drill};}}catch(e){}
+const save=()=>{try{localStorage.setItem(KEY,JSON.stringify({opt:st.opt,count:st.count,drill:st.drill}))}catch(e){}};
+const $=id=>document.getElementById(id);
+const val=r=>r==='A'?11:+r;
+const lab=v=>v===11?'A':String(v);
+
+/* ---------- 基本戦略 ----------
+ 返り値: H ヒット / S スタンド / D ダブル(不可ならH) / Ds ダブル(不可ならS) / P スプリット / R サレンダー(不可なら別の動き) */
+function hardAct(t,d,o){
+  if(t>=17) return (o.sur&&o.h17&&t===17&&d===11)?'R:S':'S';
+  if(t===16){ if(o.sur&&(d>=9)) return 'R:'+(d<=6?'S':'H'); return d<=6?'S':'H'; }
+  if(t===15){ if(o.sur&&(d===10||(o.h17&&d===11))) return 'R:H'; return d<=6?'S':'H'; }
+  if(t>=13) return d<=6?'S':'H';
+  if(t===12) return (d>=4&&d<=6)?'S':'H';
+  if(t===11) return (d===11&&!o.h17&&o.decks>2)?'H':'D';
+  if(t===10) return d<=9?'D':'H';
+  if(t===9) return ((d>=3&&d<=6)||(d===2&&o.decks<=2))?'D':'H';
+  return 'H';
+}
+function softAct(t,d,o){ // t = ソフトの合計 13〜21
+  if(t>=20) return 'S';
+  if(t===19) return (o.h17&&d===6)?'Ds':'S';
+  if(t===18){ if(d<=6) return (d===2&&!o.h17)?'S':'Ds'; if(d<=8) return 'S'; return 'H'; }
+  if(t===17) return (d>=3&&d<=6)?'D':'H';
+  if(t>=15) return (d>=4&&d<=6)?'D':'H';
+  return (d>=5&&d<=6)?'D':'H';
+}
+function pairAct(v,d,o){ // v = 1枚の値(Aは11)
+  if(v===11) return 'P';
+  if(v===10) return 'S';
+  if(v===9) return (d===7||d===10||d===11)?'S':'P';
+  if(v===8) return (o.sur&&o.h17&&d===11)?'R:P':'P';
+  if(v===7) return d<=7?'P':'H';
+  if(v===6) return (d<=6&&(o.das||d>=3))?'P':'H';
+  if(v===5) return d<=9?'D':'H';
+  if(v===4) return (o.das&&(d===5||d===6))?'P':'H';
+  return (d<=7&&(o.das||d>=4))?'P':'H'; // 2,3
+}
+function total(cards){let t=0,a=0;for(const c of cards){t+=c;if(c===11)a++;}while(t>21&&a){t-=10;a--;}return{t,soft:a>0}}
+
+// カウントで変える手（イラストリアス18より）。[種類,合計,ディーラー,境目, 境目以上の動き, 未満の動き]
+const DEV=[
+ ['h',16,10,0,'S','H'],['h',15,10,4,'S','H'],['h',10,10,4,'D','H'],['h',12,3,2,'S','H'],['h',12,2,3,'S','H'],
+ ['h',11,11,1,'D','H'],['h',9,2,1,'D','H'],['h',10,11,4,'D','H'],['h',9,7,3,'D','H'],['h',16,9,5,'S','H'],
+ ['h',13,2,-1,'S','H'],['h',12,4,0,'S','H'],['h',12,5,-2,'S','H'],['h',12,6,-1,'S','H'],['h',13,3,-2,'S','H'],
+ ['p',10,5,5,'P','S'],['p',10,6,4,'P','S']
+];
+function trueCount(){const left=Math.max(.5,st.opt.decks-st.count.seen/52);return st.count.rc/left}
+
+// 手札 → 最終的な動き（説明つき）
+function decide(cards,d,o,tc){
+  const n=cards.length,{t,soft}=total(cards);
+  if(t>21) return {a:'X',why:'バーストしています（22以上）'};
+  if(n===2&&t===21) return {a:'S',why:'ブラックジャック！'};
+  const isPair=n===2&&cards[0]===cards[1];
+  let raw=isPair?pairAct(cards[0],d,o):(soft?softAct(t,d,o):hardAct(t,d,o));
+  let dev=null;
+  if(tc!=null){
+    for(const x of DEV){
+      const match=x[0]==='p'?(isPair&&cards[0]===x[1]&&x[2]===d):(!soft&&!(isPair&&cards[0]!==10&&raw.startsWith('P'))&&t===x[1]&&x[2]===d);
+      if(!match) continue;
+      if(x[0]==='h'&&isPair&&cards[0]===8) continue;
+      if(x[1]===11&&x[2]===11&&o.h17) continue; // H17なら11対Aは常にダブル
+      if(raw.startsWith('R')&&o.sur&&n===2) continue; // サレンダー優先
+      const want=Math.floor(tc)>=x[3]?x[4]:x[5];
+      const base=raw.replace(/^R:/,'');
+      if(want!==base&&!(want==='D'&&base==='Ds')){dev={from:base,to:want,idx:x[3],tc:Math.floor(tc)};raw=want;}
+      break;
+    }
+  }
+  // 2枚目以降はダブル・スプリット・サレンダー不可
+  let a=raw,why='';
+  if(a.startsWith('R:')){ if(o.sur&&n===2){a='R';} else {a=a.slice(2);} }
+  if(a==='P'&&!isPair) a='H';
+  if(a==='D'){ if(n===2) a='D'; else {a='H';why='3枚以上なのでダブルはできません → ヒット';} }
+  if(a==='Ds'){ if(n===2) a='D'; else {a='S';why='3枚以上なのでダブルはできません → スタンド';} }
+  return {a,why,dev,t,soft,isPair};
+}
+const NAME={H:'ヒット',S:'スタンド',D:'ダブル',P:'スプリット',R:'サレンダー',X:'バースト'};
+const SUB={H:'もう1枚引く',S:'引かずに止める',D:'賭け金を2倍にして1枚だけ引く',P:'2つの手に分ける（同じ額を追加）',R:'賭け金の半分を返してもらって降りる',X:''};
+const COL={H:'var(--H)',S:'var(--S)',D:'var(--D)',P:'var(--P)',R:'#6b7280',X:'#374151'};
+
+/* ---------- 判定画面 ---------- */
+function buildKeys(){
+  $('dkeys').innerHTML=RANKS.map(r=>`<button class="k" data-v="${val(r)}" onclick="setDealer(${val(r)})">${r}</button>`).join('');
+  $('pkeys').innerHTML=RANKS.map(r=>`<button class="k" onclick="addCard(${val(r)})">${r}</button>`).join('');
+}
+function setDealer(v){st.dealer=st.dealer===v?null:v;renderJudge()}
+function addCard(v){if(st.hand.length>=10)return;st.hand.push(v);renderJudge()}
+function undo(){st.hand.pop();renderJudge()}
+function clearHand(){st.hand=[];st.dealer=null;renderJudge()}
+function renderJudge(){
+  document.querySelectorAll('#dkeys .k').forEach(b=>b.classList.toggle('on',+b.dataset.v===st.dealer));
+  const h=st.hand;
+  let html=h.length?h.map(c=>`<div class="pc">${lab(c)}</div>`).join(''):'<span class="ph">下のボタンで手札を入れてください</span>';
+  if(h.length){const{t,soft}=total(h);html+=`<div class="tot">${soft&&t<=21?'ソフト':''}<br><b>${t}</b></div>`}
+  $('hand').innerHTML=html;
+  const ins=$('ins');
+  if(st.dealer===11){
+    const tc=Math.floor(trueCount());
+    ins.style.display='block';
+    ins.innerHTML=st.opt.useCount&&tc>=3?`🛡 インシュランス（保険）：<b>かける</b>（カウント${tc}で例外的に得）`:'🛡 インシュランス（保険）：<b>かけない</b>（長い目で見ると損）';
+  }else ins.style.display='none';
+  const res=$('res');
+  if(st.dealer==null||h.length<2){
+    res.style.background='#9aa5a0';
+    res.innerHTML=`<div class="a">${st.dealer==null?'ディーラーを選んで':'手札をあと'+(2-h.length)+'枚'}</div><div class="w">ディーラーの1枚と、自分の手札（2枚〜）を押すと、いちばん損しない動きが出ます</div>`;
+    return;
+  }
+  const r=decide(h,st.dealer,st.opt,st.opt.useCount?trueCount():null);
+  res.style.background=COL[r.a];
+  let extra='';
+  if(r.a==='R') extra='<br>サレンダーできないテーブルなら：<b>'+NAME[decide(h,st.dealer,{...st.opt,sur:false},st.opt.useCount?trueCount():null).a]+'</b>';
+  if(r.a==='D'&&h.length===2){const alt=(r.isPair?pairAct(h[0],st.dealer,st.opt):(r.soft?softAct(r.t,st.dealer,st.opt):'D'));extra='<br>ダブルできないときは：<b>'+(alt==='Ds'?'スタンド':'ヒット')+'</b>'}
+  if(r.a==='P'&&h[0]===11) extra='<br>Aのペアは必ず分けましょう';
+  if(r.a==='P'&&h[0]===8) extra='<br>8のペア(16)は最悪の手。分ければ立て直せます';
+  res.innerHTML=`<div class="a">${NAME[r.a]}</div><div class="w">${r.why||SUB[r.a]}${extra}</div>`+
+    (r.dev?`<div class="dv">🔢 カウント${r.dev.tc}なので、基本の「${NAME[r.dev.from]||r.dev.from}」ではなく「${NAME[r.dev.to]}」（境目 ${r.dev.idx>0?'+':''}${r.dev.idx}）</div>`:'');
+}
+
+/* ---------- 戦略表 ---------- */
+function cls(a){if(a.startsWith('R'))return 'R';return a}
+function cell(a){const c=cls(a);const txt={H:'ヒ',S:'ス',D:'ダ',Ds:'ダ',P:'分',R:'降'}[c];return `<td class="c${c}">${txt}</td>`}
+function head(){return '<tr><th></th>'+UPS.map(u=>`<th>${lab(u)}</th>`).join('')+'</tr>'}
+function renderChart(){
+  const o=st.opt;
+  let h='<table>'+head();
+  for(const t of [17,16,15,14,13,12,11,10,9,8]){h+=`<tr><td class="rh">${t===17?'17〜':t===8?'5〜8':t}</td>`+UPS.map(d=>cell(hardAct(t,d,o))).join('')+'</tr>'}
+  $('tHard').innerHTML=h+'</table>';
+  let s='<table>'+head();
+  for(let k=9;k>=2;k--){s+=`<tr><td class="rh">A+${k}</td>`+UPS.map(d=>cell(softAct(11+k,d,o))).join('')+'</tr>'}
+  $('tSoft').innerHTML=s+'</table>';
+  let p='<table>'+head();
+  for(const v of [11,10,9,8,7,6,5,4,3,2]){p+=`<tr><td class="rh">${lab(v)}-${lab(v)}</td>`+UPS.map(d=>cell(pairAct(v,d,o))).join('')+'</tr>'}
+  $('tPair').innerHTML=p+'</table>';
+  $('ruleNote').textContent=`いまのルール：${o.decks}デッキ／ディーラーはソフト17で${o.h17?'ヒット':'スタンド'}／スプリット後ダブル${o.das?'あり':'なし'}／サレンダー${o.sur?'あり':'なし'}（「設定」で変えると表も変わります）`;
+}
+
+/* ---------- 練習 ---------- */
+let q=null,answered=false;
+function rndCard(){const r=Math.floor(Math.random()*13);return r===0?11:Math.min(10,r+1)}
+function newQ(){
+  let p;const k=Math.random();
+  if(k<.2){const v=rndCard();p=[v,v]}
+  else if(k<.45){let x=rndCard();while(x===11)x=rndCard();p=[11,x];if(x===10)p=[11,Math.floor(Math.random()*8)+2]}
+  else{do{p=[rndCard(),rndCard()]}while(p.includes(11)||p[0]===p[1]||p[0]+p[1]>=20||p[0]+p[1]<=7&&Math.random()<.7)}
+  if(Math.random()<.5)p.reverse();
+  q={p,d:rndCard()};answered=false;renderQ();
+}
+function renderQ(){
+  $('qd').innerHTML=`<div class="pc">${lab(q.d)}</div><div class="pc" style="background:repeating-linear-gradient(45deg,#0f3d2e,#0f3d2e 4px,#145a43 4px,#145a43 8px)"></div>`;
+  $('qp').innerHTML=q.p.map(c=>`<div class="pc">${lab(c)}</div>`).join('');
+  const{t,soft}=total(q.p);$('qt').textContent=(soft?'ソフト':'合計')+' '+t;
+  const isPair=q.p[0]===q.p[1];
+  const list=['H','S','D','P'];if(st.opt.sur)list.push('R');
+  $('qa').innerHTML=list.map(a=>`<button class="ab" style="background:${COL[a]}" ${a==='P'&&!isPair?'disabled':''} onclick="answer('${a}')">${NAME[a]}</button>`).join('')+`<button class="ab" style="background:#374151" onclick="newQ()">次へ ▶</button>`;
+  $('qfb').className='fb';
+}
+function handKey(p,d){const{t,soft}=total(p);const name=p[0]===p[1]?`${lab(p[0])}のペア`:soft?`ソフト${t}`:`${t}`;return `${name} 対 ${lab(d)}`}
+function answer(a){
+  if(answered){newQ();return}
+  answered=true;
+  const r=decide(q.p,q.d,st.opt,null);
+  const ok=a===r.a,D=st.drill,key=handKey(q.p,q.d);
+  D.n++;
+  if(ok){D.ok++;D.streak++;D.best=Math.max(D.best,D.streak)}else{D.streak=0;D.miss[key]=(D.miss[key]||0)+1}
+  save();
+  $('qfb').className='fb '+(ok?'ok':'ng');
+  $('qfb').innerHTML=(ok?'⭕ 正解！ ':'❌ 正解は <b>'+NAME[r.a]+'</b>。 ')+`${key}は「${NAME[r.a]}」<br><small>もう一度ボタンを押すか「次へ」で次の問題</small>`;
+  renderStats();
+  if(ok) setTimeout(()=>{if(answered)newQ()},900);
+}
+function renderStats(){
+  const D=st.drill;
+  $('sAcc').textContent=D.n?Math.round(D.ok/D.n*100)+'%':'-';
+  $('sStreak').textContent=D.streak;$('sBest').textContent=D.best;
+  const m=Object.entries(D.miss).sort((a,b)=>b[1]-a[1]).slice(0,8);
+  $('weak').innerHTML=m.length?m.map(([k,v])=>{const [l,r]=k.split(' 対 ');return `${k}：${v}回 → 正しくは <b>${NAME[weakAns(l,r)]||'-'}</b>`}).join('<br>'):'<span class="note">まだありません。練習すると、間違えた手がここに出ます。</span>';
+}
+function weakAns(l,r){
+  const d=r==='A'?11:+r;let cards;
+  if(l.includes('のペア')){const v=l.replace('のペア','');cards=[v==='A'?11:+v,v==='A'?11:+v]}
+  else if(l.startsWith('ソフト')){cards=[11,+l.slice(3)-11]}
+  else{const t=+l;cards=t>11?[10,t-10]:[2,t-2];if(cards[0]===cards[1])cards=[3,t-3]}
+  return decide(cards,d,st.opt,null).a;
+}
+function resetDrill(){if(!confirm('練習の記録を消しますか？'))return;st.drill={n:0,ok:0,streak:0,best:0,miss:{}};save();renderStats()}
+
+/* ---------- カウント ---------- */
+function cnt(v){st.count.rc+=v;st.count.seen++;st.count.log.push(v);if(st.count.log.length>500)st.count.log.shift();save();renderCount()}
+function cntUndo(){const v=st.count.log.pop();if(v==null)return;st.count.rc-=v;st.count.seen--;save();renderCount()}
+function cntReset(){st.count={rc:0,seen:0,log:[]};save();renderCount()}
+function renderCount(){
+  const tc=trueCount(),f=Math.floor(tc);
+  $('tc').textContent=(f>0?'+':'')+f;
+  $('tc').style.color=f>=2?'#16a34a':f<=-1?'#dc2626':'var(--ink)';
+  const left=Math.max(.5,st.opt.decks-st.count.seen/52);
+  $('rc').textContent=`ランニングカウント ${st.count.rc>0?'+':''}${st.count.rc}／見たカード ${st.count.seen}枚／残り約${left.toFixed(1)}デッキ`;
+  $('bet').textContent=f<=1?'賭け金：最低額でOK':`賭け金の目安：最低額の${Math.min(f,8)}倍くらいまで`;
+  const hc=$('hcnt');hc.style.display=st.opt.useCount?'inline-block':'none';hc.textContent='カウント '+(f>0?'+':'')+f;
+  $('useCount').checked=st.opt.useCount;
+}
+
+/* ---------- 設定・画面切替 ---------- */
+function setOpt(k,v){st.opt[k]=v;save();syncOpts();renderAll()}
+function syncOpts(){
+  const opts=[1,2,4,6,8].map(n=>`<option value="${n}">${n}デッキ</option>`).join('');
+  for(const id of ['decks','decks2']){$(id).innerHTML=opts;$(id).value=st.opt.decks}
+  $('h17').checked=st.opt.h17;$('das').checked=st.opt.das;$('sur').checked=st.opt.sur;
+}
+function renderAll(){renderJudge();renderChart();renderCount();renderStats();if(q)renderQ()}
+function go(p){
+  document.querySelectorAll('.page').forEach(e=>e.classList.toggle('on',e.id==='p-'+p));
+  document.querySelectorAll('nav button').forEach(b=>b.classList.toggle('on',b.dataset.p===p));
+  if(p==='drill'&&!q)newQ();
+  window.scrollTo(0,0);
+}
+buildKeys();syncOpts();renderAll();
+</script>
+</body>
+</html>

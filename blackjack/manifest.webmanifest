@@ -1,0 +1,17 @@
+{
+  "id": "./index.html",
+  "name": "ブラックジャック戦略",
+  "short_name": "BJ戦略",
+  "description": "ブラックジャックで一番損しない動きがわかる判定・戦略表・練習・カウントのアプリ",
+  "lang": "ja",
+  "start_url": "./index.html",
+  "scope": "./",
+  "display": "standalone",
+  "background_color": "#f3f5f4",
+  "theme_color": "#0f3d2e",
+  "icons": [
+    {"src": "icon-192-v1.png", "sizes": "192x192", "type": "image/png"},
+    {"src": "icon-512-v1.png", "sizes": "512x512", "type": "image/png"},
+    {"src": "maskable-512-v1.png", "sizes": "512x512", "type": "image/png", "purpose": "maskable"}
+  ]
+}
