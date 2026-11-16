@@ -370,6 +370,51 @@ function calcOdds(cards,up,o){
   }
   return out;
 }
+// 次のゲーム全体の勝率と期待値（最善の動きをした場合）
+function nextGame(o){
+  const p=shoeProbs();let W=0,Dr=0,Lo=0,EV=0;
+  for(let u=2;u<=11;u++){
+    const pu=p[u],D=dealerDist(p,u,o.h17);
+    const dbj=u===11?p[10]:u===10?p[11]:0;
+    const stand=t=>{if(t>21)return{w:0,d:0,l:1};let w=D[5],d=0,l=0;for(let i=0;i<5;i++){const dt=17+i;if(t>dt)w+=D[i];else if(t===dt)d+=D[i];else l+=D[i]}return{w,d,l}};
+    const ev=x=>x.w-x.l,memo={},add=(a,b,k)=>({w:a.w+b.w*k,d:a.d+b.d*k,l:a.l+b.l*k});
+    const hit=(t,soft)=>{let r={w:0,d:0,l:0};for(let c=2;c<=11;c++){const[nt,ns]=addC(t,soft,c);r=add(r,best(nt,ns),p[c])}return r};
+    function best(t,soft){if(t>21)return{w:0,d:0,l:1};if(t===21)return stand(21);const k=t+(soft?'s':'h');if(memo[k])return memo[k];const a=stand(t),b=hit(t,soft);return memo[k]=ev(b)>ev(a)?b:a}
+    for(let c1=2;c1<=11;c1++)for(let c2=c1;c2<=11;c2++){
+      const pp=p[c1]*p[c2]*(c1===c2?1:2)*pu;
+      const[t,soft]=addC(...addC(0,false,c1),c2);
+      if(t===21){ // プレイヤーのブラックジャック
+        W+=pp*(1-dbj);Dr+=pp*dbj;EV+=pp*(1-dbj)*1.5;continue;
+      }
+      Lo+=pp*dbj;EV-=pp*dbj; // ディーラーのブラックジャック
+      const q=pp*(1-dbj);
+      const opts=[];const S=stand(t);opts.push({...S,e:ev(S)});const H=hit(t,soft);opts.push({...H,e:ev(H)});
+      let Dd={w:0,d:0,l:0};for(let c=2;c<=11;c++){const[nt]=addC(t,soft,c);Dd=add(Dd,stand(nt),p[c])}opts.push({...Dd,e:2*ev(Dd)});
+      if(c1===c2){let P={w:0,d:0,l:0};for(let c=2;c<=11;c++){const[nt,ns]=addC(c1,c1===11,c);P=add(P,c1===11?stand(nt):best(nt,ns),p[c])}opts.push({...P,e:2*ev(P)})}
+      if(o.sur)opts.push({w:0,d:0,l:1,e:-.5});
+      const b=opts.reduce((a,x)=>x.e>a.e?x:a);
+      W+=q*b.w;Dr+=q*b.d;Lo+=q*b.l;EV+=q*b.e;
+    }
+  }
+  return{w:W,d:Dr,l:Lo,ev:EV};
+}
+function renderNext(){
+  const el=$('odds'),g=nextGame(st.opt),f=Math.floor(trueCount()),pc=x=>Math.round(x*100);
+  const y1=g.ev*100,y2=y1*2,fmt=y=>(y>0?'+':'')+(Math.abs(y)<10?y.toFixed(1):Math.round(y))+'円';
+  const good=g.ev>0;
+  el.style.display='block';
+  el.innerHTML=`<div class="lbl">🎲 次のゲームの勝率（カウント${f>0?'+':''}${f}）</div>
+  <div class="bar" style="display:flex;height:30px;border-radius:8px;overflow:hidden;font-size:13px;color:#fff;font-weight:700">
+   <span style="flex:${g.w};background:#16a34a;display:flex;align-items:center;justify-content:center">勝ち${pc(g.w)}%</span>
+   <span style="flex:${g.d};background:#9ca3af;display:flex;align-items:center;justify-content:center">${pc(g.d)}%</span>
+   <span style="flex:${g.l};background:#dc2626;display:flex;align-items:center;justify-content:center">負け${pc(g.l)}%</span></div>
+  <div class="note" style="margin-top:4px">勝ち${pc(g.w)}%・引分${pc(g.d)}%・負け${pc(g.l)}%（ブラックジャックは1.5倍、ダブルは2倍で計算）</div>
+  <div class="od"><div class="n"><i style="background:#6b7280"></i>ふつう<small>×1掛け</small></div><div class="note">100円賭けたら平均</div><div class="ev"><b style="color:${good?'#16a34a':'#dc2626'}">${fmt(y1)}</b></div></div>
+  <div class="od"><div class="n"><i style="background:var(--D)"></i>倍掛け<small>×2掛け</small></div><div class="note">200円賭けたら平均</div><div class="ev"><b style="color:${good?'#16a34a':'#dc2626'}">${fmt(y2)}</b></div></div>
+  <div style="margin-top:10px;border-radius:10px;padding:10px;font-weight:700;text-align:center;background:${good?'#dcfce7':'#f3f4f6'};color:${good?'#14532d':'#374151'}">
+   ${good?'✅ プレイヤー有利！ ×2掛けにするチャンス':'⏸ カジノ有利。最低額（×1）で様子見'}</div>
+  <p class="note" style="margin:8px 0 0">勝ちより負けの%が大きくても、ブラックジャック（1.5倍）やダブルで取り返せるので「円」がプラスなら有利です。</p>`;
+}
 function renderOdds(cards,up){
   const el=$('odds'),{t}=total(cards);
   if(t>21||(cards.length===2&&t===21)){el.style.display='none';return}
@@ -404,7 +449,7 @@ function renderJudge(){
   if(st.dealer==null||h.length<2){
     res.style.background='#9aa5a0';
     res.innerHTML=`<div class="a">${st.dealer==null?'ディーラーを選んで':'手札をあと'+(2-h.length)+'枚'}</div><div class="w">ディーラーの1枚と、自分の手札（2枚〜）を押すと、いちばん損しない動きが出ます</div>`;
-    $('odds').style.display='none';
+    if(h.length===0)renderNext();else $('odds').style.display='none';
     return;
   }
   const r=decide(h,st.dealer,st.opt,st.opt.useCount?trueCount():null);
