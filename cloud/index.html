@@ -187,7 +187,7 @@ const now=new Date();
 const todayKey=`${now.getFullYear()}-${pad(now.getMonth()+1)}-${pad(now.getDate())}`;
 const curYM=todayKey.slice(0,7);
 let view={ym:curYM,tab:'today',sel:todayKey};
-const MGR=/\/manager\//.test(location.pathname); // 店長用アプリ（manager/）として開いているか
+const MGR=/\/manager\//.test(location.pathname);const SETS_ON=APP==='staff'||(!APP&&!MGR&&!SHARED); // 店長用アプリ（manager/）として開いているか
 const fmt=n=>(Math.round(n*100)/100).toLocaleString('ja-JP');
 const uid=()=>Math.random().toString(36).slice(2,9);
 // ======== 安全対策：外から入ってくるデータ（共有リンク・バックアップ・サーバー・他の人のデータ）を整える ========
@@ -1035,7 +1035,7 @@ function render(){
   if(view.tab==='today')body=todayView(ym,m);
   else if(view.tab==='cut')body=cutView(ym,m);
   else if(view.tab==='pts')body=ptsView();
-  else if(view.tab==='sets')body=setsView();
+  else if(view.tab==='sets'&&SETS_ON)body=setsView();
   else if(view.tab==='graph')body=graphView(ym,m);
   else if(view.tab==='cal')body=calView(ym,m);
   else if(view.tab==='member'&&MGR)body=memberView(ym);
@@ -1055,7 +1055,7 @@ function render(){
     <button data-tab="today" class="${view.tab==='today'?'on':''}"><span>🎯</span>成果</button>
     <button data-tab="cut" class="${view.tab==='cut'?'on':''}"><span>🚩</span>足切り</button>
     <button data-tab="pts" class="${view.tab==='pts'?'on':''}"><span>💎</span>ポイント</button>
-    <button data-tab="sets" class="${view.tab==='sets'?'on':''}"><span>📦</span>セット</button>
+    ${SETS_ON?`<button data-tab="sets" class="${view.tab==='sets'?'on':''}"><span>📦</span>セット</button>`:''}
     <button data-tab="graph" class="${view.tab==='graph'?'on':''}"><span>📊</span>グラフ</button>
     <button data-tab="cal" class="${view.tab==='cal'?'on':''}"><span>📅</span>カレンダー</button>
     ${MGR||SHARED||(CLOUD&&isCloudMgr())?`<button data-tab="member" class="${view.tab==='member'?'on':''}"><span>👥</span>メンバー</button>`:''}
