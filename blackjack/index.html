@@ -93,13 +93,28 @@ ul.tips{margin:0;padding-left:18px;line-height:1.8;font-size:14px}
     <div class="keys" id="dkeys"></div>
   </div>
   <div class="card">
-    <div class="lbl">自分の手札 <span class="r"><button class="small" onclick="undo()">1枚戻す</button> <button class="small" onclick="clearHand()">クリア</button></span></div>
+    <div class="lbl">自分の手札 <span class="r"><button class="small" onclick="undo()">1枚戻す</button> <button class="small" onclick="clearHand()">次のゲーム</button></span></div>
     <div class="hand" id="hand"></div>
     <div class="keys" id="pkeys"></div>
   </div>
   <div class="ins" id="ins"></div>
   <div class="res" id="res"><div class="a">カードを選んでね</div><div class="w">ディーラーの1枚と、自分の手札（2枚〜）を押すと、いちばん損しない動きが出ます</div></div>
-  <p class="note">※10・J・Q・K はすべて「10」を押してください。</p>
+  <div class="card" id="auto">
+    <div class="lbl">🔢 自動カウンター <span class="r" style="font-size:12px">上で押したカードは自動で数えます</span></div>
+    <div style="display:flex;align-items:center;gap:12px">
+      <div style="text-align:center;min-width:76px"><div class="big" id="atc" style="font-size:44px">0</div><small class="note">トゥルー<br>カウント</small></div>
+      <div style="flex:1;font-size:13px;line-height:1.7"><div id="arc" class="note"></div><div id="abet" style="font-weight:700"></div></div>
+    </div>
+    <div class="lbl" style="margin-top:12px">ほかのカードも数える<span class="r" style="font-size:12px">他の人・ディーラーの伏せ札など</span></div>
+    <div class="keys" id="okeys"></div>
+    <div id="olast" class="note" style="margin-top:6px;min-height:20px"></div>
+    <div style="display:flex;gap:8px;margin-top:4px">
+      <button class="small" style="flex:1;height:38px" onclick="otherUndo()">1枚戻す</button>
+      <button class="small" style="flex:1;height:38px" onclick="if(confirm('シャッフルされましたか？カウントを0に戻します'))cntReset()">シャッフル（0に戻す）</button>
+    </div>
+    <div class="row" style="margin-top:6px"><span>判定にカウントを反映<small>オンにすると、カウント次第で上の判定が変わります</small></span><label class="sw"><input type="checkbox" id="useCount2" onchange="setOpt('useCount',this.checked)"><i></i></label></div>
+  </div>
+  <p class="note">※10・J・Q・K はすべて「10」を押してください。「次のゲーム」を押してもカウントは残ります（シャッフルされたら0に戻してください）。</p>
 </section>
 
 <!-- 表 -->
@@ -285,12 +300,18 @@ const COL={H:'var(--H)',S:'var(--S)',D:'var(--D)',P:'var(--P)',R:'#6b7280',X:'#3
 /* ---------- 判定画面 ---------- */
 function buildKeys(){
   $('dkeys').innerHTML=RANKS.map(r=>`<button class="k" data-v="${val(r)}" onclick="setDealer(${val(r)})">${r}</button>`).join('');
+  $('okeys').innerHTML=RANKS.map(r=>`<button class="k" style="height:40px;font-size:16px" onclick="addOther(${val(r)})">${r}</button>`).join('');
   $('pkeys').innerHTML=RANKS.map(r=>`<button class="k" onclick="addCard(${val(r)})">${r}</button>`).join('');
 }
-function setDealer(v){st.dealer=st.dealer===v?null:v;renderJudge()}
-function addCard(v){if(st.hand.length>=10)return;st.hand.push(v);renderJudge()}
-function undo(){st.hand.pop();renderJudge()}
-function clearHand(){st.hand=[];st.dealer=null;renderJudge()}
+const hilo=v=>v<=6?1:v<=9?0:-1;
+function uncount(v){const h=hilo(v),i=st.count.log.lastIndexOf(h);if(i>=0)st.count.log.splice(i,1);st.count.rc-=h;st.count.seen=Math.max(0,st.count.seen-1);save();renderCount()}
+function setDealer(v){if(st.dealer!=null)uncount(st.dealer);st.dealer=st.dealer===v?null:v;if(st.dealer!=null)cnt(hilo(st.dealer));renderJudge()}
+function addCard(v){if(st.hand.length>=10)return;st.hand.push(v);cnt(hilo(v));renderJudge()}
+function undo(){const v=st.hand.pop();if(v!=null)uncount(v);renderJudge()}
+function clearHand(){st.hand=[];st.dealer=null;st.others=[];renderJudge();renderCount()}
+st.others=[];
+function addOther(v){st.others.push(v);cnt(hilo(v));renderJudge()}
+function otherUndo(){const v=st.others.pop();if(v!=null){uncount(v);renderJudge()}}
 function renderJudge(){
   document.querySelectorAll('#dkeys .k').forEach(b=>b.classList.toggle('on',+b.dataset.v===st.dealer));
   const h=st.hand;
@@ -391,7 +412,7 @@ function resetDrill(){if(!confirm('練習の記録を消しますか？'))return
 /* ---------- カウント ---------- */
 function cnt(v){st.count.rc+=v;st.count.seen++;st.count.log.push(v);if(st.count.log.length>500)st.count.log.shift();save();renderCount()}
 function cntUndo(){const v=st.count.log.pop();if(v==null)return;st.count.rc-=v;st.count.seen--;save();renderCount()}
-function cntReset(){st.count={rc:0,seen:0,log:[]};save();renderCount()}
+function cntReset(){st.count={rc:0,seen:0,log:[]};st.others=[];save();renderCount();renderJudge()}
 function renderCount(){
   const tc=trueCount(),f=Math.floor(tc);
   $('tc').textContent=(f>0?'+':'')+f;
@@ -400,7 +421,10 @@ function renderCount(){
   $('rc').textContent=`ランニングカウント ${st.count.rc>0?'+':''}${st.count.rc}／見たカード ${st.count.seen}枚／残り約${left.toFixed(1)}デッキ`;
   $('bet').textContent=f<=1?'賭け金：最低額でOK':`賭け金の目安：最低額の${Math.min(f,8)}倍くらいまで`;
   const hc=$('hcnt');hc.style.display=st.opt.useCount?'inline-block':'none';hc.textContent='カウント '+(f>0?'+':'')+f;
-  $('useCount').checked=st.opt.useCount;
+  $('useCount').checked=st.opt.useCount;$('useCount2').checked=st.opt.useCount;
+  $('atc').textContent=$('tc').textContent;$('atc').style.color=$('tc').style.color;
+  $('arc').textContent=$('rc').textContent;$('abet').textContent=$('bet').textContent;
+  $('olast').textContent=st.others.length?'このゲームで追加：'+st.others.map(lab).join('・'):'';
 }
 
 /* ---------- 設定・画面切替 ---------- */
@@ -415,6 +439,7 @@ function go(p){
   document.querySelectorAll('.page').forEach(e=>e.classList.toggle('on',e.id==='p-'+p));
   document.querySelectorAll('nav button').forEach(b=>b.classList.toggle('on',b.dataset.p===p));
   if(p==='drill'&&!q)newQ();
+  if(p==='judge')renderJudge();
   window.scrollTo(0,0);
 }
 buildKeys();syncOpts();renderAll();
