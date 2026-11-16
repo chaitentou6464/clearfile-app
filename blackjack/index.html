@@ -90,42 +90,105 @@ select{font:inherit;border:1px solid var(--line);border-radius:9px;padding:6px 8
 .weak{font-size:13px;line-height:1.8}
 h3{font-size:15px;margin:4px 0 8px}
 ul.tips{margin:0;padding-left:18px;line-height:1.8;font-size:14px}
+.felt{position:relative;border-radius:22px;padding:14px 12px 12px;color:#fff;background:radial-gradient(ellipse at 50% 35%,#1f7a52 0%,#145c3e 55%,#0d4430 100%);box-shadow:inset 0 0 0 6px #6b3f1f,inset 0 0 0 8px #c9a14a,0 6px 16px rgba(0,0,0,.25);margin-bottom:10px}
+.zone{display:flex;flex-direction:column;align-items:center;gap:6px;min-height:40px}
+.zone.me{margin-top:6px}
+.zl{font-size:12px;letter-spacing:.1em;color:#f3e3b5;font-weight:700;display:flex;align-items:center;gap:8px}
+.tb{background:rgba(0,0,0,.35);color:#fff;border-radius:999px;padding:2px 10px;font-size:15px;letter-spacing:0;display:none}
+.cards{display:flex;justify-content:center;min-height:86px;align-items:center}
+.cards .pc{margin-left:-18px}.cards .pc:first-child{margin-left:0}
+.pc{position:relative;width:58px;height:82px;border-radius:7px;background:#fff;color:#111;box-shadow:0 2px 6px rgba(0,0,0,.35);display:block;font-weight:800}
+.pc.nw{animation:deal .25s ease-out}
+.pc .tl{position:absolute;top:4px;left:6px;font-size:16px;line-height:1;text-align:center}
+.pc .tl small{display:block;font-size:12px}
+.pc .ct{position:absolute;inset:0;display:flex;align-items:center;justify-content:center;font-size:30px}
+.pc.red{color:#c81e1e}
+.pc.back{background:repeating-linear-gradient(45deg,#8b1d1d,#8b1d1d 5px,#a52a2a 5px,#a52a2a 10px);border:3px solid #fff}
+.pc.ghost{background:transparent;border:2px dashed rgba(255,255,255,.35);box-shadow:none;animation:none}
+.mini{min-height:44px}.mini .pc{width:30px;height:42px;margin-left:-8px}.mini .pc .tl{font-size:11px;top:3px;left:3px}.mini .pc .tl small{font-size:9px}.mini .pc .ct{display:none}
+@keyframes deal{from{transform:translateY(-14px) scale(.9);opacity:0}to{transform:none;opacity:1}}
+.arc{text-align:center;margin:6px auto 4px;padding:6px 0;border-top:1.5px solid rgba(243,227,181,.5);border-bottom:1.5px solid rgba(243,227,181,.5);border-radius:50%/14px;width:92%}
+.arc .g1{color:#f3e3b5;font-weight:800;font-size:14px;letter-spacing:.08em}
+.arc .g2,.arc .g3{color:rgba(243,227,181,.8);font-size:11px;letter-spacing:.05em}
+.felt .ins{display:none;margin:6px auto;text-align:center;background:rgba(0,0,0,.3);border:1px solid rgba(243,227,181,.5);color:#fff;border-radius:10px;padding:6px 8px;font-size:12px}
+.advice{text-align:center;min-height:44px;margin-top:4px}
+.advice .pill{display:inline-block;border-radius:999px;padding:8px 22px;font-size:22px;font-weight:800;box-shadow:0 3px 10px rgba(0,0,0,.3);border:2px solid rgba(255,255,255,.8)}
+.advice .why{font-size:12px;margin-top:5px;color:#f3e3b5;line-height:1.5}
+.advice .dv{font-size:12px;margin-top:4px;background:rgba(0,0,0,.3);display:inline-block;border-radius:8px;padding:3px 8px}
+.result{display:inline-block;border-radius:12px;padding:8px 18px;font-size:19px;font-weight:900;background:#fff;box-shadow:0 3px 12px rgba(0,0,0,.35)}
+.pact{display:flex;gap:8px;justify-content:center;margin-top:10px}
+.pact button{flex:1;max-width:120px;height:40px;border-radius:999px;border:2px solid rgba(243,227,181,.7);background:rgba(0,0,0,.25);color:#fff;font-weight:700;font-size:14px}
+.pact button.rec{background:#f3e3b5;color:#0d4430;border-color:#fff;box-shadow:0 0 0 3px rgba(243,227,181,.35)}
+.pact button:disabled{opacity:.3}
+.dock{background:#fff;border:1px solid var(--line);border-radius:16px;padding:10px;margin-bottom:10px}
+.seg{display:flex;background:#eef1ef;border-radius:10px;padding:3px;gap:3px}
+.seg button{flex:1;border:0;background:none;border-radius:8px;height:34px;font-size:13px;font-weight:700;color:var(--sub)}
+.seg button.on{background:var(--felt);color:#fff}
+.guide{font-size:12px;color:var(--sub);text-align:center;margin:6px 0;min-height:16px}
+.rk .k{height:56px;display:flex;flex-direction:column;align-items:center;justify-content:center;line-height:1.1}
+.rk .k small{font-size:10px;font-weight:600;color:var(--sub);margin-top:3px}
+.rk .k.low small{color:#dc2626}
+.shoe{display:grid;grid-template-columns:repeat(10,1fr);gap:3px;text-align:center}
+.shoe div{background:#f6f8f7;border-radius:8px;padding:5px 0}
+.shoe b{display:block;font-size:14px}
+.shoe .n{font-size:13px;font-weight:700}
+.shoe .p{font-size:10px;color:var(--sub)}
+.shoe .up{color:#16a34a}.shoe .dn{color:#dc2626}
+.sumrow{display:flex;gap:6px;margin-top:8px}
+.sumrow div{flex:1;background:#f6f8f7;border-radius:10px;padding:6px;text-align:center;font-size:11px;color:var(--sub)}
+.sumrow b{display:block;font-size:17px;color:var(--ink)}
 </style>
 </head>
 <body>
 <header><h1>ブラックジャック戦略</h1><span class="cnt" id="hcnt"></span><button class="hbtn" onclick="go('set')">設定</button></header>
 <main>
 
-<!-- 判定 -->
+<!-- テーブル -->
 <section class="page on" id="p-judge">
-  <div class="card">
-    <div class="lbl">ディーラーの見えているカード</div>
-    <div class="keys" id="dkeys"></div>
+  <div class="felt">
+    <div class="zone">
+      <div class="zl">ディーラー <span class="tb" id="dTot"></span></div>
+      <div class="cards" id="dCards"></div>
+    </div>
+    <div class="arc">
+      <div class="g1">ブラックジャックは 3 : 2</div>
+      <div class="g2" id="feltRule"></div>
+      <div class="g3">インシュランス 2 : 1</div>
+    </div>
+    <div class="ins" id="ins"></div>
+    <div class="zone" id="oZone">
+      <div class="zl">ほかの人</div>
+      <div class="cards mini" id="oCards"></div>
+    </div>
+    <div class="advice" id="advice"></div>
+    <div class="zone me">
+      <div class="cards" id="mCards"></div>
+      <div class="zl">あなた <span class="tb" id="mTot"></span></div>
+    </div>
+    <div class="pact" id="pact">
+      <button data-a="H" onclick="act('H')">ヒット</button>
+      <button data-a="S" onclick="act('S')">スタンド</button>
+      <button data-a="D" onclick="act('D')">ダブル</button>
+    </div>
   </div>
-  <div class="card">
-    <div class="lbl">自分の手札 <span class="r"><button class="small" onclick="undo()">1枚戻す</button> <button class="small" onclick="clearHand()">次のゲーム</button></span></div>
-    <div class="hand" id="hand"></div>
-    <div class="keys" id="pkeys"></div>
+
+  <div class="dock">
+    <div class="seg" id="seg">
+      <button data-t="me" onclick="setTarget('me')">あなたへ</button>
+      <button data-t="dealer" onclick="setTarget('dealer')">ディーラーへ</button>
+      <button data-t="others" onclick="setTarget('others')">ほかの人へ</button>
+    </div>
+    <div class="guide" id="guide"></div>
+    <div class="keys rk" id="pkeys"></div>
+    <div style="display:flex;gap:8px;margin-top:8px">
+      <button class="small" style="flex:1;height:42px" onclick="undoCard()">↩ 1枚戻す</button>
+      <button class="small" style="flex:1.4;height:42px;background:var(--felt);color:#fff;border-color:var(--felt);font-weight:700" onclick="nextGameBtn()">次のゲーム ▶</button>
+    </div>
   </div>
-  <div class="ins" id="ins"></div>
-  <div class="res" id="res"><div class="a">カードを選んでね</div><div class="w">ディーラーの1枚と、自分の手札（2枚〜）を押すと、いちばん損しない動きが出ます</div></div>
+
   <div class="card" id="odds" style="display:none"></div>
-  <div class="card" id="auto">
-    <div class="lbl">🔢 自動カウンター <span class="r" style="font-size:12px">上で押したカードは自動で数えます</span></div>
-    <div style="display:flex;align-items:center;gap:12px">
-      <div style="text-align:center;min-width:76px"><div class="big" id="atc" style="font-size:44px">0</div><small class="note">トゥルー<br>カウント</small></div>
-      <div style="flex:1;font-size:13px;line-height:1.7"><div id="arc" class="note"></div><div id="abet" style="font-weight:700"></div></div>
-    </div>
-    <div class="lbl" style="margin-top:12px">ほかのカードも数える<span class="r" style="font-size:12px">他の人・ディーラーの伏せ札など</span></div>
-    <div class="keys" id="okeys"></div>
-    <div id="olast" class="note" style="margin-top:6px;min-height:20px"></div>
-    <div style="display:flex;gap:8px;margin-top:4px">
-      <button class="small" style="flex:1;height:38px" onclick="otherUndo()">1枚戻す</button>
-      <button class="small" style="flex:1;height:38px" onclick="if(confirm('シャッフルされましたか？カウントを0に戻します'))cntReset()">シャッフル（0に戻す）</button>
-    </div>
-    <div class="row" style="margin-top:6px"><span>判定にカウントを反映<small>オンにすると、カウント次第で上の判定が変わります</small></span><label class="sw"><input type="checkbox" id="useCount2" onchange="setOpt('useCount',this.checked)"><i></i></label></div>
-  </div>
-  <p class="note">※10・J・Q・K はすべて「10」を押してください。「次のゲーム」を押してもカウントは残ります（シャッフルされたら0に戻してください）。</p>
+  <div class="card" id="shoeCard"></div>
+  <p class="note">※10・J・Q・K はすべて「10」。テーブルに出たカードは全部入れると、残りのカードが正確に計算されます。シャッフルされたら「残りカード」タブで最初に戻してください。</p>
 </section>
 
 <!-- 表 -->
@@ -163,31 +226,25 @@ ul.tips{margin:0;padding-left:18px;line-height:1.8;font-size:14px}
   </div>
 </section>
 
-<!-- カウント -->
+<!-- 残りカード -->
 <section class="page" id="p-count">
-  <div class="card" style="text-align:center">
-    <div class="lbl" style="justify-content:center">トゥルーカウント（判定に使う数字）</div>
-    <div class="big" id="tc">0</div>
-    <div class="note" id="rc" style="margin-top:6px"></div>
-    <div id="bet" style="margin-top:8px;font-weight:700"></div>
+  <div class="card" id="shoeCard2"></div>
+  <div class="card">
+    <div class="lbl">捨て札・見えたカードをまとめて入れる <span class="r" style="font-size:12px">ゲームに関係なく数えるだけ</span></div>
+    <div class="keys rk" id="xkeys"></div>
+    <div style="display:flex;gap:8px;margin-top:8px">
+      <button class="small" style="flex:1;height:42px" onclick="undoCard()">↩ 1枚戻す</button>
+      <button class="small" style="flex:1;height:42px;color:#dc2626" onclick="shuffle()">シャッフル（最初に戻す）</button>
+    </div>
   </div>
-  <div class="cb">
-    <button style="background:#16a34a" onclick="cnt(1)">+1<small>2〜6</small></button>
-    <button style="background:#6b7280" onclick="cnt(0)">0<small>7・8・9</small></button>
-    <button style="background:#dc2626" onclick="cnt(-1)">−1<small>10・絵札・A</small></button>
-  </div>
-  <div style="display:flex;gap:8px;margin-top:8px">
-    <button class="small" style="flex:1;height:40px" onclick="cntUndo()">1枚戻す</button>
-    <button class="small" style="flex:1;height:40px" onclick="cntReset()">シャッフル（リセット）</button>
-  </div>
-  <div class="card" style="margin-top:10px">
+  <div class="card">
     <div class="row"><span>判定にカウントを反映<small>カウントで動きが変わる手（16対10など）を自動で切り替え</small></span><label class="sw"><input type="checkbox" id="useCount" onchange="setOpt('useCount',this.checked)"><i></i></label></div>
-    <div class="row"><span>使っているデッキ数</span><select id="decks2" onchange="setOpt('decks',+this.value)"></select></div>
+    <div class="row"><span>使っているデッキ数<small>変えると残りカードも計算し直します</small></span><select id="decks2" onchange="setOpt('decks',+this.value)"></select></div>
   </div>
   <div class="card note">
-    <b>使い方：</b>テーブルに出たカードを全部（自分・他の人・ディーラー）見たら、そのたびにボタンを押します。<br>
-    数字がプラスで大きいほど、残りのカードに10とAが多く、<b>プレイヤーが有利</b>。<br>
-    ※オンラインカジノは毎回シャッフルされることが多く、カウントは効きません。カジノによってはカウントをしているとプレイを断られることもあります。
+    <b>しくみ：</b>最初は「デッキ数×52枚」。テーブルで入れたカードと、ここで入れたカードを引いて、残りを1枚単位で計算しています。勝率もこの残りのカードから計算します。<br>
+    トゥルーカウントがプラスで大きいほど、残りに10とAが多く<b>プレイヤー有利</b>。<br>
+    ※オンラインカジノは毎回シャッフルされることが多く、残りカードの計算は効きません。カジノによってはカウントしているとプレイを断られることもあります。
   </div>
 </section>
 
@@ -215,19 +272,20 @@ ul.tips{margin:0;padding-left:18px;line-height:1.8;font-size:14px}
 
 </main>
 <nav>
-  <button class="on" data-p="judge" onclick="go('judge')"><span class="i">🃏</span>判定</button>
+  <button class="on" data-p="judge" onclick="go('judge')"><span class="i">🃏</span>テーブル</button>
+  <button data-p="count" onclick="go('count')"><span class="i">🂠</span>残りカード</button>
   <button data-p="chart" onclick="go('chart')"><span class="i">📋</span>戦略表</button>
   <button data-p="drill" onclick="go('drill')"><span class="i">🎯</span>練習</button>
-  <button data-p="count" onclick="go('count')"><span class="i">🔢</span>カウント</button>
 </nav>
 
 <script>
 const KEY='blackjack_v1';
 const RANKS=['A','2','3','4','5','6','7','8','9','10'];
 const UPS=[2,3,4,5,6,7,8,9,10,11]; // 11 = A
-let st={opt:{h17:false,das:true,sur:false,decks:6,useCount:false},hand:[],dealer:null,count:{rc:0,seen:0,log:[]},drill:{n:0,ok:0,streak:0,best:0,miss:{}}};
-try{const s=JSON.parse(localStorage.getItem(KEY)||'null');if(s){st.opt={...st.opt,...s.opt};st.count={...st.count,...s.count};st.drill={...st.drill,...s.drill};}}catch(e){}
-const save=()=>{try{localStorage.setItem(KEY,JSON.stringify({opt:st.opt,count:st.count,drill:st.drill}))}catch(e){}};
+let st={opt:{h17:false,das:true,sur:false,decks:6,useCount:false},shoe:{log:[],id:0},game:null,drill:{n:0,ok:0,streak:0,best:0,miss:{}}};
+try{const s=JSON.parse(localStorage.getItem(KEY)||'null');if(s){st.opt={...st.opt,...s.opt};st.drill={...st.drill,...s.drill};if(s.shoe&&Array.isArray(s.shoe.log))st.shoe=s.shoe;if(s.game&&Array.isArray(s.game.seq))st.game=s.game;}}catch(e){}
+if(!st.game)st.game=newGame();
+const save=()=>{try{localStorage.setItem(KEY,JSON.stringify({opt:st.opt,shoe:st.shoe,game:st.game,drill:st.drill}))}catch(e){}};
 const $=id=>document.getElementById(id);
 const val=r=>r==='A'?11:+r;
 const lab=v=>v===11?'A':String(v);
@@ -273,7 +331,6 @@ const DEV=[
  ['h',13,2,-1,'S','H'],['h',12,4,0,'S','H'],['h',12,5,-2,'S','H'],['h',12,6,-1,'S','H'],['h',13,3,-2,'S','H'],
  ['p',10,5,5,'P','S'],['p',10,6,4,'P','S']
 ];
-function trueCount(){const left=Math.max(.5,st.opt.decks-st.count.seen/52);return st.count.rc/left}
 
 // 手札 → 最終的な動き（説明つき）
 function decide(cards,d,o,tc){
@@ -308,29 +365,165 @@ const NAME={H:'ヒット',S:'スタンド',D:'ダブル',P:'スプリット',R:'
 const SUB={H:'もう1枚引く',S:'引かずに止める',D:'賭け金を2倍にして1枚だけ引く',P:'2つの手に分ける（同じ額を追加）',R:'賭け金の半分を返してもらって降りる',X:''};
 const COL={H:'var(--H)',S:'var(--S)',D:'var(--D)',P:'var(--P)',R:'#6b7280',X:'#374151'};
 
-/* ---------- 判定画面 ---------- */
-function buildKeys(){
-  $('dkeys').innerHTML=RANKS.map(r=>`<button class="k" data-v="${val(r)}" onclick="setDealer(${val(r)})">${r}</button>`).join('');
-  $('okeys').innerHTML=RANKS.map(r=>`<button class="k" style="height:40px;font-size:16px" onclick="addOther(${val(r)})">${r}</button>`).join('');
-  $('pkeys').innerHTML=RANKS.map(r=>`<button class="k" onclick="addCard(${val(r)})">${r}</button>`).join('');
-}
+/* ---------- シュー（残りのカード） ---------- */
 const hilo=v=>v<=6?1:v<=9?0:-1;
-function uncount(v){const h=hilo(v),i=st.count.log.lastIndexOf(h);if(i>=0)st.count.log.splice(i,1);st.count.rc-=h;st.count.seen=Math.max(0,st.count.seen-1);save();renderCount()}
-function setDealer(v){if(st.dealer!=null)uncount(st.dealer);st.dealer=st.dealer===v?null:v;if(st.dealer!=null)cnt(hilo(st.dealer));renderJudge()}
-function addCard(v){if(st.hand.length>=10)return;st.hand.push(v);cnt(hilo(v));renderJudge()}
-function undo(){const v=st.hand.pop();if(v!=null)uncount(v);renderJudge()}
-function clearHand(){st.hand=[];st.dealer=null;st.others=[];renderJudge();renderCount()}
-st.others=[];
-function addOther(v){st.others.push(v);cnt(hilo(v));renderJudge()}
-function otherUndo(){const v=st.others.pop();if(v!=null){uncount(v);renderJudge()}}
-/* ---------- 勝率計算（カウントから残りのカードを推定） ---------- */
+function fullOf(v){return st.opt.decks*4*(v===10?4:1)}
+function removedCounts(){const r={};for(let c=2;c<=11;c++)r[c]=0;for(const e of st.shoe.log)r[e.v]++;return r}
+function remainCounts(){const r=removedCounts(),o={};for(let c=2;c<=11;c++)o[c]=Math.max(0,fullOf(c)-r[c]);return o}
+function remainTotal(){const r=remainCounts();let n=0;for(let c=2;c<=11;c++)n+=r[c];return n}
+function runCount(){let rc=0;for(const e of st.shoe.log)rc+=hilo(e.v);return rc}
+function trueCount(){const left=Math.max(.5,remainTotal()/52);return runCount()/left}
 function shoeProbs(){
-  const D=st.opt.decks,L=st.count.log;let lo=0,mi=0,hi=0;
-  for(const v of L){if(v>0)lo++;else if(v<0)hi++;else mi++}
-  const low=Math.max(.5,D*20-lo),mid=Math.max(.5,D*12-mi),high=Math.max(.5,D*20-hi),N=low+mid+high;
-  const p=[];for(let c=2;c<=6;c++)p[c]=low/5/N;for(let c=7;c<=9;c++)p[c]=mid/3/N;p[10]=high*.8/N;p[11]=high*.2/N;
+  const r=remainCounts();let N=0;for(let c=2;c<=11;c++)N+=r[c];
+  const p=[];for(let c=2;c<=11;c++)p[c]=N>0?r[c]/N:fullOf(c)/(st.opt.decks*52);
   return p;
 }
+function takeCard(v,w){
+  if(remainCounts()[v]<=0&&!confirm(`${lab(v)}はもう残っていない計算です。それでも入れますか？`))return null;
+  const id=++st.shoe.id;st.shoe.log.push({v,id});if(st.shoe.log.length>3000)st.shoe.log.shift();
+  if(w)st.game.seq.push({w,id,v});
+  return id;
+}
+function shuffle(){if(!confirm('シャッフルされましたか？残りカードを最初（'+st.opt.decks*52+'枚）に戻します'))return;st.shoe={log:[],id:0};st.game=newGame();save();renderAll()}
+
+/* ---------- 1ゲームの流れ ---------- */
+function newGame(){return{dealer:[],me:[],others:[],seq:[],target:'me',stood:false,doubled:false}}
+function setTarget(t){st.game.target=t;save();renderJudge()}
+function addCard(v){
+  const g=st.game,w=g.target;
+  if(w==='me'&&g.me.length>=10)return;
+  if(!takeCard(v,w))return;
+  g[w==='me'?'me':w==='dealer'?'dealer':'others'].push(v);
+  // 実際の配り方の順番で自動的に次へ（あなた→ディーラー→あなた→ディーラーの伏せ札）
+  if(w==='me'){
+    if(g.me.length===1&&g.dealer.length===0)g.target='dealer';
+    else if(g.doubled||total(g.me).t>=21){g.stood=true;g.target='dealer'}
+  }else if(w==='dealer'){
+    if(g.dealer.length===1&&g.me.length<2)g.target='me';
+  }
+  save();renderJudge();
+}
+function undoCard(){
+  const e=st.shoe.log.pop();if(!e)return;
+  const g=st.game,last=g.seq[g.seq.length-1];
+  if(last&&last.id===e.id){
+    g.seq.pop();const arr=g[last.w];arr.pop();
+    if(last.w==='me'){g.stood=false;if(g.doubled&&g.me.length<=2)g.doubled=false;g.target='me'}
+    if(last.w==='dealer'&&g.dealer.length===0)g.target='dealer';
+  }
+  save();renderAll();
+}
+function act(a){
+  const g=st.game;
+  if(a==='S'){g.stood=true;g.target='dealer'}
+  if(a==='H'){g.stood=false;g.target='me'}
+  if(a==='D'){if(g.me.length!==2)return;g.doubled=true;g.stood=false;g.target='me'}
+  save();renderJudge();
+}
+function nextGameBtn(){st.game=newGame();save();renderAll();window.scrollTo(0,0)}
+function dealerDone(d){if(d.length<2)return false;const{t,soft}=total(d);return t>21||(t>=17&&!(t===17&&soft&&st.opt.h17))}
+
+/* ---------- 描画 ---------- */
+const SUITS=['♠','♥','♦','♣'];
+const shownIds=new Set();
+function cardHTML(v,id){const s=SUITS[(id||0)%4],red=s==='♥'||s==='♦';const nw=id&&!shownIds.has(id);if(id)shownIds.add(id);return `<div class="pc${red?' red':''}${nw?' nw':''}"><div class="tl">${lab(v)}<small>${s}</small></div><div class="ct">${s}</div></div>`}
+function cardsHTML(arr,w){
+  const ids=st.game.seq.filter(x=>x.w===w).map(x=>x.id);
+  return arr.map((v,i)=>cardHTML(v,ids[i]||i)).join('');
+}
+function totLabel(cards){const{t,soft}=total(cards);return t>21?'バースト':(cards.length===2&&t===21?'BJ':((soft?'ソフト':'')+t))}
+function buildKeys(){
+  $('pkeys').innerHTML=RANKS.map(r=>`<button class="k" data-v="${val(r)}" onclick="addCard(${val(r)})">${r}<small></small></button>`).join('');
+  $('xkeys').innerHTML=RANKS.map(r=>`<button class="k" data-v="${val(r)}" onclick="if(takeCard(${val(r)}))(save(),renderAll())">${r}<small></small></button>`).join('');
+}
+function renderKeys(){
+  const r=remainCounts();
+  document.querySelectorAll('.rk .k').forEach(b=>{const v=+b.dataset.v;const n=r[v],f=fullOf(v);b.querySelector('small').textContent='残'+n;b.classList.toggle('low',n/f<.6)});
+}
+function shoeHTML(){
+  const r=remainCounts(),N=remainTotal(),D=st.opt.decks,f=Math.floor(trueCount()),rc=runCount();
+  const base=c=>fullOf(c)/(D*52);
+  let hi=r[10]+r[11];
+  const cells=[11,2,3,4,5,6,7,8,9,10].map(c=>{
+    const pr=N?r[c]/N:0,diff=pr-base(c);
+    return `<div><b>${lab(c)}</b><div class="n">${r[c]}</div><div class="p ${diff>.004?'up':diff<-.004?'dn':''}">${(pr*100).toFixed(1)}%</div></div>`;
+  }).join('');
+  return `<div class="lbl">🂠 残りのカード <span class="r">残り <b style="color:var(--ink)">${N}</b> / ${D*52}枚</span></div>
+  <div class="shoe">${cells}</div>
+  <div class="note" style="font-size:11px;margin-top:4px">上段＝残りの枚数、下段＝次にそのカードが出る確率（<span style="color:#16a34a">緑</span>＝ふだんより多い／<span style="color:#dc2626">赤</span>＝少ない）</div>
+  <div class="sumrow">
+    <div><b>${N?(hi/N*100).toFixed(1):0}%</b>10・Aが出る</div>
+    <div><b>${(f>0?'+':'')+f}</b>トゥルーカウント</div>
+    <div><b>${(rc>0?'+':'')+rc}</b>ランニング</div>
+  </div>`;
+}
+function renderCount(){
+  const s=shoeHTML();$('shoeCard').innerHTML=s;$('shoeCard2').innerHTML=s;
+  $('useCount').checked=st.opt.useCount;
+  const f=Math.floor(trueCount()),hc=$('hcnt');hc.style.display='inline-block';hc.textContent=`残${remainTotal()}枚 TC${f>0?'+':''}${f}`;
+  renderKeys();
+}
+function renderJudge(){
+  const g=st.game,up=g.dealer[0],h=g.me,o=st.opt;
+  $('feltRule').textContent=`ディーラーはソフト17で${o.h17?'引く':'止まる'}`;
+  // ディーラー
+  $('dCards').innerHTML=g.dealer.length?cardsHTML(g.dealer,'dealer')+(g.dealer.length===1?'<div class="pc back"></div>':''):'<div class="pc ghost"></div><div class="pc ghost"></div>';
+  const dt=$('dTot');dt.style.display=g.dealer.length?'inline-block':'none';dt.textContent=g.dealer.length===1?lab(up)+' 表':totLabel(g.dealer);
+  // ほかの人
+  $('oZone').style.display=g.others.length||g.target==='others'?'flex':'none';
+  $('oCards').innerHTML=cardsHTML(g.others,'others');
+  // あなた
+  $('mCards').innerHTML=h.length?cardsHTML(h,'me'):'<div class="pc ghost"></div><div class="pc ghost"></div>';
+  const mt=$('mTot');mt.style.display=h.length?'inline-block':'none';mt.textContent=totLabel(h)+(g.doubled?'（ダブル）':'');
+  // 入力先
+  document.querySelectorAll('#seg button').forEach(b=>b.classList.toggle('on',b.dataset.t===g.target));
+  const gd={me:'次に押すカードは「あなた」の手札に入ります',dealer:'次に押すカードは「ディーラー」に入ります',others:'ほかの人のカード（数えるだけ）'};
+  $('guide').textContent=(g.dealer.length===0&&h.length===0)?'配られた順に押すだけ：あなた → ディーラー → あなた（自動で切り替わります）':gd[g.target];
+  // インシュランス
+  const ins=$('ins');
+  if(up===11&&h.length<=2&&!g.stood){const tc=Math.floor(trueCount());ins.style.display='block';ins.innerHTML=tc>=3?`🛡 インシュランス：<b>かける</b>（カウント+${tc}で得）`:'🛡 インシュランス：<b>かけない</b>'}else ins.style.display='none';
+  // アドバイス・結果
+  const adv=$('advice'),pact=$('pact');
+  pact.querySelectorAll('button').forEach(b=>{b.classList.remove('rec');b.disabled=false});
+  pact.querySelector('[data-a="D"]').disabled=h.length!==2||g.stood||g.doubled;
+  const over=h.length<2||g.stood||total(h).t>21;pact.querySelector('[data-a="H"]').disabled=over;pact.querySelector('[data-a="S"]').disabled=over;if(over)pact.querySelector('[data-a="D"]').disabled=true;
+  const me=total(h);
+  let html='';
+  if(h.length>=2&&me.t>21){html='<div class="result" style="color:#dc2626">負け（バースト）</div>'}
+  else if(g.stood&&dealerDone(g.dealer)){
+    const d=total(g.dealer),pbj=h.length===2&&me.t===21,dbj=g.dealer.length===2&&d.t===21;
+    let r,c;
+    if(pbj&&!dbj){r='ブラックジャック！ 1.5倍';c='#16a34a'}
+    else if(dbj&&!pbj){r='負け（ディーラーBJ）';c='#dc2626'}
+    else if(d.t>21){r='勝ち！（ディーラーがバースト）';c='#16a34a'}
+    else if(me.t>d.t){r='勝ち！';c='#16a34a'}else if(me.t<d.t){r='負け';c='#dc2626'}else{r='引き分け';c='#6b7280'}
+    if(g.doubled&&!pbj)r+=' ×2';
+    html=`<div class="result" style="color:${c}">${r}</div><div class="why">「次のゲーム」を押してください</div>`;
+  }
+  else if(g.stood){html=`<div class="why">ディーラーのカードを入れてください（伏せ札・引いたカード）<br>ディーラーは${o.h17?'ソフト17も引き、':''}17以上で止まります</div>`}
+  else if(up==null||h.length<2){html=`<div class="why">${h.length===0&&up==null?'カードが配られたら、下のボタンで入れてください':up==null?'ディーラーの表のカードを入れてください':'あなたの2枚目を入れてください'}</div>`}
+  else{
+    const r=decide(h,up,o,o.useCount?trueCount():null);
+    if(me.t===21&&h.length===2){html='<div class="result" style="color:#16a34a">ブラックジャック！</div>'}
+    else{
+      let extra='';
+      if(r.a==='R')extra='サレンダーできなければ：'+NAME[decide(h,up,{...o,sur:false},o.useCount?trueCount():null).a];
+      else if(r.a==='D'){const alt=(r.isPair?pairAct(h[0],up,o):(r.soft?softAct(r.t,up,o):'D'));extra='ダブルできなければ：'+(alt==='Ds'?'スタンド':'ヒット')}
+      else extra=r.why||SUB[r.a];
+      html=`<div class="pill" style="background:${COL[r.a]}">${NAME[r.a]}</div><div class="why">${extra}</div>`+
+        (r.dev?`<div class="dv">🔢 カウント${r.dev.tc}なので基本の「${NAME[r.dev.from]||r.dev.from}」ではなく「${NAME[r.dev.to]}」</div>`:'');
+      const b=pact.querySelector(`[data-a="${r.a}"]`);if(b)b.classList.add('rec');
+    }
+  }
+  adv.innerHTML=html;
+  // 勝率パネル
+  if(h.length===0&&g.dealer.length===0)renderNext();
+  else if(up!=null&&h.length>=2&&me.t<=21&&!g.stood)renderOdds(h,up);
+  else $('odds').style.display='none';
+  renderCount();
+}
+
+/* ---------- 勝率計算（残りのカードから） ---------- */
 function addC(t,soft,c){let nt=t+c,ns=soft;if(c===11){if(nt>21)nt-=10;else ns=true}if(nt>21&&ns){nt-=10;ns=false}return[nt,ns]}
 function dealerDist(p,up,h17){ // [17,18,19,20,21,バースト]（ディーラーはブラックジャックでない前提）
   const memo={};
@@ -403,7 +596,7 @@ function renderNext(){
   const y1=g.ev*100,y2=y1*2,fmt=y=>(y>0?'+':'')+(Math.abs(y)<10?y.toFixed(1):Math.round(y))+'円';
   const good=g.ev>0;
   el.style.display='block';
-  el.innerHTML=`<div class="lbl">🎲 次のゲームの勝率（カウント${f>0?'+':''}${f}）</div>
+  el.innerHTML=`<div class="lbl">🎲 次のゲームの勝率（残り${remainTotal()}枚から計算）</div>
   <div class="bar" style="display:flex;height:30px;border-radius:8px;overflow:hidden;font-size:13px;color:#fff;font-weight:700">
    <span style="flex:${g.w};background:#16a34a;display:flex;align-items:center;justify-content:center">勝ち${pc(g.w)}%</span>
    <span style="flex:${g.d};background:#9ca3af;display:flex;align-items:center;justify-content:center">${pc(g.d)}%</span>
@@ -422,7 +615,7 @@ function renderOdds(cards,up){
   const pc=x=>Math.round(x*100);
   const f=Math.floor(trueCount());
   el.style.display='block';
-  el.innerHTML=`<div class="lbl">📊 勝率（カウント${f>0?'+':''}${f}で計算）<span class="r" style="font-size:12px">勝ち／引分／負け</span></div>`+
+  el.innerHTML=`<div class="lbl">📊 勝率（残りのカードから計算）<span class="r" style="font-size:12px">勝ち／引分／負け</span></div>`+
    L.map(x=>{
      const yen=Math.round(x.ev*100);
      const bar=x.sur?`<span style="flex:1;background:#9ca3af">賭け金の半分が戻る</span>`:
@@ -433,37 +626,6 @@ function renderOdds(cards,up){
    }).join('')+
    `<p class="note" style="margin:8px 0 0">右の「円」は、100円賭けたとき平均で増える／減る金額です。ダブルとスプリットは賭け金が2倍なので、勝率が低くてもこちらが得なことがあります。${L.some(x=>x.ev===bestEv&&x.a!==decide(cards,up,st.opt,st.opt.useCount?trueCount():null).a)?'<br>※計算は残りカードの推定なので、上の判定と少し違うことがあります（差はごくわずか）。':''}</p>`;
 }
-function renderJudge(){
-  document.querySelectorAll('#dkeys .k').forEach(b=>b.classList.toggle('on',+b.dataset.v===st.dealer));
-  const h=st.hand;
-  let html=h.length?h.map(c=>`<div class="pc">${lab(c)}</div>`).join(''):'<span class="ph">下のボタンで手札を入れてください</span>';
-  if(h.length){const{t,soft}=total(h);html+=`<div class="tot">${soft&&t<=21?'ソフト':''}<br><b>${t}</b></div>`}
-  $('hand').innerHTML=html;
-  const ins=$('ins');
-  if(st.dealer===11){
-    const tc=Math.floor(trueCount());
-    ins.style.display='block';
-    ins.innerHTML=st.opt.useCount&&tc>=3?`🛡 インシュランス（保険）：<b>かける</b>（カウント${tc}で例外的に得）`:'🛡 インシュランス（保険）：<b>かけない</b>（長い目で見ると損）';
-  }else ins.style.display='none';
-  const res=$('res');
-  if(st.dealer==null||h.length<2){
-    res.style.background='#9aa5a0';
-    res.innerHTML=`<div class="a">${st.dealer==null?'ディーラーを選んで':'手札をあと'+(2-h.length)+'枚'}</div><div class="w">ディーラーの1枚と、自分の手札（2枚〜）を押すと、いちばん損しない動きが出ます</div>`;
-    if(h.length===0)renderNext();else $('odds').style.display='none';
-    return;
-  }
-  const r=decide(h,st.dealer,st.opt,st.opt.useCount?trueCount():null);
-  res.style.background=COL[r.a];
-  let extra='';
-  if(r.a==='R') extra='<br>サレンダーできないテーブルなら：<b>'+NAME[decide(h,st.dealer,{...st.opt,sur:false},st.opt.useCount?trueCount():null).a]+'</b>';
-  if(r.a==='D'&&h.length===2){const alt=(r.isPair?pairAct(h[0],st.dealer,st.opt):(r.soft?softAct(r.t,st.dealer,st.opt):'D'));extra='<br>ダブルできないときは：<b>'+(alt==='Ds'?'スタンド':'ヒット')+'</b>'}
-  if(r.a==='P'&&h[0]===11) extra='<br>Aのペアは必ず分けましょう';
-  if(r.a==='P'&&h[0]===8) extra='<br>8のペア(16)は最悪の手。分ければ立て直せます';
-  renderOdds(h,st.dealer);
-  res.innerHTML=`<div class="a">${NAME[r.a]}</div><div class="w">${r.why||SUB[r.a]}${extra}</div>`+
-    (r.dev?`<div class="dv">🔢 カウント${r.dev.tc}なので、基本の「${NAME[r.dev.from]||r.dev.from}」ではなく「${NAME[r.dev.to]}」（境目 ${r.dev.idx>0?'+':''}${r.dev.idx}）</div>`:'');
-}
-
 /* ---------- 戦略表 ---------- */
 function cls(a){if(a.startsWith('R'))return 'R';return a}
 function cell(a){const c=cls(a);const txt={H:'ヒ',S:'ス',D:'ダ',Ds:'ダ',P:'分',R:'降'}[c];return `<td class="c${c}">${txt}</td>`}
@@ -532,24 +694,6 @@ function weakAns(l,r){
 }
 function resetDrill(){if(!confirm('練習の記録を消しますか？'))return;st.drill={n:0,ok:0,streak:0,best:0,miss:{}};save();renderStats()}
 
-/* ---------- カウント ---------- */
-function cnt(v){st.count.rc+=v;st.count.seen++;st.count.log.push(v);if(st.count.log.length>1200)st.count.log.shift();save();renderCount()}
-function cntUndo(){const v=st.count.log.pop();if(v==null)return;st.count.rc-=v;st.count.seen--;save();renderCount()}
-function cntReset(){st.count={rc:0,seen:0,log:[]};st.others=[];save();renderCount();renderJudge()}
-function renderCount(){
-  const tc=trueCount(),f=Math.floor(tc);
-  $('tc').textContent=(f>0?'+':'')+f;
-  $('tc').style.color=f>=2?'#16a34a':f<=-1?'#dc2626':'var(--ink)';
-  const left=Math.max(.5,st.opt.decks-st.count.seen/52);
-  $('rc').textContent=`ランニングカウント ${st.count.rc>0?'+':''}${st.count.rc}／見たカード ${st.count.seen}枚／残り約${left.toFixed(1)}デッキ`;
-  $('bet').textContent=f<=1?'賭け金：最低額でOK':`賭け金の目安：最低額の${Math.min(f,8)}倍くらいまで`;
-  const hc=$('hcnt');hc.style.display=st.opt.useCount?'inline-block':'none';hc.textContent='カウント '+(f>0?'+':'')+f;
-  $('useCount').checked=st.opt.useCount;$('useCount2').checked=st.opt.useCount;
-  $('atc').textContent=$('tc').textContent;$('atc').style.color=$('tc').style.color;
-  $('arc').textContent=$('rc').textContent;$('abet').textContent=$('bet').textContent;
-  $('olast').textContent=st.others.length?'このゲームで追加：'+st.others.map(lab).join('・'):'';
-}
-
 /* ---------- 設定・画面切替 ---------- */
 function setOpt(k,v){st.opt[k]=v;save();syncOpts();renderAll()}
 function syncOpts(){
@@ -557,12 +701,12 @@ function syncOpts(){
   for(const id of ['decks','decks2']){$(id).innerHTML=opts;$(id).value=st.opt.decks}
   $('h17').checked=st.opt.h17;$('das').checked=st.opt.das;$('sur').checked=st.opt.sur;
 }
-function renderAll(){renderJudge();renderChart();renderCount();renderStats();if(q)renderQ()}
+function renderAll(){renderJudge();renderChart();renderStats();if(q)renderQ()}
 function go(p){
   document.querySelectorAll('.page').forEach(e=>e.classList.toggle('on',e.id==='p-'+p));
   document.querySelectorAll('nav button').forEach(b=>b.classList.toggle('on',b.dataset.p===p));
   if(p==='drill'&&!q)newQ();
-  if(p==='judge')renderJudge();
+  if(p==='judge'||p==='count')renderJudge();
   window.scrollTo(0,0);
 }
 buildKeys();syncOpts();renderAll();
