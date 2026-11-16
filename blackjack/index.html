@@ -77,6 +77,16 @@ select{font:inherit;border:1px solid var(--line);border-radius:9px;padding:6px 8
 .sw i:after{content:"";position:absolute;width:22px;height:22px;left:3px;top:3px;background:#fff;border-radius:50%;transition:.2s}
 .sw input:checked+i{background:var(--acc)}
 .sw input:checked+i:after{left:23px}
+.od{display:grid;grid-template-columns:82px 1fr 76px;align-items:center;gap:8px;padding:8px 0;border-bottom:1px solid var(--line)}
+.od:last-of-type{border:0}
+.od .n{font-weight:800;font-size:15px;line-height:1.2;white-space:nowrap}
+.od .n small{display:block;font-weight:400;font-size:11px;color:var(--sub);margin-left:16px}
+.od .n i{width:10px;height:10px;border-radius:3px;display:inline-block;margin-right:6px}
+.od .bar{display:flex;height:22px;border-radius:6px;overflow:hidden;font-size:11px;color:#fff;font-weight:700}
+.od .bar span{display:flex;align-items:center;justify-content:center;white-space:nowrap;overflow:hidden}
+.od .ev{text-align:right;font-size:12px;color:var(--sub);line-height:1.3}
+.od .ev b{display:block;font-size:15px}
+.od.best{background:#f0fbf5;margin:0 -12px;padding:8px 12px}
 .weak{font-size:13px;line-height:1.8}
 h3{font-size:15px;margin:4px 0 8px}
 ul.tips{margin:0;padding-left:18px;line-height:1.8;font-size:14px}
@@ -99,6 +109,7 @@ ul.tips{margin:0;padding-left:18px;line-height:1.8;font-size:14px}
   </div>
   <div class="ins" id="ins"></div>
   <div class="res" id="res"><div class="a">カードを選んでね</div><div class="w">ディーラーの1枚と、自分の手札（2枚〜）を押すと、いちばん損しない動きが出ます</div></div>
+  <div class="card" id="odds" style="display:none"></div>
   <div class="card" id="auto">
     <div class="lbl">🔢 自動カウンター <span class="r" style="font-size:12px">上で押したカードは自動で数えます</span></div>
     <div style="display:flex;align-items:center;gap:12px">
@@ -312,6 +323,71 @@ function clearHand(){st.hand=[];st.dealer=null;st.others=[];renderJudge();render
 st.others=[];
 function addOther(v){st.others.push(v);cnt(hilo(v));renderJudge()}
 function otherUndo(){const v=st.others.pop();if(v!=null){uncount(v);renderJudge()}}
+/* ---------- 勝率計算（カウントから残りのカードを推定） ---------- */
+function shoeProbs(){
+  const D=st.opt.decks,L=st.count.log;let lo=0,mi=0,hi=0;
+  for(const v of L){if(v>0)lo++;else if(v<0)hi++;else mi++}
+  const low=Math.max(.5,D*20-lo),mid=Math.max(.5,D*12-mi),high=Math.max(.5,D*20-hi),N=low+mid+high;
+  const p=[];for(let c=2;c<=6;c++)p[c]=low/5/N;for(let c=7;c<=9;c++)p[c]=mid/3/N;p[10]=high*.8/N;p[11]=high*.2/N;
+  return p;
+}
+function addC(t,soft,c){let nt=t+c,ns=soft;if(c===11){if(nt>21)nt-=10;else ns=true}if(nt>21&&ns){nt-=10;ns=false}return[nt,ns]}
+function dealerDist(p,up,h17){ // [17,18,19,20,21,バースト]（ディーラーはブラックジャックでない前提）
+  const memo={};
+  function dist(t,soft){
+    if(t>21)return[0,0,0,0,0,1];
+    if(t>=17&&!(t===17&&soft&&h17)){const r=[0,0,0,0,0,0];r[t-17]=1;return r}
+    const k=t+(soft?'s':'h');if(memo[k])return memo[k];
+    const r=[0,0,0,0,0,0];
+    for(let c=2;c<=11;c++){const[nt,ns]=addC(t,soft,c);const d=dist(nt,ns);for(let i=0;i<6;i++)r[i]+=p[c]*d[i]}
+    return memo[k]=r;
+  }
+  const q=p.slice();if(up===11)q[10]=0;if(up===10)q[11]=0;
+  let sum=0;for(let c=2;c<=11;c++)sum+=q[c]||0;
+  const r=[0,0,0,0,0,0];
+  for(let c=2;c<=11;c++){if(!q[c])continue;const[nt,ns]=addC(up,up===11,c);const d=dist(nt,ns);for(let i=0;i<6;i++)r[i]+=q[c]/sum*d[i]}
+  return r;
+}
+function calcOdds(cards,up,o){
+  const p=shoeProbs(),D=dealerDist(p,up,o.h17);
+  const stand=t=>{if(t>21)return{w:0,d:0,l:1};let w=D[5],d=0,l=0;for(let i=0;i<5;i++){const dt=17+i;if(t>dt)w+=D[i];else if(t===dt)d+=D[i];else l+=D[i]}return{w,d,l}};
+  const ev=x=>x.w-x.l,memo={};
+  const add=(a,b,k)=>({w:a.w+b.w*k,d:a.d+b.d*k,l:a.l+b.l*k});
+  function hit(t,soft){let r={w:0,d:0,l:0};for(let c=2;c<=11;c++){const[nt,ns]=addC(t,soft,c);r=add(r,best(nt,ns),p[c])}return r}
+  function best(t,soft){if(t>21)return{w:0,d:0,l:1};if(t===21)return stand(21);const k=t+(soft?'s':'h');if(memo[k])return memo[k];const s=stand(t),h=hit(t,soft);return memo[k]=ev(h)>ev(s)?h:s}
+  const{t,soft}=total(cards),out=[];
+  const S=stand(t);out.push({a:'S',...S,ev:ev(S)});
+  const H=hit(t,soft);out.push({a:'H',...H,ev:ev(H)});
+  if(cards.length===2){
+    let Dd={w:0,d:0,l:0};for(let c=2;c<=11;c++){const[nt]=addC(t,soft,c);Dd=add(Dd,stand(nt),p[c])}
+    out.push({a:'D',...Dd,ev:2*ev(Dd)});
+    if(cards[0]===cards[1]){
+      const v=cards[0];let Pp={w:0,d:0,l:0};
+      for(let c=2;c<=11;c++){const[nt,ns]=addC(v,v===11,c);Pp=add(Pp,v===11?stand(nt):best(nt,ns),p[c])}
+      out.push({a:'P',...Pp,ev:2*ev(Pp)});
+    }
+    if(o.sur)out.push({a:'R',w:0,d:0,l:1,ev:-.5,sur:true});
+  }
+  return out;
+}
+function renderOdds(cards,up){
+  const el=$('odds'),{t}=total(cards);
+  if(t>21||(cards.length===2&&t===21)){el.style.display='none';return}
+  const L=calcOdds(cards,up,st.opt),bestEv=Math.max(...L.map(x=>x.ev));
+  const pc=x=>Math.round(x*100);
+  const f=Math.floor(trueCount());
+  el.style.display='block';
+  el.innerHTML=`<div class="lbl">📊 勝率（カウント${f>0?'+':''}${f}で計算）<span class="r" style="font-size:12px">勝ち／引分／負け</span></div>`+
+   L.map(x=>{
+     const yen=Math.round(x.ev*100);
+     const bar=x.sur?`<span style="flex:1;background:#9ca3af">賭け金の半分が戻る</span>`:
+       `<span style="flex:${x.w};background:#16a34a">${pc(x.w)>=12?'勝'+pc(x.w)+'%':''}</span><span style="flex:${x.d};background:#9ca3af">${pc(x.d)>=12?pc(x.d)+'%':''}</span><span style="flex:${x.l};background:#dc2626">${pc(x.l)>=12?'負'+pc(x.l)+'%':''}</span>`;
+     return `<div class="od${x.ev===bestEv?' best':''}"><div class="n"><i style="background:${COL[x.a]}"></i>${NAME[x.a]}${x.a==='D'?'<small>×2掛け</small>':x.a==='P'?'<small>2手に分ける</small>':''}</div>
+       <div><div class="bar">${bar}</div><div style="font-size:11px;color:var(--sub);margin-top:2px">${x.sur?'':`勝ち${pc(x.w)}%・引分${pc(x.d)}%・負け${pc(x.l)}%${x.a==='P'?'（1手あたり）':''}`}</div></div>
+       <div class="ev"><b style="color:${yen>=0?'#16a34a':'#dc2626'}">${yen>0?'+':''}${yen}円</b>100円賭けで</div></div>`;
+   }).join('')+
+   `<p class="note" style="margin:8px 0 0">右の「円」は、100円賭けたとき平均で増える／減る金額です。ダブルとスプリットは賭け金が2倍なので、勝率が低くてもこちらが得なことがあります。${L.some(x=>x.ev===bestEv&&x.a!==decide(cards,up,st.opt,st.opt.useCount?trueCount():null).a)?'<br>※計算は残りカードの推定なので、上の判定と少し違うことがあります（差はごくわずか）。':''}</p>`;
+}
 function renderJudge(){
   document.querySelectorAll('#dkeys .k').forEach(b=>b.classList.toggle('on',+b.dataset.v===st.dealer));
   const h=st.hand;
@@ -328,6 +404,7 @@ function renderJudge(){
   if(st.dealer==null||h.length<2){
     res.style.background='#9aa5a0';
     res.innerHTML=`<div class="a">${st.dealer==null?'ディーラーを選んで':'手札をあと'+(2-h.length)+'枚'}</div><div class="w">ディーラーの1枚と、自分の手札（2枚〜）を押すと、いちばん損しない動きが出ます</div>`;
+    $('odds').style.display='none';
     return;
   }
   const r=decide(h,st.dealer,st.opt,st.opt.useCount?trueCount():null);
@@ -337,6 +414,7 @@ function renderJudge(){
   if(r.a==='D'&&h.length===2){const alt=(r.isPair?pairAct(h[0],st.dealer,st.opt):(r.soft?softAct(r.t,st.dealer,st.opt):'D'));extra='<br>ダブルできないときは：<b>'+(alt==='Ds'?'スタンド':'ヒット')+'</b>'}
   if(r.a==='P'&&h[0]===11) extra='<br>Aのペアは必ず分けましょう';
   if(r.a==='P'&&h[0]===8) extra='<br>8のペア(16)は最悪の手。分ければ立て直せます';
+  renderOdds(h,st.dealer);
   res.innerHTML=`<div class="a">${NAME[r.a]}</div><div class="w">${r.why||SUB[r.a]}${extra}</div>`+
     (r.dev?`<div class="dv">🔢 カウント${r.dev.tc}なので、基本の「${NAME[r.dev.from]||r.dev.from}」ではなく「${NAME[r.dev.to]}」（境目 ${r.dev.idx>0?'+':''}${r.dev.idx}）</div>`:'');
 }
@@ -410,7 +488,7 @@ function weakAns(l,r){
 function resetDrill(){if(!confirm('練習の記録を消しますか？'))return;st.drill={n:0,ok:0,streak:0,best:0,miss:{}};save();renderStats()}
 
 /* ---------- カウント ---------- */
-function cnt(v){st.count.rc+=v;st.count.seen++;st.count.log.push(v);if(st.count.log.length>500)st.count.log.shift();save();renderCount()}
+function cnt(v){st.count.rc+=v;st.count.seen++;st.count.log.push(v);if(st.count.log.length>1200)st.count.log.shift();save();renderCount()}
 function cntUndo(){const v=st.count.log.pop();if(v==null)return;st.count.rc-=v;st.count.seen--;save();renderCount()}
 function cntReset(){st.count={rc:0,seen:0,log:[]};st.others=[];save();renderCount();renderJudge()}
 function renderCount(){
