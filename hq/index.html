@@ -151,6 +151,8 @@ textarea.tin{font-size:12px;word-break:break-all}
 .rbar{display:block;height:7px;background:var(--line);border-radius:4px;overflow:hidden}.rbar i{display:block;height:100%;background:var(--acc);border-radius:4px}
 .seg2{display:grid;grid-template-columns:1fr 1fr;gap:6px;margin-bottom:10px}.seg2 button{height:40px;border-radius:10px;border:1px solid var(--line);background:#fff;font-size:15px;font-weight:700;color:var(--sub)}.seg2 button.on{background:var(--ink);color:#fff;border-color:var(--ink)}
 .shoprow{padding:10px 0;border-bottom:1px solid var(--line)}.shoprow .mini{padding:0 8px;font-size:12px}
+.stk{display:flex;height:16px;border-radius:8px;overflow:hidden;margin-top:10px;background:var(--line);min-width:12px}.stk i{display:block;height:100%}
+.btn.danger{background:#fff;color:var(--bad);border:1px solid #fecaca}
 .notice{background:#fff7ed;color:#9a3412;border-radius:10px;padding:9px 11px;font-size:12.5px;margin-bottom:12px}
 </style>
 </head>
@@ -223,6 +225,8 @@ function sanitizeState(D){
   out.ptCut=D.ptCut===undefined?undefined:cNumB(D.ptCut);
   out.me={id:cleanId(D.me&&D.me.id),name:cStr(D.me&&D.me.name,30)};
   if(D.savedAt)out.savedAt=cNum(D.savedAt);
+  out.sets=(Array.isArray(D.sets)?D.sets:[]).filter(x=>x&&typeof x==='object').slice(0,50).map(x=>({id:cleanId(x.id),name:cStr(x.name,40),
+    parts:(Array.isArray(x.parts)?x.parts:[]).filter(q=>q&&typeof q==='object').slice(0,20).map(q=>{const ni=mapI(q.i);if(!ni)return null;const o={i:ni,q:Math.min(99,Math.max(1,Math.round(cNum(q.q)||1)))};if(q.s!=null){const ns=(subMap[ni]||{})[String(q.s)]||(ID_RE.test(String(q.s))?String(q.s):null);if(ns)o.s=ns;}return o;}).filter(Boolean)}));
   if(typeof D.cfgAt==='string')out.cfgAt=D.cfgAt.slice(0,40);
   if(typeof D.cloudUser==='string'&&/^[0-9a-f-]{36}$/.test(D.cloudUser))out.cloudUser=D.cloudUser;
   if(D.pendingCfg&&typeof D.pendingCfg==='object')out.pendingCfg=D.pendingCfg;
@@ -1031,6 +1035,7 @@ function render(){
   if(view.tab==='today')body=todayView(ym,m);
   else if(view.tab==='cut')body=cutView(ym,m);
   else if(view.tab==='pts')body=ptsView();
+  else if(view.tab==='sets')body=setsView();
   else if(view.tab==='graph')body=graphView(ym,m);
   else if(view.tab==='cal')body=calView(ym,m);
   else if(view.tab==='member'&&MGR)body=memberView(ym);
@@ -1050,6 +1055,7 @@ function render(){
     <button data-tab="today" class="${view.tab==='today'?'on':''}"><span>🎯</span>成果</button>
     <button data-tab="cut" class="${view.tab==='cut'?'on':''}"><span>🚩</span>足切り</button>
     <button data-tab="pts" class="${view.tab==='pts'?'on':''}"><span>💎</span>ポイント</button>
+    <button data-tab="sets" class="${view.tab==='sets'?'on':''}"><span>📦</span>セット</button>
     <button data-tab="graph" class="${view.tab==='graph'?'on':''}"><span>📊</span>グラフ</button>
     <button data-tab="cal" class="${view.tab==='cal'?'on':''}"><span>📅</span>カレンダー</button>
     ${MGR||SHARED||(CLOUD&&isCloudMgr())?`<button data-tab="member" class="${view.tab==='member'?'on':''}"><span>👥</span>メンバー</button>`:''}
@@ -1241,6 +1247,56 @@ function ptsView(){
   if(none.length)h+=`<div class="card"><div class="iname">ポイントなし</div><div class="sub" style="margin:2px 0 6px">ポイントが決まっていない項目です。項目設定の「設定 ▼」から決められます。</div>${none.map(r=>`<div class="drow"><span>${esc(r.name)}${r.sub?`<span class="sub">（${esc(r.sub)}）</span>`:''}</span><span class="sub">—</span></div>`).join('')}</div>`;
   return h;
 }
+// ---- 自分セット：よくある手続きを項目のまとまりにして、1手続きで何ポイントか見える化 ----
+const SEG=['#2563eb','#f59e0b','#10b981','#ef4444','#8b5cf6','#06b6d4','#ec4899','#84cc16','#f97316','#64748b'];
+function partInfo(q){const it=S.items.find(x=>x.id===q.i);if(!it)return null;const sb=q.s?subsOf(it).find(x=>x.id===q.s):null;
+  const pt=sb?Number(sb.pt||0):ptOf(it);return{it,sb,label:(it.name||'名前なし')+(sb?'（'+(sb.name||'種類')+'）':''),unit:it.unit||'件',pt,q:q.q,total:pt*q.q,yen:isYen(it,'cut')};}
+function setTotal(st){return (st.parts||[]).reduce((a,q)=>{const p=partInfo(q);return a+(p?p.total:0);},0);}
+function itemOptions(sel){const o=[];S.items.forEach(it=>{const sb=subsOf(it);if(sb.length)sb.forEach(x=>o.push([it.id+'|'+x.id,(it.name||'名前なし')+'（'+(x.name||'種類')+'）']));else o.push([it.id+'|',it.name||'名前なし']);});
+  return o.map(([v,l])=>`<option value="${v}" ${v===sel?'selected':''}>${esc(l)}</option>`).join('');}
+function setsView(){
+  if(!S.sets)S.sets=[];
+  if(!S.items.length)return `<div class="card empty">まだ項目がありません。<br>先に「項目設定」で項目とポイントを決めてください。<button class="btn" data-tab="set">項目設定へ</button></div>`;
+  const E=view.setEdit;
+  if(E){
+    const tot=E.parts.reduce((a,q)=>{const p=partInfo(q);return a+(p?p.total:0);},0);
+    return `<div class="card"><div class="iname">${E.id?'セットを直す':'セットを作る'}</div>
+      <div class="field"><label>セットの名前（手続きの内容）</label><input id="sename" value="${esc(E.name)}" placeholder="例：新規＋端末＋PayPayゴールド"></div>
+      <div class="field"><label>入っている項目</label></div>
+      ${E.parts.map((q,i)=>`<div class="flex" style="margin-top:6px"><select class="sel" data-a="separt" data-i="${i}" style="flex:3">${itemOptions(q.i+'|'+(q.s||''))}</select><select class="sel" data-a="seqty" data-i="${i}" style="flex:1">${Array.from({length:10},(_,k)=>`<option value="${k+1}" ${k+1===q.q?'selected':''}>×${k+1}</option>`).join('')}</select><button class="mini" data-a="sepdel" data-i="${i}" style="color:var(--bad)">✕</button></div>`).join('')||'<div class="sub">まだ項目がありません。下の「＋ 項目を足す」で入れてください。</div>'}
+      <button class="mini" data-a="sepadd" style="margin-top:10px;padding:0 12px;height:38px;color:var(--acc);font-weight:700">＋ 項目を足す</button>
+      <div class="between" style="margin-top:14px;padding-top:10px;border-top:1px solid var(--line)"><span class="sub">1手続きの合計</span><b style="font-size:26px;color:var(--acc)">${fmt(tot)}<small class="sub">pt</small></b></div>
+      <div class="mrow2" style="margin-top:6px"><button class="btn ghost" data-a="secancel">やめる</button><button class="btn" data-a="sesave">保存</button></div>
+      ${E.id?`<button class="btn danger" data-a="sedel">${view.sedel?'本当に削除':'このセットを削除'}</button>`:''}</div>`;
+  }
+  const L=S.sets.map(st=>({st,tot:setTotal(st)})).sort((a,b)=>b.tot-a.tot);
+  const max=Math.max(1,...L.map(x=>x.tot));
+  let h=`<div class="card"><div class="between" style="align-items:center"><div><div class="iname">自分セット</div><div class="sub">よくある手続きをまとめて、1回で何ポイント入るかを比べられます</div></div></div><button class="btn" data-a="senew">＋ セットを作る</button></div>`;
+  if(!L.length)h+=`<div class="card empty">まだセットがありません。<br>例：「新規＋端末あり＋PayPayゴールド」のように、よくある手続きの組み合わせを作ってみましょう。</div>`;
+  h+=L.map(({st,tot},r)=>{const ps=st.parts.map(partInfo).filter(Boolean);
+    return `<div class="card"><div class="between" style="align-items:flex-start"><div style="min-width:0"><span class="sub">${r===0&&tot>0?'🥇 いちばん高い':`${r+1}位`}</span><div class="iname" style="margin-top:2px">${esc(st.name||'名前なし')}</div></div><div style="text-align:right;white-space:nowrap"><div class="big" style="font-size:34px;color:var(--acc)">${fmt(tot)}<small>pt</small></div><div class="sub">1手続きあたり</div></div></div>
+      <div class="stk" style="width:${Math.max(4,tot/max*100)}%">${ps.map((p,i)=>p.total?`<i style="flex:${p.total};background:${SEG[i%SEG.length]}"></i>`:'').join('')}</div>
+      <div style="margin-top:8px">${ps.map((p,i)=>`<div class="drow" style="padding:6px 0"><span class="flex" style="gap:6px;min-width:0"><i class="dot" style="background:${SEG[i%SEG.length]}"></i><span>${esc(p.label)} <span class="sub">×${p.q}</span></span></span><span class="sub" style="white-space:nowrap">${fmt(p.pt)}pt × ${p.q} ＝ <b style="color:var(--ink)">${fmt(p.total)}pt</b></span></div>`).join('')}</div>
+      <div class="mrow2" style="margin-top:8px"><button class="btn ghost" data-a="seedit" data-id="${st.id}" style="margin-top:0">直す</button><button class="btn" data-a="seapply" data-id="${st.id}" style="margin-top:0">今日の成果に追加</button></div></div>`;}).join('');
+  return h;
+}
+function setApply(st){
+  const ps=st.parts.map(q=>({q,p:partInfo(q)})).filter(x=>x.p);if(!ps.length)return;
+  const yens=ps.filter(x=>x.p.yen);
+  modal(`<h3>「${esc(st.name||'セット')}」を追加</h3><p class="sub">今日の成果に、次の内容をまとめて追加します。</p>
+    <div style="margin:8px 0">${ps.map((x,i)=>`<div class="drow"><span>${esc(x.p.label)} ×${x.q.q}</span><b>${fmt(x.p.total)}pt</b></div>${x.p.yen?`<div class="flex" style="margin:4px 0 8px"><input type="number" inputmode="numeric" class="tin seyen" data-i="${i}" placeholder="金額（円）" style="margin:0"><span class="sub">円</span></div>`:''}`).join('')}</div>
+    <div class="between"><span class="sub">合計</span><b style="font-size:22px;color:var(--acc)">${fmt(setTotal(st))}pt</b></div>
+    ${yens.length?'<p class="sub">足切りを金額で数える項目は、金額を入れてください。</p>':''}
+    <div class="mrow2"><button class="btn ghost" data-x="no">やめる</button><button class="btn" data-x="ok">追加する</button></div>`,(e,close,w)=>{
+    const x=e.target.closest('[data-x]');if(!x)return;if(x.dataset.x!=='ok'){close();return;}
+    const amt={};let miss=null;w.querySelectorAll('.seyen').forEach(el=>{const v=Number(el.value);if(!(v>0)&&!miss)miss=el;amt[el.dataset.i]=v;});
+    if(miss){miss.style.borderColor='var(--bad)';miss.focus();return;}
+    const k=todayKey,m=ensure(k.slice(0,7));m.logs=m.logs||{};
+    ps.forEach((x,i)=>{const rec={id:uid(),i:x.q.i,q:x.q.q};if(x.q.s)rec.s=x.q.s;if(amt[i])rec.y=amt[i];(m.logs[k]=m.logs[k]||[]).push(rec);setEntry(m,k,x.q.i,Number((m.entries[k]||{})[x.q.i]||0)+x.q.q);});
+    changed();close();view.ym=curYM;render();
+    modal(`<h3>追加しました</h3><p class="sub">今日の成果に「${esc(st.name||'セット')}」（${fmt(setTotal(st))}pt）を追加しました。</p><button class="btn" data-x="no">OK</button>`,(e2,c2)=>{if(e2.target.closest('[data-x]'))c2();});
+  });
+}
 function gBar(base,g,c,cu,color,cn,subs,u){
   // 線（足切り・個人目標）と、その下のラベル
   const same=c&&!c.yen&&(!g||!g.yen);
@@ -1298,6 +1354,15 @@ $app.addEventListener('click',e=>{
   if(CLOUD&&['cstage','reload','clogout','clogin','csignup','cjoin'].includes(a)){cloudAction(a,t);return;}
   if(CLOUD&&['crefresh','cdist','crole','cremove','cinvite','crename','cregen'].includes(a)){cloudMgrAction(a,t);return;}
   if(VIEWER&&a.startsWith('v')){viewerAction(a,t);return;}
+  if(a==='senew'){const f=S.items[0];view.setEdit={id:null,name:'',parts:f?[{i:f.id,s:(subsOf(f)[0]||{}).id||null,q:1}]:[]};view.sedel=false;render();window.scrollTo(0,0);return;}
+  if(a==='seedit'){const st=(S.sets||[]).find(x=>x.id===id);if(!st)return;view.setEdit=JSON.parse(JSON.stringify(st));view.sedel=false;render();window.scrollTo(0,0);return;}
+  if(a==='sepadd'){const E=view.setEdit;if(!E)return;const nm=(document.getElementById('sename')||{}).value;if(nm!=null)E.name=nm;const f=S.items[0];if(f)E.parts.push({i:f.id,s:(subsOf(f)[0]||{}).id||null,q:1});render();return;}
+  if(a==='sepdel'){const E=view.setEdit;if(!E)return;const nm=(document.getElementById('sename')||{}).value;if(nm!=null)E.name=nm;E.parts.splice(Number(t.dataset.i),1);render();return;}
+  if(a==='secancel'){view.setEdit=null;render();return;}
+  if(a==='sesave'){const E=view.setEdit;if(!E)return;E.name=((document.getElementById('sename')||{}).value||'').trim();if(!E.name){const el=document.getElementById('sename');el.style.borderColor='var(--bad)';el.focus();return;}
+    if(!E.parts.length)return;S.sets=S.sets||[];if(E.id){const i=S.sets.findIndex(x=>x.id===E.id);if(i>=0)S.sets[i]=E;}else{E.id=uid();S.sets.push(E);}view.setEdit=null;changed();render();return;}
+  if(a==='sedel'){if(!view.sedel){view.sedel=true;render();return;}S.sets=(S.sets||[]).filter(x=>x.id!==view.setEdit.id);view.setEdit=null;view.sedel=false;changed();render();return;}
+  if(a==='seapply'){const st=(S.sets||[]).find(x=>x.id===id);if(st)setApply(st);return;}
   if(a==='ptgo'){lastAct=id;lastSub=t.dataset.s||null;view.tab='today';view.ym=curYM;render();window.scrollTo(0,0);return;}
   if(a==='switch'){leaveProfile();return;}
   if(a==='pickp'){const pr=SH.profiles[id];if(!pr)return;if(pr.pin)pinModal(esc(pr.name)+'さん','暗証番号を入れてください。',v=>{if(v!==pr.pin)return false;enterProfile(id);});else enterProfile(id);return;}
@@ -1332,6 +1397,8 @@ $app.addEventListener('change',e=>{
   if(t.id==='la'){lastAct=t.value;lastQty=Number(document.getElementById('lq').value);lastSub=null;render();return;}
   if(t.id==='ls'||t.id==='lq'){const ls=document.getElementById('ls');if(ls)lastSub=ls.value;lastQty=Number(document.getElementById('lq').value);updPrev();return;}
   const a=t.dataset.a,id=t.dataset.id;if(!a)return;
+  if(a==='separt'||a==='seqty'){const E=view.setEdit;if(!E)return;const nm=(document.getElementById('sename')||{}).value;if(nm!=null)E.name=nm;const q=E.parts[Number(t.dataset.i)];if(!q)return;
+    if(a==='seqty')q.q=Number(t.value);else{const [ii,ss]=t.value.split('|');q.i=ii;q.s=ss||null;}render();return;}
   if(a==='myname'){S.me.name=t.value.trim();changed();return;}
   if(a==='ptcut'){S.ptCut=t.value===''?'':Number(t.value);changed();return;}
   const m=ensure(view.ym);
