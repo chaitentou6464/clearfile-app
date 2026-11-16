@@ -93,7 +93,7 @@ ul.tips{margin:0;padding-left:18px;line-height:1.8;font-size:14px}
 .felt{position:relative;border-radius:22px;padding:14px 12px 12px;color:#fff;background:radial-gradient(ellipse at 50% 35%,#1f7a52 0%,#145c3e 55%,#0d4430 100%);box-shadow:inset 0 0 0 6px #6b3f1f,inset 0 0 0 8px #c9a14a,0 6px 16px rgba(0,0,0,.25);margin-bottom:10px}
 .zone{display:flex;flex-direction:column;align-items:center;gap:6px;min-height:40px}
 .zone.me{margin-top:6px}
-.zl{font-size:12px;letter-spacing:.1em;color:#f3e3b5;font-weight:700;display:flex;align-items:center;gap:8px}
+.zl{white-space:nowrap;font-size:12px;letter-spacing:.1em;color:#f3e3b5;font-weight:700;display:flex;align-items:center;gap:8px}
 .tb{background:rgba(0,0,0,.35);color:#fff;border-radius:999px;padding:2px 10px;font-size:15px;letter-spacing:0;display:none}
 .cards{display:flex;justify-content:center;min-height:86px;align-items:center}
 .cards .pc{margin-left:-18px}.cards .pc:first-child{margin-left:0}
@@ -117,9 +117,18 @@ ul.tips{margin:0;padding-left:18px;line-height:1.8;font-size:14px}
 .advice .dv{font-size:12px;margin-top:4px;background:rgba(0,0,0,.3);display:inline-block;border-radius:8px;padding:3px 8px}
 .result{display:inline-block;border-radius:12px;padding:8px 18px;font-size:19px;font-weight:900;background:#fff;box-shadow:0 3px 12px rgba(0,0,0,.35)}
 .pact{display:flex;gap:8px;justify-content:center;margin-top:10px}
-.pact button{flex:1;max-width:120px;height:40px;border-radius:999px;border:2px solid rgba(243,227,181,.7);background:rgba(0,0,0,.25);color:#fff;font-weight:700;font-size:14px}
+.pact button{flex:1;max-width:120px;height:40px;padding:0 2px;font-size:13px;border-radius:999px;border:2px solid rgba(243,227,181,.7);background:rgba(0,0,0,.25);color:#fff;font-weight:700;font-size:14px}
 .pact button.rec{background:#f3e3b5;color:#0d4430;border-color:#fff;box-shadow:0 0 0 3px rgba(243,227,181,.35)}
 .pact button:disabled{opacity:.3}
+.hands{display:flex;justify-content:center;gap:6px;width:100%}
+.hand1{display:flex;flex-direction:column;align-items:center;gap:4px;border-radius:14px;padding:4px 2px;border:2px solid transparent;min-width:0;flex:0 1 auto}
+.hands.sp .hand1{flex:1}
+.hands.sp .zl{letter-spacing:0;gap:4px}
+.hands.sp .pc{width:46px;height:66px}.hands.sp .pc .ct{font-size:22px}.hands.sp .pc .tl{font-size:13px}
+.hands.sp .cards .pc{margin-left:-24px}.hands.sp .cards .pc:first-child{margin-left:0}
+.hand1.on{border-color:#f3e3b5;background:rgba(243,227,181,.12)}
+.hand1.done{opacity:.6}
+.hres{background:#fff;border-radius:8px;padding:2px 8px;font-size:12px;font-weight:800}
 .dock{background:#fff;border:1px solid var(--line);border-radius:16px;padding:10px;margin-bottom:10px}
 .seg{display:flex;background:#eef1ef;border-radius:10px;padding:3px;gap:3px}
 .seg button{flex:1;border:0;background:none;border-radius:8px;height:34px;font-size:13px;font-weight:700;color:var(--sub)}
@@ -163,12 +172,13 @@ ul.tips{margin:0;padding-left:18px;line-height:1.8;font-size:14px}
     <div class="advice" id="advice"></div>
     <div class="zone me">
       <div class="cards" id="mCards"></div>
-      <div class="zl">あなた <span class="tb" id="mTot"></span></div>
+      <span id="mTot" style="display:none"></span>
     </div>
     <div class="pact" id="pact">
       <button data-a="H" onclick="act('H')">ヒット</button>
       <button data-a="S" onclick="act('S')">スタンド</button>
       <button data-a="D" onclick="act('D')">ダブル</button>
+      <button data-a="P" onclick="act('P')">スプリット</button>
     </div>
   </div>
 
@@ -233,7 +243,7 @@ ul.tips{margin:0;padding-left:18px;line-height:1.8;font-size:14px}
     <div class="lbl">捨て札・見えたカードをまとめて入れる <span class="r" style="font-size:12px">ゲームに関係なく数えるだけ</span></div>
     <div class="keys rk" id="xkeys"></div>
     <div style="display:flex;gap:8px;margin-top:8px">
-      <button class="small" style="flex:1;height:42px" onclick="undoCard()">↩ 1枚戻す</button>
+      <button class="small" style="flex:1;height:42px" onclick="undoShoe()">↩ 1枚戻す</button>
       <button class="small" style="flex:1;height:42px;color:#dc2626" onclick="shuffle()">シャッフル（最初に戻す）</button>
     </div>
   </div>
@@ -283,7 +293,7 @@ const KEY='blackjack_v1';
 const RANKS=['A','2','3','4','5','6','7','8','9','10'];
 const UPS=[2,3,4,5,6,7,8,9,10,11]; // 11 = A
 let st={opt:{h17:false,das:true,sur:false,decks:6,useCount:false},shoe:{log:[],id:0},game:null,drill:{n:0,ok:0,streak:0,best:0,miss:{}}};
-try{const s=JSON.parse(localStorage.getItem(KEY)||'null');if(s){st.opt={...st.opt,...s.opt};st.drill={...st.drill,...s.drill};if(s.shoe&&Array.isArray(s.shoe.log))st.shoe=s.shoe;if(s.game&&Array.isArray(s.game.seq))st.game=s.game;}}catch(e){}
+try{const s=JSON.parse(localStorage.getItem(KEY)||'null');if(s){st.opt={...st.opt,...s.opt};st.drill={...st.drill,...s.drill};if(s.shoe&&Array.isArray(s.shoe.log))st.shoe=s.shoe;if(s.game&&Array.isArray(s.game.seq)&&Array.isArray(s.game.hands))st.game=s.game;}}catch(e){}
 if(!st.game)st.game=newGame();
 const save=()=>{try{localStorage.setItem(KEY,JSON.stringify({opt:st.opt,shoe:st.shoe,game:st.game,drill:st.drill}))}catch(e){}};
 const $=id=>document.getElementById(id);
@@ -378,46 +388,78 @@ function shoeProbs(){
   const p=[];for(let c=2;c<=11;c++)p[c]=N>0?r[c]/N:fullOf(c)/(st.opt.decks*52);
   return p;
 }
-function takeCard(v,w){
+function takeCard(v){
   if(remainCounts()[v]<=0&&!confirm(`${lab(v)}はもう残っていない計算です。それでも入れますか？`))return null;
   const id=++st.shoe.id;st.shoe.log.push({v,id});if(st.shoe.log.length>3000)st.shoe.log.shift();
-  if(w)st.game.seq.push({w,id,v});
   return id;
 }
 function shuffle(){if(!confirm('シャッフルされましたか？残りカードを最初（'+st.opt.decks*52+'枚）に戻します'))return;st.shoe={log:[],id:0};st.game=newGame();save();renderAll()}
 
-/* ---------- 1ゲームの流れ ---------- */
-function newGame(){return{dealer:[],me:[],others:[],seq:[],target:'me',stood:false,doubled:false}}
+/* ---------- 1ゲームの流れ（スプリット対応） ---------- */
+function newGame(){return{dealer:[],hands:[{c:[],stood:false,dbl:false,sp:false}],cur:0,others:[],seq:[],target:'me'}}
+function H(){return st.game.hands[st.game.cur]}
 function setTarget(t){st.game.target=t;save();renderJudge()}
+function canSplit(h,g){return h.c.length===2&&h.c[0]===h.c[1]&&!h.stood&&g.hands.length<4}
+function canDouble(h){return h.c.length===2&&!h.stood&&!h.dbl&&(!h.sp||st.opt.das)}
+function nextHand(){ // 今の手を終えて、次の手かディーラーへ
+  const g=st.game;g.hands[g.cur].stood=true;
+  const i=g.hands.findIndex(h=>!h.stood);
+  if(i>=0){g.cur=i;g.target='me'}else g.target='dealer';
+}
 function addCard(v){
   const g=st.game,w=g.target;
-  if(w==='me'&&g.me.length>=10)return;
-  if(!takeCard(v,w))return;
-  g[w==='me'?'me':w==='dealer'?'dealer':'others'].push(v);
-  // 実際の配り方の順番で自動的に次へ（あなた→ディーラー→あなた→ディーラーの伏せ札）
+  if(w==='me'&&(H().stood||H().c.length>=10))return;
+  const id=takeCard(v);if(!id)return;
   if(w==='me'){
-    if(g.me.length===1&&g.dealer.length===0)g.target='dealer';
-    else if(g.doubled||total(g.me).t>=21){g.stood=true;g.target='dealer'}
-  }else if(w==='dealer'){
-    if(g.dealer.length===1&&g.me.length<2)g.target='me';
+    const h=H();h.c.push(v);g.seq.push({w,id,v,h:g.cur});
+    if(g.hands.length===1&&h.c.length===1&&g.dealer.length===0)g.target='dealer';
+    else if(h.dbl&&h.c.length>=3)nextHand();
+    else if(h.sp&&h.c[0]===11&&h.c.length===2)nextHand(); // Aのスプリットは1枚ずつ
+    else if(total(h.c).t>=21&&h.c.length>=2)nextHand();
+  }else{
+    g[w].push(v);g.seq.push({w,id,v});
+    if(w==='dealer'&&g.dealer.length===1&&g.hands[0].c.length<2)g.target='me';
   }
   save();renderJudge();
 }
-function undoCard(){
-  const e=st.shoe.log.pop();if(!e)return;
-  const g=st.game,last=g.seq[g.seq.length-1];
-  if(last&&last.id===e.id){
-    g.seq.pop();const arr=g[last.w];arr.pop();
-    if(last.w==='me'){g.stood=false;if(g.doubled&&g.me.length<=2)g.doubled=false;g.target='me'}
-    if(last.w==='dealer'&&g.dealer.length===0)g.target='dealer';
+function undoCard(){ // テーブルの「1枚戻す」：このゲームの最後の操作を戻す
+  const g=st.game,e=g.seq.pop();
+  if(!e){undoShoe();return}
+  if(e.w==='split'){
+    const a=g.hands[e.h],b=g.hands[e.h+1];
+    a.c.push(b.c[0]);g.hands.splice(e.h+1,1);
+    for(const x of g.seq)if(x.w==='me'&&x.h>e.h)x.h--;
+    a.sp=e.wasSp;a.stood=false;g.cur=e.h;g.target='me';
+    for(let i=e.h+1;i<g.hands.length;i++)g.hands[i].stood=false;
+  }else{
+    const k=st.shoe.log.findIndex(x=>x.id===e.id);if(k>=0)st.shoe.log.splice(k,1);
+    if(e.w==='me'){
+      const h=g.hands[e.h];h.c.pop();h.stood=false;if(h.c.length<3)h.dbl=false;g.cur=e.h;g.target='me';
+      for(let i=e.h+1;i<g.hands.length;i++)g.hands[i].stood=false;
+    }else{g[e.w].pop();if(e.w==='dealer'&&g.dealer.length===0)g.target='dealer'}
   }
   save();renderAll();
 }
+function undoShoe(){ // 残りカードタブの「1枚戻す」：ゲーム外で入れたカードだけ戻す
+  const inGame=new Set(st.game.seq.map(x=>x.id));
+  for(let i=st.shoe.log.length-1;i>=0;i--){if(!inGame.has(st.shoe.log[i].id)){st.shoe.log.splice(i,1);break}}
+  save();renderAll();
+}
 function act(a){
-  const g=st.game;
-  if(a==='S'){g.stood=true;g.target='dealer'}
-  if(a==='H'){g.stood=false;g.target='me'}
-  if(a==='D'){if(g.me.length!==2)return;g.doubled=true;g.stood=false;g.target='me'}
+  const g=st.game,h=H();
+  if(a==='S'){if(h.c.length<2)return;nextHand()}
+  if(a==='H'){g.target='me'}
+  if(a==='D'){if(!canDouble(h))return;h.dbl=true;g.target='me'}
+  if(a==='P'){
+    if(!canSplit(h,g))return;
+    const v=h.c.pop();
+    g.hands.splice(g.cur+1,0,{c:[v],stood:false,dbl:false,sp:true});
+    // 動いたカードの記録を新しい手に付け替える
+    for(const x of g.seq)if(x.w==='me'&&x.h>g.cur)x.h++;
+    const last=[...g.seq].reverse().find(x=>x.w==='me'&&x.h===g.cur);if(last)last.h=g.cur+1;
+    g.seq.push({w:'split',h:g.cur,wasSp:h.sp});
+    h.sp=true;g.target='me';
+  }
   save();renderJudge();
 }
 function nextGameBtn(){st.game=newGame();save();renderAll();window.scrollTo(0,0)}
@@ -427,11 +469,11 @@ function dealerDone(d){if(d.length<2)return false;const{t,soft}=total(d);return 
 const SUITS=['♠','♥','♦','♣'];
 const shownIds=new Set();
 function cardHTML(v,id){const s=SUITS[(id||0)%4],red=s==='♥'||s==='♦';const nw=id&&!shownIds.has(id);if(id)shownIds.add(id);return `<div class="pc${red?' red':''}${nw?' nw':''}"><div class="tl">${lab(v)}<small>${s}</small></div><div class="ct">${s}</div></div>`}
-function cardsHTML(arr,w){
-  const ids=st.game.seq.filter(x=>x.w===w).map(x=>x.id);
-  return arr.map((v,i)=>cardHTML(v,ids[i]||i)).join('');
+function cardsHTML(arr,f){
+  const ids=st.game.seq.filter(f).map(x=>x.id);
+  return arr.map((v,i)=>cardHTML(v,ids[i]||i+1)).join('');
 }
-function totLabel(cards){const{t,soft}=total(cards);return t>21?'バースト':(cards.length===2&&t===21?'BJ':((soft?'ソフト':'')+t))}
+function totLabel(cards,split){const{t,soft}=total(cards);return t>21?'バースト':(!split&&cards.length===2&&t===21?'BJ':((soft?'ソフト':'')+t))}
 function buildKeys(){
   $('pkeys').innerHTML=RANKS.map(r=>`<button class="k" data-v="${val(r)}" onclick="addCard(${val(r)})">${r}<small></small></button>`).join('');
   $('xkeys').innerHTML=RANKS.map(r=>`<button class="k" data-v="${val(r)}" onclick="if(takeCard(${val(r)}))(save(),renderAll())">${r}<small></small></button>`).join('');
@@ -463,65 +505,96 @@ function renderCount(){
   const f=Math.floor(trueCount()),hc=$('hcnt');hc.style.display='inline-block';hc.textContent=`残${remainTotal()}枚 TC${f>0?'+':''}${f}`;
   renderKeys();
 }
+// 1つの手の勝ち負け
+function handResult(h,split,g){
+  const me=total(h.c),d=total(g.dealer),k=h.dbl?2:1;
+  if(me.t>21)return{r:'負け（バースト）',c:'#dc2626',m:-k};
+  const pbj=!split&&h.c.length===2&&me.t===21,dbj=g.dealer.length===2&&d.t===21;
+  if(pbj&&!dbj)return{r:'ブラックジャック！',c:'#16a34a',m:1.5};
+  if(dbj&&!pbj)return{r:'負け（ディーラーBJ）',c:'#dc2626',m:-1};
+  if(d.t>21)return{r:'勝ち！',c:'#16a34a',m:k};
+  if(me.t>d.t)return{r:'勝ち！',c:'#16a34a',m:k};
+  if(me.t<d.t)return{r:'負け',c:'#dc2626',m:-k};
+  return{r:'引き分け',c:'#6b7280',m:0};
+}
+function decideHand(h,up,o,split){
+  const tc=o.useCount?trueCount():null;
+  let r=decide(h.c,up,split?{...o,sur:false}:o,tc);
+  if(r.a==='P'&&st.game.hands.length>=4){let a=r.soft?'H':hardAct(r.t,up,{...o,sur:false}).replace(/^R:/,'');if(a==='Ds')a='D';r={...r,a,why:'これ以上は分けられないので'}}
+  if(r.a==='D'&&h.sp&&!o.das){const alt=r.isPair?pairAct(h.c[0],up,o):(r.soft?softAct(r.t,up,o):'D');r={...r,a:alt==='Ds'?'S':'H',why:'スプリット後はダブルできないので'+(alt==='Ds'?'スタンド':'ヒット')}}
+  return r;
+}
 function renderJudge(){
-  const g=st.game,up=g.dealer[0],h=g.me,o=st.opt;
+  const g=st.game,up=g.dealer[0],o=st.opt,split=g.hands.length>1,h=H();
   $('feltRule').textContent=`ディーラーはソフト17で${o.h17?'引く':'止まる'}`;
   // ディーラー
-  $('dCards').innerHTML=g.dealer.length?cardsHTML(g.dealer,'dealer')+(g.dealer.length===1?'<div class="pc back"></div>':''):'<div class="pc ghost"></div><div class="pc ghost"></div>';
+  $('dCards').innerHTML=g.dealer.length?cardsHTML(g.dealer,x=>x.w==='dealer')+(g.dealer.length===1?'<div class="pc back"></div>':''):'<div class="pc ghost"></div><div class="pc ghost"></div>';
   const dt=$('dTot');dt.style.display=g.dealer.length?'inline-block':'none';dt.textContent=g.dealer.length===1?lab(up)+' 表':totLabel(g.dealer);
   // ほかの人
   $('oZone').style.display=g.others.length||g.target==='others'?'flex':'none';
-  $('oCards').innerHTML=cardsHTML(g.others,'others');
-  // あなた
-  $('mCards').innerHTML=h.length?cardsHTML(h,'me'):'<div class="pc ghost"></div><div class="pc ghost"></div>';
-  const mt=$('mTot');mt.style.display=h.length?'inline-block':'none';mt.textContent=totLabel(h)+(g.doubled?'（ダブル）':'');
+  $('oCards').innerHTML=cardsHTML(g.others,x=>x.w==='others');
+  // あなた（手が複数ならスプリット）
+  const allDone=g.hands.every(x=>x.stood),allBust=g.hands.every(x=>total(x.c).t>21),finished=allDone&&(allBust||dealerDone(g.dealer));
+  $('mCards').innerHTML=`<div class="hands${split?' sp':''}">`+g.hands.map((x,i)=>{
+    const on=split&&i===g.cur&&!x.stood&&g.target==='me';
+    const res=finished?handResult(x,split,g):null;
+    const cs=x.c.length?cardsHTML(x.c,y=>y.w==='me'&&y.h===i):'<div class="pc ghost"></div><div class="pc ghost"></div>';
+    return `<div class="hand1${on?' on':''}${split&&x.stood&&!finished?' done':''}" onclick="${split?`pickHand(${i})`:''}">
+      <div class="cards">${cs}</div>
+      <div class="zl">${split?`手${i+1}`:'あなた'} ${x.c.length?`<span class="tb" style="display:inline-block">${totLabel(x.c,split)}${x.dbl?'×2':''}</span>`:''}</div>
+      ${res?`<div class="hres" style="color:${res.c}">${res.r}${x.dbl&&res.m!==0&&res.r.indexOf('ブラック')<0?' ×2':''}</div>`:''}
+    </div>`}).join('')+'</div>';
+  $('mTot').style.display='none';
   // 入力先
   document.querySelectorAll('#seg button').forEach(b=>b.classList.toggle('on',b.dataset.t===g.target));
-  const gd={me:'次に押すカードは「あなた」の手札に入ります',dealer:'次に押すカードは「ディーラー」に入ります',others:'ほかの人のカード（数えるだけ）'};
-  $('guide').textContent=(g.dealer.length===0&&h.length===0)?'配られた順に押すだけ：あなた → ディーラー → あなた（自動で切り替わります）':gd[g.target];
+  $('seg').querySelector('[data-t="me"]').textContent=split?`手${g.cur+1}へ`:'あなたへ';
+  const gd={me:`次に押すカードは「${split?'手'+(g.cur+1):'あなた'}」に入ります`,dealer:'次に押すカードは「ディーラー」に入ります',others:'ほかの人のカード（数えるだけ）'};
+  $('guide').textContent=(g.dealer.length===0&&g.hands[0].c.length===0)?'配られた順に押すだけ：あなた → ディーラー → あなた（自動で切り替わります）':gd[g.target];
   // インシュランス
   const ins=$('ins');
-  if(up===11&&h.length<=2&&!g.stood){const tc=Math.floor(trueCount());ins.style.display='block';ins.innerHTML=tc>=3?`🛡 インシュランス：<b>かける</b>（カウント+${tc}で得）`:'🛡 インシュランス：<b>かけない</b>'}else ins.style.display='none';
-  // アドバイス・結果
+  if(up===11&&!split&&h.c.length<=2&&!h.stood){const tc=Math.floor(trueCount());ins.style.display='block';ins.innerHTML=tc>=3?`🛡 インシュランス：<b>かける</b>（カウント+${tc}で得）`:'🛡 インシュランス：<b>かけない</b>'}else ins.style.display='none';
+  // ボタン
   const adv=$('advice'),pact=$('pact');
   pact.querySelectorAll('button').forEach(b=>{b.classList.remove('rec');b.disabled=false});
-  pact.querySelector('[data-a="D"]').disabled=h.length!==2||g.stood||g.doubled;
-  const over=h.length<2||g.stood||total(h).t>21;pact.querySelector('[data-a="H"]').disabled=over;pact.querySelector('[data-a="S"]').disabled=over;if(over)pact.querySelector('[data-a="D"]').disabled=true;
-  const me=total(h);
+  const playing=!h.stood&&h.c.length>=2&&total(h.c).t<=21&&up!=null;
+  pact.querySelector('[data-a="H"]').disabled=!playing;
+  pact.querySelector('[data-a="S"]').disabled=!playing;
+  pact.querySelector('[data-a="D"]').disabled=!playing||!canDouble(h);
+  pact.querySelector('[data-a="P"]').disabled=!playing||!canSplit(h,g);
+  // アドバイス・結果
   let html='';
-  if(h.length>=2&&me.t>21){html='<div class="result" style="color:#dc2626">負け（バースト）</div>'}
-  else if(g.stood&&dealerDone(g.dealer)){
-    const d=total(g.dealer),pbj=h.length===2&&me.t===21,dbj=g.dealer.length===2&&d.t===21;
-    let r,c;
-    if(pbj&&!dbj){r='ブラックジャック！ 1.5倍';c='#16a34a'}
-    else if(dbj&&!pbj){r='負け（ディーラーBJ）';c='#dc2626'}
-    else if(d.t>21){r='勝ち！（ディーラーがバースト）';c='#16a34a'}
-    else if(me.t>d.t){r='勝ち！';c='#16a34a'}else if(me.t<d.t){r='負け';c='#dc2626'}else{r='引き分け';c='#6b7280'}
-    if(g.doubled&&!pbj)r+=' ×2';
-    html=`<div class="result" style="color:${c}">${r}</div><div class="why">「次のゲーム」を押してください</div>`;
+  if(finished){
+    const sum=g.hands.reduce((a,x)=>a+handResult(x,split,g).m,0);
+    if(split){html=`<div class="result" style="color:${sum>0?'#16a34a':sum<0?'#dc2626':'#6b7280'}">合計 ${sum>0?'+':''}${sum}倍</div><div class="why">賭け金1つ分を1として。「次のゲーム」を押してください</div>`}
+    else{const r=handResult(g.hands[0],false,g);html=`<div class="result" style="color:${r.c}">${r.r}${g.hands[0].dbl&&r.m!==0?' ×2':''}</div><div class="why">「次のゲーム」を押してください</div>`}
   }
-  else if(g.stood){html=`<div class="why">ディーラーのカードを入れてください（伏せ札・引いたカード）<br>ディーラーは${o.h17?'ソフト17も引き、':''}17以上で止まります</div>`}
-  else if(up==null||h.length<2){html=`<div class="why">${h.length===0&&up==null?'カードが配られたら、下のボタンで入れてください':up==null?'ディーラーの表のカードを入れてください':'あなたの2枚目を入れてください'}</div>`}
+  else if(allDone){html=`<div class="why">ディーラーのカードを入れてください（伏せ札・引いたカード）<br>ディーラーは${o.h17?'ソフト17も引き、':''}17以上で止まります</div>`}
+  else if(up==null||h.c.length<2){
+    const msg=h.c.length===0&&up==null?'カードが配られたら、下のボタンで入れてください':up==null?'ディーラーの表のカードを入れてください':h.sp?`手${g.cur+1}の2枚目を入れてください`:'あなたの2枚目を入れてください';
+    html=`<div class="why">${msg}</div>`;
+  }
   else{
-    const r=decide(h,up,o,o.useCount?trueCount():null);
-    if(me.t===21&&h.length===2){html='<div class="result" style="color:#16a34a">ブラックジャック！</div>'}
+    const r=decideHand(h,up,o,split);
+    if(!split&&total(h.c).t===21&&h.c.length===2){html='<div class="result" style="color:#16a34a">ブラックジャック！</div>'}
     else{
       let extra='';
-      if(r.a==='R')extra='サレンダーできなければ：'+NAME[decide(h,up,{...o,sur:false},o.useCount?trueCount():null).a];
-      else if(r.a==='D'){const alt=(r.isPair?pairAct(h[0],up,o):(r.soft?softAct(r.t,up,o):'D'));extra='ダブルできなければ：'+(alt==='Ds'?'スタンド':'ヒット')}
+      if(r.a==='R')extra='サレンダーできなければ：'+NAME[decide(h.c,up,{...o,sur:false},o.useCount?trueCount():null).a];
+      else if(r.a==='D'){const alt=(r.isPair?pairAct(h.c[0],up,o):(r.soft?softAct(r.t,up,o):'D'));extra='ダブルできなければ：'+(alt==='Ds'?'スタンド':'ヒット')}
+      else if(r.a==='P')extra='下の「スプリット」を押して、2つの手に分けます';
       else extra=r.why||SUB[r.a];
-      html=`<div class="pill" style="background:${COL[r.a]}">${NAME[r.a]}</div><div class="why">${extra}</div>`+
+      html=(split?`<div class="why" style="margin:0 0 4px">手${g.cur+1}の動き</div>`:'')+`<div class="pill" style="background:${COL[r.a]}">${NAME[r.a]}</div><div class="why">${extra}</div>`+
         (r.dev?`<div class="dv">🔢 カウント${r.dev.tc}なので基本の「${NAME[r.dev.from]||r.dev.from}」ではなく「${NAME[r.dev.to]}」</div>`:'');
       const b=pact.querySelector(`[data-a="${r.a}"]`);if(b)b.classList.add('rec');
     }
   }
   adv.innerHTML=html;
   // 勝率パネル
-  if(h.length===0&&g.dealer.length===0)renderNext();
-  else if(up!=null&&h.length>=2&&me.t<=21&&!g.stood)renderOdds(h,up);
+  if(g.hands[0].c.length===0&&g.dealer.length===0)renderNext();
+  else if(playing)renderOdds(h.c,up,{noD:!canDouble(h),noP:!canSplit(h,g),noR:split,split});
   else $('odds').style.display='none';
   renderCount();
 }
+function pickHand(i){const g=st.game;if(g.hands[i].stood)return;g.cur=i;g.target='me';save();renderJudge()}
 
 /* ---------- 勝率計算（残りのカードから） ---------- */
 function addC(t,soft,c){let nt=t+c,ns=soft;if(c===11){if(nt>21)nt-=10;else ns=true}if(nt>21&&ns){nt-=10;ns=false}return[nt,ns]}
@@ -541,7 +614,7 @@ function dealerDist(p,up,h17){ // [17,18,19,20,21,バースト]（ディーラ�
   for(let c=2;c<=11;c++){if(!q[c])continue;const[nt,ns]=addC(up,up===11,c);const d=dist(nt,ns);for(let i=0;i<6;i++)r[i]+=q[c]/sum*d[i]}
   return r;
 }
-function calcOdds(cards,up,o){
+function calcOdds(cards,up,o,lim={}){
   const p=shoeProbs(),D=dealerDist(p,up,o.h17);
   const stand=t=>{if(t>21)return{w:0,d:0,l:1};let w=D[5],d=0,l=0;for(let i=0;i<5;i++){const dt=17+i;if(t>dt)w+=D[i];else if(t===dt)d+=D[i];else l+=D[i]}return{w,d,l}};
   const ev=x=>x.w-x.l,memo={};
@@ -553,13 +626,13 @@ function calcOdds(cards,up,o){
   const H=hit(t,soft);out.push({a:'H',...H,ev:ev(H)});
   if(cards.length===2){
     let Dd={w:0,d:0,l:0};for(let c=2;c<=11;c++){const[nt]=addC(t,soft,c);Dd=add(Dd,stand(nt),p[c])}
-    out.push({a:'D',...Dd,ev:2*ev(Dd)});
-    if(cards[0]===cards[1]){
+    if(!lim.noD)out.push({a:'D',...Dd,ev:2*ev(Dd)});
+    if(cards[0]===cards[1]&&!lim.noP){
       const v=cards[0];let Pp={w:0,d:0,l:0};
       for(let c=2;c<=11;c++){const[nt,ns]=addC(v,v===11,c);Pp=add(Pp,v===11?stand(nt):best(nt,ns),p[c])}
       out.push({a:'P',...Pp,ev:2*ev(Pp)});
     }
-    if(o.sur)out.push({a:'R',w:0,d:0,l:1,ev:-.5,sur:true});
+    if(o.sur&&!lim.noR)out.push({a:'R',w:0,d:0,l:1,ev:-.5,sur:true});
   }
   return out;
 }
@@ -608,10 +681,10 @@ function renderNext(){
    ${good?'✅ プレイヤー有利！ ×2掛けにするチャンス':'⏸ カジノ有利。最低額（×1）で様子見'}</div>
   <p class="note" style="margin:8px 0 0">勝ちより負けの%が大きくても、ブラックジャック（1.5倍）やダブルで取り返せるので「円」がプラスなら有利です。</p>`;
 }
-function renderOdds(cards,up){
+function renderOdds(cards,up,lim={}){
   const el=$('odds'),{t}=total(cards);
-  if(t>21||(cards.length===2&&t===21)){el.style.display='none';return}
-  const L=calcOdds(cards,up,st.opt),bestEv=Math.max(...L.map(x=>x.ev));
+  if(t>21||(!lim.split&&cards.length===2&&t===21)){el.style.display='none';return}
+  const L=calcOdds(cards,up,st.opt,lim),bestEv=Math.max(...L.map(x=>x.ev));
   const pc=x=>Math.round(x*100);
   const f=Math.floor(trueCount());
   el.style.display='block';
