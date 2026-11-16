@@ -1030,6 +1030,7 @@ function render(){
   let body='';
   if(view.tab==='today')body=todayView(ym,m);
   else if(view.tab==='cut')body=cutView(ym,m);
+  else if(view.tab==='pts')body=ptsView();
   else if(view.tab==='graph')body=graphView(ym,m);
   else if(view.tab==='cal')body=calView(ym,m);
   else if(view.tab==='member'&&MGR)body=memberView(ym);
@@ -1048,6 +1049,7 @@ function render(){
   <nav>
     <button data-tab="today" class="${view.tab==='today'?'on':''}"><span>🎯</span>成果</button>
     <button data-tab="cut" class="${view.tab==='cut'?'on':''}"><span>🚩</span>足切り</button>
+    <button data-tab="pts" class="${view.tab==='pts'?'on':''}"><span>💎</span>ポイント</button>
     <button data-tab="graph" class="${view.tab==='graph'?'on':''}"><span>📊</span>グラフ</button>
     <button data-tab="cal" class="${view.tab==='cal'?'on':''}"><span>📅</span>カレンダー</button>
     ${MGR||SHARED||(CLOUD&&isCloudMgr())?`<button data-tab="member" class="${view.tab==='member'?'on':''}"><span>👥</span>メンバー</button>`:''}
@@ -1222,6 +1224,23 @@ function cutView(ym,m){
   h+=`<div class="sub" style="text-align:center">ペースOK＝今のペースなら月末に足切りを超える見込み</div>`;
   return h;
 }
+function ptsView(){
+  const rows=[];
+  S.items.forEach(it=>{const sb=subsOf(it);
+    if(sb.length)sb.forEach(x=>rows.push({i:it.id,s:x.id,name:it.name||'名前なし',sub:x.name||'種類',unit:it.unit||'件',pt:x.pt===''||x.pt==null?null:Number(x.pt),cut:!!x.cut}));
+    else rows.push({i:it.id,s:null,name:it.name||'名前なし',sub:'',unit:it.unit||'件',pt:it.pt===''||it.pt==null?null:Number(it.pt),cut:false});});
+  if(!rows.length)return `<div class="card empty">まだ項目がありません。<br>「項目設定」で項目とポイントを決めると、ここに並びます。<button class="btn" data-tab="set">項目設定へ</button></div>`;
+  const has=rows.filter(r=>r.pt).sort((a,b)=>b.pt-a.pt||a.name.localeCompare(b.name,'ja')),none=rows.filter(r=>!r.pt);
+  const max=has.length?has[0].pt:1;let rank=0,prev=null;
+  let h=`<div class="card"><div class="iname">獲得ポイントの高い順</div><div class="sub" style="margin:2px 0 8px">1${'件'}あたりにもらえるポイントです。タップすると、その項目で「今日の成果」に入力できます。</div>`;
+  h+=has.map((r,i)=>{if(r.pt!==prev){rank=i+1;prev=r.pt;}const md=rank===1?'🥇':rank===2?'🥈':rank===3?'🥉':`<span class="rk">${rank}</span>`;
+    return `<button class="rrow" data-a="ptgo" data-id="${r.i}" data-s="${r.s||''}"><span class="rmd">${md}</span><span class="rmain"><span class="between"><span><b>${esc(r.name)}</b>${r.sub?`<span class="sub">（${esc(r.sub)}）</span>`:''}${r.cut?' <i class="sbc">足切り</i>':''}</span><b style="font-size:18px;color:var(--acc)">${fmt(r.pt)}<small class="sub">pt</small></b></span>
+      <span class="rbar"><i style="width:${Math.max(3,r.pt/max*100)}%"></i></span><span class="sub">1${esc(r.unit)}で ${fmt(r.pt)}pt</span></span></button>`;}).join('');
+  if(!has.length)h+='<div class="sub" style="padding:8px 0">ポイントが決まっている項目がまだありません。</div>';
+  h+='</div>';
+  if(none.length)h+=`<div class="card"><div class="iname">ポイントなし</div><div class="sub" style="margin:2px 0 6px">ポイントが決まっていない項目です。項目設定の「設定 ▼」から決められます。</div>${none.map(r=>`<div class="drow"><span>${esc(r.name)}${r.sub?`<span class="sub">（${esc(r.sub)}）</span>`:''}</span><span class="sub">—</span></div>`).join('')}</div>`;
+  return h;
+}
 function gBar(base,g,c,cu,color,cn,subs,u){
   // 線（足切り・個人目標）と、その下のラベル
   const same=c&&!c.yen&&(!g||!g.yen);
@@ -1279,6 +1298,7 @@ $app.addEventListener('click',e=>{
   if(CLOUD&&['cstage','reload','clogout','clogin','csignup','cjoin'].includes(a)){cloudAction(a,t);return;}
   if(CLOUD&&['crefresh','cdist','crole','cremove','cinvite','crename','cregen'].includes(a)){cloudMgrAction(a,t);return;}
   if(VIEWER&&a.startsWith('v')){viewerAction(a,t);return;}
+  if(a==='ptgo'){lastAct=id;lastSub=t.dataset.s||null;view.tab='today';view.ym=curYM;render();window.scrollTo(0,0);return;}
   if(a==='switch'){leaveProfile();return;}
   if(a==='pickp'){const pr=SH.profiles[id];if(!pr)return;if(pr.pin)pinModal(esc(pr.name)+'さん','暗証番号を入れてください。',v=>{if(v!==pr.pin)return false;enterProfile(id);});else enterProfile(id);return;}
   if(a==='addp'){addProfile();return;}
