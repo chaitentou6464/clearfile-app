@@ -39,10 +39,12 @@ main{padding:12px}
 .step input{flex:1;height:44px;border-radius:12px;border:1px solid var(--line);text-align:center;font-size:18px;font-weight:700;min-width:0}
 .tag{display:inline-block;font-size:11.5px;font-weight:700;padding:3px 8px;border-radius:20px;background:#e0e7ff;color:var(--acc)}
 .tag.ok{background:#dcfce7;color:var(--ok)}.tag.warn{background:#ffedd5;color:var(--warn)}.tag.bad{background:#fee2e2;color:var(--bad)}
-nav{position:fixed;bottom:0;left:0;right:0;background:#fff;border-top:1px solid var(--line);display:flex;padding-bottom:env(safe-area-inset-bottom)}
-nav button{flex:1;border:0;background:none;padding:10px 0 12px;font-size:12px;color:var(--sub)}
-nav button span{display:block;font-size:20px}
-nav button.on{color:var(--acc);font-weight:700}
+nav{position:fixed;bottom:0;left:0;right:0;background:rgba(255,255,255,.94);-webkit-backdrop-filter:blur(14px);backdrop-filter:blur(14px);border-top:1px solid rgba(15,23,42,.06);display:flex;padding:4px 4px env(safe-area-inset-bottom);z-index:20}
+nav button{flex:1;min-width:0;border:0;background:none;padding:6px 0 9px;font-size:10.5px;letter-spacing:.02em;color:#98a0ad;white-space:nowrap;-webkit-tap-highlight-color:transparent}
+nav .ic{display:flex;align-items:center;justify-content:center;width:46px;max-width:100%;height:28px;margin:0 auto 3px;border-radius:14px;transition:background .2s,color .2s}
+nav .ic svg{width:21px;height:21px;fill:none;stroke:currentColor;stroke-width:1.8;stroke-linecap:round;stroke-linejoin:round}
+nav button.on{color:var(--acc);font-weight:600}
+nav button.on .ic{background:#e9f0ff}
 .cal{display:grid;grid-template-columns:repeat(7,1fr);gap:4px}
 .cal .h{text-align:center;font-size:11px;color:var(--sub);padding:2px 0}
 .cal .d{aspect-ratio:1;border-radius:10px;background:var(--bg);border:2px solid transparent;display:flex;flex-direction:column;align-items:center;justify-content:center;font-size:14px;font-weight:600;padding:0}
@@ -106,7 +108,6 @@ nav button.on{color:var(--acc);font-weight:700}
 .cbar{height:8px;background:var(--line);border-radius:4px;overflow:hidden;margin:5px 0 4px}
 .cbar i{display:block;height:100%;border-radius:4px}.cbar i.ok{background:var(--ok)}.cbar i.pace{background:var(--acc)}.cbar i.bad,.cbar i.ng{background:var(--bad)}
 .dot{display:inline-block;width:9px;height:9px;border-radius:3px;margin-right:3px;vertical-align:middle}
-nav button{font-size:11px}
 .ihead{display:flex;width:100%;justify-content:space-between;align-items:center;gap:8px;text-align:left;background:none;border:0;border-top:1px solid var(--line);padding:12px 2px;margin-top:4px;font-size:15px;color:var(--ink)}
 .ihead>span:first-child{display:flex;flex-direction:column;gap:2px;min-width:0}
 .chev{font-size:12px;color:var(--acc);white-space:nowrap;font-weight:700}
@@ -847,7 +848,7 @@ function staffDetail(x,ym){
 function staffChips(list){return `<div class="chips">${list.map(x=>`<button class="chip ${x.uid===view.vmem?'on':''}" data-a="vmem" data-id="${x.uid}"><b>${esc(x.name)}</b><small>${x.p?fmt(x.p.pts||0)+'pt':'未入力'}</small></button>`).join('')}</div>`;}
 function viewerRender(){
   const ym=view.ym,[y,mo]=ym.split('-'),M=Number(mo);
-  const tabs=APP==='store'?[['staff','👤','スタッフ'],['rank','🏆','ランキング'],['total','🏪','店舗合計'],['vset','⚙️','設定']]:[['shops','🏪','店舗'],['srank','🏆','店舗順位'],['staff','👤','スタッフ'],['arank','🥇','全体順位'],['vset','⚙️','設定']];
+  const tabs=APP==='store'?[['staff','staff','スタッフ'],['rank','rank','ランキング'],['total','shop','店舗合計'],['vset','set','設定']]:[['shops','shop','店舗'],['srank','rank','店舗順位'],['staff','staff','スタッフ'],['arank','medal','全体順位'],['vset','set','設定']];
   if(!tabs.some(t=>t[0]===view.vtab))view.vtab=tabs[0][0];
   const title=APP==='store'?(CL.shop&&CL.shop.name||'店舗'):(CL.org&&CL.org.name||'本部');
   let body='';
@@ -885,7 +886,7 @@ function viewerRender(){
     <div class="mrow"><button data-a="prev">‹</button><div class="mtitle">${y}年${M}月</div><button data-a="next">›</button></div>
     <div class="sub">${CL.teamAt?`最終更新 ${new Date(CL.teamAt).toLocaleTimeString('ja-JP',{hour:'2-digit',minute:'2-digit'})}　スタッフが入力すると自動で反映されます`:''}</div>
   </header><main>${body}</main>
-  <nav>${tabs.map(t=>`<button data-a="vtab" data-v="${t[0]}" class="${view.vtab===t[0]?'on':''}"><span>${t[1]}</span>${t[2]}</button>`).join('')}</nav>`;
+  <nav>${tabs.map(t=>`<button data-a="vtab" data-v="${t[0]}" class="${view.vtab===t[0]?'on':''}">${ic(t[1])}${t[2]}</button>`).join('')}</nav>`;
 }
 function viewerSettings(){
   const T=CL.team,me=APP==='hq'?CL.hq:CL.member,email=(CL.user&&CL.user.email)||'';
@@ -1053,16 +1054,18 @@ function render(){
   </header>
   <main>${body}</main>
   <nav>
-    <button data-tab="today" class="${view.tab==='today'?'on':''}"><span>🎯</span>成果</button>
-    <button data-tab="cut" class="${view.tab==='cut'?'on':''}"><span>🚩</span>足切り</button>
-    <button data-tab="pts" class="${view.tab==='pts'?'on':''}"><span>💎</span>ポイント</button>
-    ${SETS_ON?`<button data-tab="sets" class="${view.tab==='sets'?'on':''}"><span>📦</span>セット</button>`:''}
-    <button data-tab="graph" class="${view.tab==='graph'?'on':''}"><span>📊</span>グラフ</button>
-    <button data-tab="cal" class="${view.tab==='cal'?'on':''}"><span>📅</span>カレンダー</button>
-    ${MGR||SHARED||(CLOUD&&isCloudMgr())?`<button data-tab="member" class="${view.tab==='member'?'on':''}"><span>👥</span>メンバー</button>`:''}
-    <button data-tab="set" class="${view.tab==='set'?'on':''}"><span>⚙️</span>項目設定</button>
+    <button data-tab="today" class="${view.tab==='today'?'on':''}">${ic('today')}成果</button>
+    <button data-tab="cut" class="${view.tab==='cut'?'on':''}">${ic('cut')}足切り</button>
+    <button data-tab="pts" class="${view.tab==='pts'?'on':''}">${ic('pts')}ポイント</button>
+    ${SETS_ON?`<button data-tab="sets" class="${view.tab==='sets'?'on':''}">${ic('sets')}セット</button>`:''}
+    <button data-tab="graph" class="${view.tab==='graph'?'on':''}">${ic('graph')}グラフ</button>
+    <button data-tab="cal" class="${view.tab==='cal'?'on':''}">${ic('cal')}カレンダー</button>
+    ${MGR||SHARED||(CLOUD&&isCloudMgr())?`<button data-tab="member" class="${view.tab==='member'?'on':''}">${ic('member')}メンバー</button>`:''}
+    <button data-tab="set" class="${view.tab==='set'?'on':''}">${ic('set')}項目設定</button>
   </nav>`;
 }
+const ICONS={"today": '<circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="5"/><circle cx="12" cy="12" r="1.2"/>', "cut": '<path d="M5 21V4"/><path d="M5 4h12l-2.5 4L17 12H5"/>', "pts": '<path d="M6.5 3.5h11L21 9l-9 11.5L3 9z"/><path d="M3 9h18"/><path d="M9.5 3.5 8 9l4 11.5L16 9l-1.5-5.5"/>', "sets": '<path d="M21 7.5 12 3 3 7.5l9 4.5z"/><path d="M3 7.5v9l9 4.5 9-4.5v-9"/><path d="M12 12v9"/>', "graph": '<path d="M5 20V11"/><path d="M12 20V4"/><path d="M19 20v-7"/>', "cal": '<rect x="3.5" y="5" width="17" height="15.5" rx="2.5"/><path d="M3.5 10h17"/><path d="M8 3v4"/><path d="M16 3v4"/>', "member": '<circle cx="9" cy="8" r="3.5"/><path d="M2.5 20c.8-3.5 3.3-5.5 6.5-5.5s5.7 2 6.5 5.5"/><path d="M16 4.6a3.5 3.5 0 0 1 0 6.8"/><path d="M18 14.6c2 .7 3.2 2.6 3.6 5.4"/>', "set": '<path d="M4 7h9"/><path d="M19 7h1"/><circle cx="16" cy="7" r="2.5"/><path d="M4 17h3"/><path d="M13 17h7"/><circle cx="10" cy="17" r="2.5"/>', "staff": '<circle cx="12" cy="8" r="4"/><path d="M4.5 20.5c1-4 3.9-6 7.5-6s6.5 2 7.5 6"/>', "rank": '<path d="M8 4h8v5a4 4 0 0 1-8 0z"/><path d="M8 6H5.5a2.5 2.5 0 0 0 2.6 3.6"/><path d="M16 6h2.5a2.5 2.5 0 0 1-2.6 3.6"/><path d="M12 13v4"/><path d="M8.5 20.5h7"/><path d="M10 17h4l.5 3.5h-5z"/>', "shop": '<path d="M4 9.5 5.5 4h13L20 9.5"/><path d="M4 9.5a2.7 2.7 0 0 0 5.3 0 2.7 2.7 0 0 0 5.4 0 2.7 2.7 0 0 0 5.3 0"/><path d="M5.5 12v8.5h13V12"/><path d="M10 20.5v-5h4v5"/>', "medal": '<circle cx="12" cy="15" r="5.5"/><path d="M8.5 3 12 9.5 15.5 3"/><path d="M12 13v4"/>'};
+function ic(n){return `<span class="ic"><svg viewBox="0 0 24 24" aria-hidden="true">${ICONS[n]||''}</svg></span>`;}
 function calcRemain(ym,m){let c=0;for(let d=1;d<=daysIn(ym);d++){const k=dkey(ym,d);if(k>=todayKey&&!m.off.includes(k))c++;}return c;}
 
 function todayView(ym,m){
