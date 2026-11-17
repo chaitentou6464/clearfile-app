@@ -17,6 +17,8 @@ header{position:sticky;top:0;z-index:5;background:var(--ink);color:#fff;padding:
 .mrow{display:flex;align-items:center;justify-content:space-between}
 .mrow button{background:rgba(255,255,255,.12);color:#fff;border:0;border-radius:10px;width:40px;height:36px;font-size:18px}
 .mtitle{font-size:19px;font-weight:700}
+.mgrp{display:flex;align-items:center;gap:12px}.mgrp button{width:34px;height:32px}.hsp{width:40px;flex:none}
+.mrow .hgear{display:flex;align-items:center;justify-content:center;flex:none;background:none;color:#cbd5e1}.hgear svg{width:22px;height:22px;fill:none;stroke:currentColor;stroke-width:1.7;stroke-linecap:round;stroke-linejoin:round}.mrow .hgear.on{background:rgba(255,255,255,.16);color:#fff}
 .sub{color:var(--sub);font-size:12.5px}
 header .sub{color:#cbd5e1;text-align:center;margin-top:4px}
 .save{font-size:11px;text-align:center;color:#94a3b8;margin-top:2px;min-height:14px}
@@ -764,7 +766,7 @@ async function cloudAction(a,t){
       else if(mode==='ocreate'){const {error}=await c.rpc('create_org',{org_name:shopName,member_name:nm});if(error)throw error;}
       else{const {data:newCode,error}=await c.rpc('create_shop',{shop_name:shopName,member_name:nm});if(error)throw error;CL.newCode=newCode;}
       CL.stage='loading';render();await cloudAfterLogin();
-      if(CL.newCode)modal(`<h3>店舗を作りました</h3><p class="sub">店舗コードは <b style="font-size:20px;letter-spacing:2px;color:var(--ink)">${esc(CL.newCode)}</b> です。スタッフは登録のときにこのコードを入れて参加します。項目設定の「アカウント」からいつでも確認・共有できます。</p><button class="btn" data-x="no">OK</button>`,(e,cl)=>{if(e.target.closest('[data-x]'))cl();});
+      if(CL.newCode)modal(`<h3>店舗を作りました</h3><p class="sub">店舗コードは <b style="font-size:20px;letter-spacing:2px;color:var(--ink)">${esc(CL.newCode)}</b> です。スタッフは登録のときにこのコードを入れて参加します。右上の⚙（項目設定）の「アカウント」からいつでも確認・共有できます。</p><button class="btn" data-x="no">OK</button>`,(e,cl)=>{if(e.target.closest('[data-x]'))cl();});
       return;}
   }catch(err){CL.err=jaErr(err);if(!CL.ok)render();else modal(`<h3>うまくいきませんでした</h3><p class="sub">${esc(CL.err)}</p><button class="btn" data-x="no">閉じる</button>`,(e,cl)=>{if(e.target.closest('[data-x]'))cl();});}
 }
@@ -1049,7 +1051,7 @@ function render(){
   $app.innerHTML=`
   <header>
     ${SHARED?`<div class="whorow"><span>👤 <b>${esc(SH.profiles[CUR].name)}</b> さん</span><button class="who" data-a="switch">切り替え</button></div>`:''}
-    <div class="mrow"><button data-a="prev">‹</button><div class="mtitle">${MGR?'<span class="mgrb">店長用</span>':''}${y}年${Number(mo)}月</div><button data-a="next">›</button></div>
+    <div class="mrow"><span class="hsp"></span><div class="mgrp"><button data-a="prev" aria-label="前の月">‹</button><div class="mtitle">${MGR?'<span class="mgrb">店長用</span>':''}${y}年${Number(mo)}月</div><button data-a="next" aria-label="次の月">›</button></div><button class="hgear ${view.tab==='set'?'on':''}" data-tab="set" aria-label="項目設定"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg></button></div>
     <div class="sub">営業日 ${n-offs}日（休み ${offs}日）${ym===curYM?` ／ 今日から残り ${calcRemain(ym,m)}日`:''}</div>
     <div class="save" id="savemsg">${esc(saveMsg)}</div>
   </header>
@@ -1061,7 +1063,6 @@ function render(){
     <button data-tab="graph" class="${view.tab==='graph'?'on':''}">${ic('graph')}グラフ</button>
     <button data-tab="cal" class="${view.tab==='cal'?'on':''}">${ic('cal')}カレンダー</button>
     ${MGR||SHARED||(CLOUD&&isCloudMgr())?`<button data-tab="member" class="${view.tab==='member'?'on':''}">${ic('member')}メンバー</button>`:''}
-    <button data-tab="set" class="${view.tab==='set'?'on':''}">${ic('set')}項目設定</button>
   </nav>`;
 }
 const ICONS={"today": '<circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r="5"/><circle cx="12" cy="12" r="1.2"/>', "cut": '<path d="M5 21V4"/><path d="M5 4h12l-2.5 4L17 12H5"/>', "pts": '<path d="M6.5 3.5h11L21 9l-9 11.5L3 9z"/><path d="M3 9h18"/><path d="M9.5 3.5 8 9l4 11.5L16 9l-1.5-5.5"/>', "sets": '<path d="M21 7.5 12 3 3 7.5l9 4.5z"/><path d="M3 7.5v9l9 4.5 9-4.5v-9"/><path d="M12 12v9"/>', "graph": '<path d="M5 20V11"/><path d="M12 20V4"/><path d="M19 20v-7"/>', "cal": '<rect x="3.5" y="5" width="17" height="15.5" rx="2.5"/><path d="M3.5 10h17"/><path d="M8 3v4"/><path d="M16 3v4"/>', "member": '<circle cx="9" cy="8" r="3.5"/><path d="M2.5 20c.8-3.5 3.3-5.5 6.5-5.5s5.7 2 6.5 5.5"/><path d="M16 4.6a3.5 3.5 0 0 1 0 6.8"/><path d="M18 14.6c2 .7 3.2 2.6 3.6 5.4"/>', "set": '<path d="M4 7h9"/><path d="M19 7h1"/><circle cx="16" cy="7" r="2.5"/><path d="M4 17h3"/><path d="M13 17h7"/><circle cx="10" cy="17" r="2.5"/>', "staff": '<circle cx="12" cy="8" r="4"/><path d="M4.5 20.5c1-4 3.9-6 7.5-6s6.5 2 7.5 6"/>', "rank": '<path d="M8 4h8v5a4 4 0 0 1-8 0z"/><path d="M8 6H5.5a2.5 2.5 0 0 0 2.6 3.6"/><path d="M16 6h2.5a2.5 2.5 0 0 1-2.6 3.6"/><path d="M12 13v4"/><path d="M8.5 20.5h7"/><path d="M10 17h4l.5 3.5h-5z"/>', "shop": '<path d="M4 9.5 5.5 4h13L20 9.5"/><path d="M4 9.5a2.7 2.7 0 0 0 5.3 0 2.7 2.7 0 0 0 5.4 0 2.7 2.7 0 0 0 5.3 0"/><path d="M5.5 12v8.5h13V12"/><path d="M10 20.5v-5h4v5"/>', "medal": '<circle cx="12" cy="15" r="5.5"/><path d="M8.5 3 12 9.5 15.5 3"/><path d="M12 13v4"/>'};
@@ -1069,7 +1070,7 @@ function ic(n){return `<span class="ic"><svg viewBox="0 0 24 24" aria-hidden="tr
 function calcRemain(ym,m){let c=0;for(let d=1;d<=daysIn(ym);d++){const k=dkey(ym,d);if(k>=todayKey&&!m.off.includes(k))c++;}return c;}
 
 function todayView(ym,m){
-  if(!S.items.length)return (ym===curYM&&!m.off.includes(todayKey)?logBlock(todayKey):'')+`<div class="card empty">まだ目標の項目がありません。<br>「項目設定」から追加してください。<button class="btn" data-tab="set">項目を追加する</button></div>`;
+  if(!S.items.length)return (ym===curYM&&!m.off.includes(todayKey)?logBlock(todayKey):'')+`<div class="card empty">まだ目標の項目がありません。<br>右上の⚙「項目設定」から追加してください。<button class="btn" data-tab="set">項目を追加する</button></div>`;
   const isCur=ym===curYM,past=ym<curYM;
   let h='';
   const unset=S.items.filter(it=>KINDS.some(([k])=>it[k]&&!it[k].fixed&&tval(ym,it,k)===null));
@@ -1239,7 +1240,7 @@ function ptsView(){
   S.items.forEach(it=>{const sb=subsOf(it);
     if(sb.length)sb.forEach(x=>rows.push({i:it.id,s:x.id,name:it.name||'名前なし',sub:x.name||'種類',unit:it.unit||'件',pt:x.pt===''||x.pt==null?null:Number(x.pt),cut:!!x.cut}));
     else rows.push({i:it.id,s:null,name:it.name||'名前なし',sub:'',unit:it.unit||'件',pt:it.pt===''||it.pt==null?null:Number(it.pt),cut:false});});
-  if(!rows.length)return `<div class="card empty">まだ項目がありません。<br>「項目設定」で項目とポイントを決めると、ここに並びます。<button class="btn" data-tab="set">項目設定へ</button></div>`;
+  if(!rows.length)return `<div class="card empty">まだ項目がありません。<br>右上の⚙「項目設定」で項目とポイントを決めると、ここに並びます。<button class="btn" data-tab="set">項目設定へ</button></div>`;
   const has=rows.filter(r=>r.pt).sort((a,b)=>b.pt-a.pt||a.name.localeCompare(b.name,'ja')),none=rows.filter(r=>!r.pt);
   const max=has.length?has[0].pt:1;let rank=0,prev=null;
   let h=`<div class="card"><div class="iname">獲得ポイントの高い順</div><div class="sub" style="margin:2px 0 8px">1${'件'}あたりにもらえるポイントです。タップすると、その項目で「今日の成果」に入力できます。</div>`;
@@ -1263,7 +1264,7 @@ function sortedParts(st){const ps=st.parts.map((q,k)=>({q,k,p:partInfo(q)})).fil
 function nextN(parts){return parts.reduce((a,q)=>Math.max(a,(q.n??-1)+1),parts.length);}
 function setsView(){
   if(!S.sets)S.sets=[];
-  if(!S.items.length)return `<div class="card empty">まだ項目がありません。<br>先に「項目設定」で項目とポイントを決めてください。<button class="btn" data-tab="set">項目設定へ</button></div>`;
+  if(!S.items.length)return `<div class="card empty">まだ項目がありません。<br>先に右上の⚙「項目設定」で項目とポイントを決めてください。<button class="btn" data-tab="set">項目設定へ</button></div>`;
   const E=view.setEdit;
   if(E){
     const tot=E.parts.reduce((a,q)=>{const p=partInfo(q);return a+(p?p.total:0);},0);
