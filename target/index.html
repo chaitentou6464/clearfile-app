@@ -63,7 +63,7 @@ nav button.on{color:var(--acc);font-weight:700}
 .drow{display:flex;justify-content:space-between;align-items:center;padding:8px 0;border-bottom:1px solid var(--line)}
 .drow:last-child{border:0}
 .drow input{width:110px;height:38px;border-radius:10px;border:1px solid var(--line);text-align:center;font-size:16px}
-.seg{display:inline-flex;border:1px solid var(--line);border-radius:8px;overflow:hidden;vertical-align:middle;margin-left:4px}.seg button{border:0;background:#fff;font-size:11.5px;padding:4px 9px;color:var(--sub)}.seg button.on{background:var(--acc);color:#fff;font-weight:700}
+.seg{display:inline-flex;border:1px solid var(--line);border-radius:8px;overflow:hidden;vertical-align:middle;margin-left:4px}.seg button{border:0;background:#fff;font-size:11.5px;padding:4px 9px;color:var(--sub)}.seg button.on{background:var(--acc);color:#fff;font-weight:700}.segb{display:flex;margin-left:0}.segb button{flex:1;font-size:13.5px;padding:9px 0}
 .sel{height:44px;border-radius:12px;border:1px solid var(--line);background:#fff;font-size:16px;padding:0 8px;min-width:0}
 .gr{padding:10px 0;border-bottom:1px solid var(--line)}.gr:last-child{border:0}
 .gbar{position:relative;height:26px;background:var(--bg);border-radius:8px;margin:6px 0 4px;overflow:hidden}
@@ -226,7 +226,8 @@ function sanitizeState(D){
   out.me={id:cleanId(D.me&&D.me.id),name:cStr(D.me&&D.me.name,30)};
   if(D.savedAt)out.savedAt=cNum(D.savedAt);
   out.sets=(Array.isArray(D.sets)?D.sets:[]).filter(x=>x&&typeof x==='object').slice(0,50).map(x=>({id:cleanId(x.id),name:cStr(x.name,40),
-    parts:(Array.isArray(x.parts)?x.parts:[]).filter(q=>q&&typeof q==='object').slice(0,20).map(q=>{const ni=mapI(q.i);if(!ni)return null;const o={i:ni,q:Math.min(99,Math.max(1,Math.round(cNum(q.q)||1)))};if(q.s!=null){const ns=(subMap[ni]||{})[String(q.s)]||(ID_RE.test(String(q.s))?String(q.s):null);if(ns)o.s=ns;}return o;}).filter(Boolean)}));
+    parts:(Array.isArray(x.parts)?x.parts:[]).filter(q=>q&&typeof q==='object').slice(0,20).map((q,qi)=>{const ni=mapI(q.i);if(!ni)return null;const o={i:ni,q:Math.min(99,Math.max(1,Math.round(cNum(q.q)||1))),n:Math.max(0,Math.min(1e6,Math.round(Number.isFinite(Number(q.n))?Number(q.n):qi)))};if(q.s!=null){const ns=(subMap[ni]||{})[String(q.s)]||(ID_RE.test(String(q.s))?String(q.s):null);if(ns)o.s=ns;}return o;}).filter(Boolean)}));
+  if(['pr','pt','add'].includes(D.setSort))out.setSort=D.setSort;
   if(typeof D.cfgAt==='string')out.cfgAt=D.cfgAt.slice(0,40);
   if(typeof D.cloudUser==='string'&&/^[0-9a-f-]{36}$/.test(D.cloudUser))out.cloudUser=D.cloudUser;
   if(D.pendingCfg&&typeof D.pendingCfg==='object')out.pendingCfg=D.pendingCfg;
@@ -1254,6 +1255,9 @@ function partInfo(q){const it=S.items.find(x=>x.id===q.i);if(!it)return null;con
 function setTotal(st){return (st.parts||[]).reduce((a,q)=>{const p=partInfo(q);return a+(p?p.total:0);},0);}
 function itemOptions(sel){const o=[];S.items.forEach(it=>{const sb=subsOf(it);if(sb.length)sb.forEach(x=>o.push([it.id+'|'+x.id,(it.name||'名前なし')+'（'+(x.name||'種類')+'）']));else o.push([it.id+'|',it.name||'名前なし']);});
   return o.map(([v,l])=>`<option value="${v}" ${v===sel?'selected':''}>${esc(l)}</option>`).join('');}
+function sortedParts(st){const ps=st.parts.map((q,k)=>({q,k,p:partInfo(q)})).filter(x=>x.p);const m=S.setSort||'pr';
+  if(m==='pt')ps.sort((a,b)=>b.p.total-a.p.total||a.k-b.k);else if(m==='add')ps.sort((a,b)=>(a.q.n??a.k)-(b.q.n??b.k));return ps.map(x=>x.p);}
+function nextN(parts){return parts.reduce((a,q)=>Math.max(a,(q.n??-1)+1),parts.length);}
 function setsView(){
   if(!S.sets)S.sets=[];
   if(!S.items.length)return `<div class="card empty">まだ項目がありません。<br>先に「項目設定」で項目とポイントを決めてください。<button class="btn" data-tab="set">項目設定へ</button></div>`;
@@ -1262,8 +1266,8 @@ function setsView(){
     const tot=E.parts.reduce((a,q)=>{const p=partInfo(q);return a+(p?p.total:0);},0);
     return `<div class="card"><div class="iname">${E.id?'セットを直す':'セットを作る'}</div>
       <div class="field"><label>セットの名前（手続きの内容）</label><input id="sename" value="${esc(E.name)}" placeholder="例：新規＋端末＋PayPayゴールド"></div>
-      <div class="field"><label>入っている項目</label></div>
-      ${E.parts.map((q,i)=>`<div class="flex" style="margin-top:6px"><select class="sel" data-a="separt" data-i="${i}" style="flex:3">${itemOptions(q.i+'|'+(q.s||''))}</select><select class="sel" data-a="seqty" data-i="${i}" style="flex:1">${Array.from({length:10},(_,k)=>`<option value="${k+1}" ${k+1===q.q?'selected':''}>×${k+1}</option>`).join('')}</select><button class="mini" data-a="sepdel" data-i="${i}" style="color:var(--bad)">✕</button></div>`).join('')||'<div class="sub">まだ項目がありません。下の「＋ 項目を足す」で入れてください。</div>'}
+      <div class="field"><label>入っている項目（上ほど優先度が高い・▲▼で入れ替え）</label></div>
+      ${E.parts.map((q,i)=>`<div class="flex" style="margin-top:6px"><select class="sel" data-a="separt" data-i="${i}" style="flex:3">${itemOptions(q.i+'|'+(q.s||''))}</select><select class="sel" data-a="seqty" data-i="${i}" style="flex:1">${Array.from({length:10},(_,k)=>`<option value="${k+1}" ${k+1===q.q?'selected':''}>×${k+1}</option>`).join('')}</select><button class="mini" data-a="seup" data-i="${i}" ${i===0?'disabled style="opacity:.3"':''}>▲</button><button class="mini" data-a="sedn" data-i="${i}" ${i===E.parts.length-1?'disabled style="opacity:.3"':''}>▼</button><button class="mini" data-a="sepdel" data-i="${i}" style="color:var(--bad)">✕</button></div>`).join('')||'<div class="sub">まだ項目がありません。下の「＋ 項目を足す」で入れてください。</div>'}
       <button class="mini" data-a="sepadd" style="margin-top:10px;padding:0 12px;height:38px;color:var(--acc);font-weight:700">＋ 項目を足す</button>
       <div class="between" style="margin-top:14px;padding-top:10px;border-top:1px solid var(--line)"><span class="sub">1手続きの合計</span><b style="font-size:26px;color:var(--acc)">${fmt(tot)}<small class="sub">pt</small></b></div>
       <div class="mrow2" style="margin-top:6px"><button class="btn ghost" data-a="secancel">やめる</button><button class="btn" data-a="sesave">保存</button></div>
@@ -1271,9 +1275,9 @@ function setsView(){
   }
   const L=S.sets.map(st=>({st,tot:setTotal(st)})).sort((a,b)=>b.tot-a.tot);
   const max=Math.max(1,...L.map(x=>x.tot));
-  let h=`<div class="card"><div class="between" style="align-items:center"><div><div class="iname">自分セット</div><div class="sub">よくある手続きをまとめて、1回で何ポイント入るかを比べられます</div></div></div><button class="btn" data-a="senew">＋ セットを作る</button></div>`;
+  let h=`<div class="card"><div class="between" style="align-items:center"><div><div class="iname">自分セット</div><div class="sub">よくある手続きをまとめて、1回で何ポイント入るかを比べられます</div></div></div><button class="btn" data-a="senew">＋ セットを作る</button>${L.length?`<div class="sub" style="margin-top:12px">セットの中の項目の並び</div><div class="seg segb" style="margin-top:6px">${[['pr','優先度順'],['pt','ポイント順'],['add','追加順']].map(([v,l])=>`<button data-a="sesort" data-v="${v}" class="${(S.setSort||'pr')===v?'on':''}">${l}</button>`).join('')}</div>`:''}</div>`;
   if(!L.length)h+=`<div class="card empty">まだセットがありません。<br>例：「新規＋端末あり＋PayPayゴールド」のように、よくある手続きの組み合わせを作ってみましょう。</div>`;
-  h+=L.map(({st,tot},r)=>{const ps=st.parts.map(partInfo).filter(Boolean);
+  h+=L.map(({st,tot},r)=>{const ps=sortedParts(st);
     return `<div class="card"><div class="between" style="align-items:flex-start"><div style="min-width:0"><span class="sub">${r===0&&tot>0?'🥇 いちばん高い':`${r+1}位`}</span><div class="iname" style="margin-top:2px">${esc(st.name||'名前なし')}</div></div><div style="text-align:right;white-space:nowrap"><div class="big" style="font-size:34px;color:var(--acc)">${fmt(tot)}<small>pt</small></div><div class="sub">1手続きあたり</div></div></div>
       <div class="stk" style="width:${Math.max(4,tot/max*100)}%">${ps.map((p,i)=>p.total?`<i style="flex:${p.total};background:${SEG[i%SEG.length]}"></i>`:'').join('')}</div>
       <div style="margin-top:8px">${ps.map((p,i)=>`<div class="drow" style="padding:6px 0"><span class="flex" style="gap:6px;min-width:0"><i class="dot" style="background:${SEG[i%SEG.length]}"></i><span>${esc(p.label)} <span class="sub">×${p.q}</span></span></span><span class="sub" style="white-space:nowrap">${fmt(p.pt)}pt × ${p.q} ＝ <b style="color:var(--ink)">${fmt(p.total)}pt</b></span></div>`).join('')}</div>
@@ -1354,9 +1358,11 @@ $app.addEventListener('click',e=>{
   if(CLOUD&&['cstage','reload','clogout','clogin','csignup','cjoin'].includes(a)){cloudAction(a,t);return;}
   if(CLOUD&&['crefresh','cdist','crole','cremove','cinvite','crename','cregen'].includes(a)){cloudMgrAction(a,t);return;}
   if(VIEWER&&a.startsWith('v')){viewerAction(a,t);return;}
-  if(a==='senew'){const f=S.items[0];view.setEdit={id:null,name:'',parts:f?[{i:f.id,s:(subsOf(f)[0]||{}).id||null,q:1}]:[]};view.sedel=false;render();window.scrollTo(0,0);return;}
+  if(a==='senew'){const f=S.items[0];view.setEdit={id:null,name:'',parts:f?[{i:f.id,s:(subsOf(f)[0]||{}).id||null,q:1,n:0}]:[]};view.sedel=false;render();window.scrollTo(0,0);return;}
   if(a==='seedit'){const st=(S.sets||[]).find(x=>x.id===id);if(!st)return;view.setEdit=JSON.parse(JSON.stringify(st));view.sedel=false;render();window.scrollTo(0,0);return;}
-  if(a==='sepadd'){const E=view.setEdit;if(!E)return;const nm=(document.getElementById('sename')||{}).value;if(nm!=null)E.name=nm;const f=S.items[0];if(f)E.parts.push({i:f.id,s:(subsOf(f)[0]||{}).id||null,q:1});render();return;}
+  if(a==='sepadd'){const E=view.setEdit;if(!E)return;const nm=(document.getElementById('sename')||{}).value;if(nm!=null)E.name=nm;const f=S.items[0];if(f)E.parts.push({i:f.id,s:(subsOf(f)[0]||{}).id||null,q:1,n:nextN(E.parts)});render();return;}
+  if(a==='seup'||a==='sedn'){const E=view.setEdit;if(!E)return;const nm=(document.getElementById('sename')||{}).value;if(nm!=null)E.name=nm;const i=Number(t.dataset.i),j=a==='seup'?i-1:i+1;if(j<0||j>=E.parts.length)return;[E.parts[i],E.parts[j]]=[E.parts[j],E.parts[i]];render();return;}
+  if(a==='sesort'){const v=t.dataset.v;if(!['pr','pt','add'].includes(v))return;S.setSort=v;changed();render();return;}
   if(a==='sepdel'){const E=view.setEdit;if(!E)return;const nm=(document.getElementById('sename')||{}).value;if(nm!=null)E.name=nm;E.parts.splice(Number(t.dataset.i),1);render();return;}
   if(a==='secancel'){view.setEdit=null;render();return;}
   if(a==='sesave'){const E=view.setEdit;if(!E)return;E.name=((document.getElementById('sename')||{}).value||'').trim();if(!E.name){const el=document.getElementById('sename');el.style.borderColor='var(--bad)';el.focus();return;}
