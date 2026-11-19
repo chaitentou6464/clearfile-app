@@ -125,6 +125,7 @@ textarea.tin{font-size:12px;word-break:break-all}
 .ck input{width:22px;height:22px;margin:0;accent-color:var(--bad)}
 .sect{display:flex;align-items:center;gap:8px;font-weight:800;font-size:17px;margin:6px 2px 8px}.sect::before{content:'';width:5px;height:18px;border-radius:3px;background:var(--sc,var(--acc))}
 .dayrow{display:flex;align-items:center;justify-content:center;gap:8px;margin-bottom:12px}.dayrow .dt{font-weight:800;font-size:17px;min-width:150px;text-align:center}.dayrow .mini{height:38px;min-width:44px;font-size:18px}
+.pk{display:flex;gap:8px;margin-top:10px}.pk button{flex:1;height:40px;border-radius:10px;border:1.5px solid var(--line);background:#fff;font-size:14.5px;font-weight:700;color:var(--sub)}.pk button.on{border-color:#e60012;background:#fff1f2;color:#e60012}.kb{display:inline-block;font-size:11px;font-weight:700;padding:1px 6px;border-radius:6px;margin-right:4px;vertical-align:1px}.kb.j{background:#e0ecff;color:#1d4ed8}.kb.k{background:#fff1f2;color:#e60012}
 .omrbtns{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:10px}.omrbtns .mini{height:40px;font-weight:700}.omrbtns .omrread{background:var(--ink);color:#fff;border-color:var(--ink)}
 .omrov{position:fixed;inset:0;z-index:40;background:var(--bg);overflow:auto}
 .omrbar{position:sticky;top:0;display:flex;justify-content:space-between;align-items:center;background:var(--ink);color:#fff;padding:12px 14px;z-index:2}
@@ -232,7 +233,7 @@ function sanitizeState(D){
         if(r.s!=null){const ns=(subMap[ni]||{})[String(r.s)]||(ID_RE.test(String(r.s))?String(r.s):null);if(ns)rec.s=ns;}if(r.y)rec.y=Math.max(0,cNum(r.y));if(r.a!==undefined&&r.i===undefined)rec.a=r.a;return rec;}).filter(Boolean);}
     for(const k in (m.sbLogs||{})){if(!DAY_RE.test(k)||!Array.isArray(m.sbLogs[k]))continue;
       const L=m.sbLogs[k].filter(r=>r&&typeof r==='object').map(r=>{const ni=sbMap[String(r.i)]||(ID_RE.test(String(r.i))?String(r.i):null);if(!ni)return null;const rec={id:cleanId(r.id),i:ni,q:Math.max(0,Math.round(cNum(r.q)))};
-        if(r.s!=null){const ns=(sbSub[ni]||{})[String(r.s)]||(ID_RE.test(String(r.s))?String(r.s):null);if(ns)rec.s=ns;}return rec;}).filter(Boolean);
+        if(r.s!=null){const ns=(sbSub[ni]||{})[String(r.s)]||(ID_RE.test(String(r.s))?String(r.s):null);if(ns)rec.s=ns;}if(r.k==='keep'||r.k==='join')rec.k=r.k;return rec;}).filter(Boolean);
       if(L.length){o.sbLogs=o.sbLogs||{};o.sbLogs[k]=L;}}
     for(const i in (m.sbT||{})){const ni=sbMap[String(i)]||(ID_RE.test(String(i))?String(i):null);if(!ni)continue;const tv=m.sbT[i]||{},ot={};if('cut' in tv)ot.cut=cNumB(tv.cut);if('goal' in tv)ot.goal=cNumB(tv.goal);o.sbT=o.sbT||{};o.sbT[ni]=ot;}
     out.months[ym]=o;}
@@ -1083,7 +1084,8 @@ function ic(n){return `<span class="ic"><svg viewBox="0 0 24 24" aria-hidden="tr
 function calcRemain(ym,m){let c=0;for(let d=1;d<=daysIn(ym);d++){const k=dkey(ym,d);if(k>=todayKey&&!m.off.includes(k))c++;}return c;}
 
 // ======== takami：入力タブ（上：ソフトバンク成果／下：フェニックス実績） ========
-let sbA=null,sbQ=1,sbS=null;
+let sbA=null,sbQ=1,sbS=null,sbK='join';
+const KL={join:'加入提案',keep:'継続提案'};
 const SBI=()=>(S.sb&&S.sb.items)||[];
 const WD='日月火水木金土';
 function dayLabel(k){const[,mm,dd]=k.split('-');return `${Number(mm)}月${Number(dd)}日（${WD[dow(k)]}）`;}
@@ -1098,8 +1100,8 @@ function sbBlock(k){
   const ss=sb.some(x=>x.id===sbS)?sbS:(sb[0]||{}).id;
   let tot=0;
   const rows=L.map(r=>{const x=items.find(v=>v.id===r.i);if(!x)return '';const st=(x.subs||[]).find(v=>v.id===r.s),pp=sbPt(x,r);tot+=r.q*pp;
-    return `<div class="drow"><div><b>${esc(x.name||'名前なし')}${st?`（${esc(st.name||'種類')}）`:''}</b> ${r.q}${esc(x.unit||'')}${x.keep?`<div class="sub">継続${x.keep}か月：${keepDate(k,x.keep)}まで</div>`:''}</div><div class="flex"><span class="sub">${r.q}×${fmt(pp)}pt＝</span><b>${fmt(r.q*pp)}pt</b><button class="mini" data-a="sbdellog" data-k="${k}" data-r="${r.id}">✕</button></div></div>`;}).join('');
-  const mo=Number(k.slice(5,7));
+    return `<div class="drow"><div><b>${esc(x.name||'名前なし')}${st?`（${esc(st.name||'種類')}）`:''}</b> ${r.q}${esc(x.unit||'')}${r.k?`<div class="sub" style="margin-top:2px"><span class="kb ${r.k==='keep'?'k':'j'}">${KL[r.k]}</span>${x.keep&&r.k==='keep'?`継続${x.keep}か月：${keepDate(k,x.keep)}まで`:''}</div>`:''}</div><div class="flex" style="flex:none"><span class="sub" style="white-space:nowrap">${r.q}×${fmt(pp)}pt＝</span><b>${fmt(r.q*pp)}pt</b><button class="mini" data-a="sbdellog" data-k="${k}" data-r="${r.id}">✕</button></div></div>`;}).join('');
+  const mo=Number(k.slice(5,7));let nj=0,nk=0;for(const d in (m.sbLogs||{}))for(const r of m.sbLogs[d]){if(r.k==='keep')nk+=r.q;else if(r.k==='join')nj+=r.q;}
   return `<div class="card">
     <div class="between" style="align-items:center"><div class="sub">${mo}月の合計 <b style="color:var(--ink)">${fmt(sbMonthPts(k.slice(0,7)))}pt</b></div><div class="big" style="font-size:26px;color:#e60012">${fmt(tot)}<small>pt</small></div></div>
     <div class="flex" style="flex-wrap:wrap;margin-top:8px">
@@ -1108,6 +1110,8 @@ function sbBlock(k){
       <select id="sq" class="sel" style="flex:1">${Array.from({length:10},(_,i)=>`<option value="${i+1}" ${i+1===sbQ?'selected':''}>${i+1}</option>`).join('')}</select>
       <button class="mini" data-a="sbaddlog" data-k="${k}" style="height:44px;padding:0 14px;background:var(--acc);color:#fff;border:0;font-weight:700">追加</button>
     </div>
+    <div class="pk">${['join','keep'].map(v=>`<button data-a="sbkind" data-v="${v}" class="${sbK===v?'on':''}">${sbK===v?'☑':'☐'} ${KL[v]}</button>`).join('')}</div>
+    <div class="sub" style="margin-top:6px">${mo}月：加入提案 <b style="color:var(--ink)">${nj}</b>件・継続提案 <b style="color:var(--ink)">${nk}</b>件</div>
     <div style="margin-top:6px">${rows||'<div class="sub" style="padding:8px 0">まだ入力がありません</div>'}</div>
   </div>`;
 }
@@ -1427,8 +1431,9 @@ $app.addEventListener('click',e=>{
   const a=t.dataset.a,id=t.dataset.id;
   if(a==='org'){view.org=view.org==='px'?'sb':'px';render();return;}
   if(a==='dprev'||a==='dnext'||a==='dtoday'){let k=view.inDay||todayKey;if(a==='dtoday')k=todayKey;else{const d=new Date(k.slice(0,4),k.slice(5,7)-1,Number(k.slice(8))+(a==='dnext'?1:-1));k=`${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`;}view.inDay=k;view.ym=k.slice(0,7);render();return;}
+  if(a==='sbkind'){sbK=t.dataset.v==='keep'?'keep':'join';const q=document.getElementById('sq');if(q)sbQ=Number(q.value);const el=document.getElementById('sbs');if(el)sbS=el.value;const sa=document.getElementById('sa');if(sa)sbA=sa.value;render();return;}
   if(a==='sbaddlog'){const k=t.dataset.k,iid=document.getElementById('sa').value,q=Number(document.getElementById('sq').value),el=document.getElementById('sbs'),sid=el?el.value:null;if(!SBI().some(x=>x.id===iid))return;sbA=iid;sbQ=q;if(sid)sbS=sid;
-    const m=ensure(k.slice(0,7));m.sbLogs=m.sbLogs||{};const rec={id:uid(),i:iid,q};if(sid)rec.s=sid;(m.sbLogs[k]=m.sbLogs[k]||[]).push(rec);changed();render();return;}
+    const m=ensure(k.slice(0,7));m.sbLogs=m.sbLogs||{};const rec={id:uid(),i:iid,q,k:sbK};if(sid)rec.s=sid;(m.sbLogs[k]=m.sbLogs[k]||[]).push(rec);changed();render();return;}
   if(a==='sbdellog'){const k=t.dataset.k,m=ensure(k.slice(0,7)),L=(m.sbLogs||{})[k]||[],i=L.findIndex(r=>r.id===t.dataset.r);if(i<0)return;L.splice(i,1);if(!L.length)delete m.sbLogs[k];changed();render();return;}
   if(a==='sbnew'){S.sb=S.sb||{items:[]};S.sb.items.push({id:(openId=uid()),name:'',unit:'件',cut:{fixed:true,value:'',mode:'cnt'},goal:{fixed:false,value:''},pt:'',keep:'',subs:[]});changed();render();return;}
   if(a==='sbfixed'){const it=SBI().find(x=>x.id===id);if(!it)return;it[t.dataset.k].fixed=t.dataset.v==='1';changed();render();return;}
