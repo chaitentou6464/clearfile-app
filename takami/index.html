@@ -122,6 +122,8 @@ textarea.tin{font-size:12px;word-break:break-all}
 .mrow2{display:grid;grid-template-columns:1fr 1fr;gap:8px}
 .ck{display:flex;flex-direction:column;align-items:center;font-size:10px;color:var(--bad);font-weight:700;gap:1px;min-width:38px}
 .ck input{width:22px;height:22px;margin:0;accent-color:var(--bad)}
+.sect{display:flex;align-items:center;gap:8px;font-weight:800;font-size:17px;margin:6px 2px 8px}.sect::before{content:'';width:5px;height:18px;border-radius:3px;background:var(--sc,var(--acc))}
+.dayrow{display:flex;align-items:center;justify-content:center;gap:8px;margin-bottom:12px}.dayrow .dt{font-weight:800;font-size:17px;min-width:150px;text-align:center}.dayrow .mini{height:38px;min-width:44px;font-size:18px}
 .omrbtns{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:10px}.omrbtns .mini{height:40px;font-weight:700}.omrbtns .omrread{background:var(--ink);color:#fff;border-color:var(--ink)}
 .omrov{position:fixed;inset:0;z-index:40;background:var(--bg);overflow:auto}
 .omrbar{position:sticky;top:0;display:flex;justify-content:space-between;align-items:center;background:var(--ink);color:#fff;padding:12px 14px;z-index:2}
@@ -213,6 +215,9 @@ function sanitizeState(D){
       subs:(Array.isArray(it.subs)?it.subs:[]).filter(x=>x&&typeof x==='object').slice(0,30).map(x=>{const sid=cleanId(x.id);sm[String(x.id)]=sid;return{id:sid,name:cStr(x.name),pt:cNumB(x.pt),cut:!!x.cut};}),
       cut:{fixed:c.fixed===undefined?true:!!c.fixed,value:cNumB(c.value),mode:c.mode==='yen'?'yen':'cnt'},
       goal:{fixed:!!g.fixed,value:cNumB(g.value)}};});
+  const sbMap={},sbSub={};
+  out.sb={items:(D.sb&&Array.isArray(D.sb.items)?D.sb.items:[]).filter(it=>it&&typeof it==='object').slice(0,60).map(it=>{const id=cleanId(it.id);sbMap[String(it.id)]=id;const sm={};sbSub[id]=sm;
+    return{id,name:cStr(it.name),unit:cStr(it.unit,10),subs:(Array.isArray(it.subs)?it.subs:[]).filter(x=>x&&typeof x==='object').slice(0,30).map(x=>{const sid=cleanId(x.id);sm[String(x.id)]=sid;return{id:sid,name:cStr(x.name)};})};})};
   const mapI=v=>idMap[String(v)]||(ID_RE.test(String(v))?String(v):null);
   out.months={};
   const M=D.months&&typeof D.months==='object'?D.months:{};
@@ -223,6 +228,10 @@ function sanitizeState(D){
     for(const k in (m.logs||{})){if(!DAY_RE.test(k)||!Array.isArray(m.logs[k]))continue;
       o.logs[k]=m.logs[k].filter(r=>r&&typeof r==='object').map(r=>{const ni=mapI(r.i!==undefined?r.i:r.a);if(!ni)return null;const rec={id:cleanId(r.id),i:ni,q:Math.max(0,Math.round(cNum(r.q)))};
         if(r.s!=null){const ns=(subMap[ni]||{})[String(r.s)]||(ID_RE.test(String(r.s))?String(r.s):null);if(ns)rec.s=ns;}if(r.y)rec.y=Math.max(0,cNum(r.y));if(r.a!==undefined&&r.i===undefined)rec.a=r.a;return rec;}).filter(Boolean);}
+    for(const k in (m.sbLogs||{})){if(!DAY_RE.test(k)||!Array.isArray(m.sbLogs[k]))continue;
+      const L=m.sbLogs[k].filter(r=>r&&typeof r==='object').map(r=>{const ni=sbMap[String(r.i)]||(ID_RE.test(String(r.i))?String(r.i):null);if(!ni)return null;const rec={id:cleanId(r.id),i:ni,q:Math.max(0,Math.round(cNum(r.q)))};
+        if(r.s!=null){const ns=(sbSub[ni]||{})[String(r.s)]||(ID_RE.test(String(r.s))?String(r.s):null);if(ns)rec.s=ns;}return rec;}).filter(Boolean);
+      if(L.length){o.sbLogs=o.sbLogs||{};o.sbLogs[k]=L;}}
     out.months[ym]=o;}
   if(Array.isArray(D.acts))out.acts=D.acts; // 旧形式（あとで移行）
   out.ptCut=D.ptCut===undefined?undefined:cNumB(D.ptCut);
@@ -1036,7 +1045,7 @@ function render(){
   const ym=view.ym,[y,mo]=ym.split('-');
   const m=monthOf(ym);
   let body='';
-  if(view.tab==='today')body=todayView(ym,m);
+  if(view.tab==='today')body=inputView();
   else if(view.tab==='cut')body=cutView(ym,m);
   else if(view.tab==='pts'||view.tab==='sets'){if(view.tab==='sets'){view.tab='pts';view.ptsMode='set';}
     const pm=SETS_ON&&view.ptsMode==='set'?'set':'list';
@@ -1057,7 +1066,7 @@ function render(){
   </header>
   <main>${body}</main>
   <nav>
-    <button data-tab="today" class="${view.tab==='today'?'on':''}">${ic('today')}成果</button>
+    <button data-tab="today" class="${view.tab==='today'?'on':''}">${ic('today')}入力</button>
     <button data-tab="cut" class="${view.tab==='cut'?'on':''}">${ic('cut')}足切り</button>
     <button data-tab="pts" class="${view.tab==='pts'?'on':''}">${ic('pts')}ポイント</button>
     <button data-tab="graph" class="${view.tab==='graph'?'on':''}">${ic('graph')}グラフ</button>
@@ -1069,6 +1078,35 @@ const ICONS={"today": '<circle cx="12" cy="12" r="9"/><circle cx="12" cy="12" r=
 function ic(n){return `<span class="ic"><svg viewBox="0 0 24 24" aria-hidden="true">${ICONS[n]||''}</svg></span>`;}
 function calcRemain(ym,m){let c=0;for(let d=1;d<=daysIn(ym);d++){const k=dkey(ym,d);if(k>=todayKey&&!m.off.includes(k))c++;}return c;}
 
+// ======== takami：入力タブ（上：ソフトバンク成果／下：フェニックス実績） ========
+let sbA=null,sbQ=1,sbS=null;
+const SBI=()=>(S.sb&&S.sb.items)||[];
+const WD='日月火水木金土';
+function dayLabel(k){const[,mm,dd]=k.split('-');return `${Number(mm)}月${Number(dd)}日（${WD[dow(k)]}）`;}
+function sbBlock(k){
+  const items=SBI();
+  if(!items.length)return `<div class="card"><div class="sub">右上の⚙で「ソフトバンクの項目」を追加すると、ここで入力できます。</div><button class="btn ghost" data-tab="set">項目を設定する</button></div>`;
+  const m=monthOf(k.slice(0,7)),L=(m.sbLogs||{})[k]||[];
+  const sel=items.some(a=>a.id===sbA)?sbA:items[0].id,it=items.find(x=>x.id===sel),sb=it.subs||[];
+  const ss=sb.some(x=>x.id===sbS)?sbS:(sb[0]||{}).id;
+  const rows=L.map(r=>{const x=items.find(v=>v.id===r.i);if(!x)return '';const st=(x.subs||[]).find(v=>v.id===r.s);
+    return `<div class="drow"><div><b>${esc(x.name||'名前なし')}${st?`（${esc(st.name||'種類')}）`:''}</b></div><div class="flex"><b>${r.q}${esc(x.unit||'')}</b><button class="mini" data-a="sbdellog" data-k="${k}" data-r="${r.id}">✕</button></div></div>`;}).join('');
+  return `<div class="card">
+    <div class="flex" style="flex-wrap:wrap">
+      <select id="sa" class="sel" style="flex:2">${items.map(a=>`<option value="${a.id}" ${a.id===sel?'selected':''}>${esc(a.name||'名前なし')}</option>`).join('')}</select>
+      ${sb.length?`<select id="sbs" class="sel" style="flex:2">${sb.map(x=>`<option value="${x.id}" ${x.id===ss?'selected':''}>${esc(x.name||'種類')}</option>`).join('')}</select>`:''}
+      <select id="sq" class="sel" style="flex:1">${Array.from({length:10},(_,i)=>`<option value="${i+1}" ${i+1===sbQ?'selected':''}>${i+1}</option>`).join('')}</select>
+      <button class="mini" data-a="sbaddlog" data-k="${k}" style="height:44px;padding:0 14px;background:var(--acc);color:#fff;border:0;font-weight:700">追加</button>
+    </div>
+    <div style="margin-top:6px">${rows||'<div class="sub" style="padding:8px 0">まだ入力がありません</div>'}</div>
+  </div>`;
+}
+function inputView(){
+  const k=view.inDay||todayKey;
+  return `<div class="dayrow"><button class="mini" data-a="dprev" aria-label="前の日">‹</button><div class="dt">${dayLabel(k)}</div><button class="mini" data-a="dnext" aria-label="次の日">›</button>${k!==todayKey?'<button class="mini" data-a="dtoday" style="padding:0 10px;font-size:14px">今日</button>':''}</div>
+  <div class="sect" style="--sc:#e60012">ソフトバンク成果</div>${sbBlock(k)}
+  <div class="sect" style="--sc:#f59e0b;margin-top:18px">フェニックス実績</div>${logBlock(k)}`;
+}
 function todayView(ym,m){
   if(!S.items.length)return (ym===curYM&&!m.off.includes(todayKey)?logBlock(todayKey):'')+`<div class="card empty">まだ目標の項目がありません。<br>右上の⚙「項目設定」から追加してください。<button class="btn" data-tab="set">項目を追加する</button></div>`;
   const isCur=ym===curYM,past=ym<curYM;
@@ -1141,7 +1179,21 @@ function calView(ym,m){
 function setView(ym,m){
   const mo=Number(ym.split('-')[1]);
   let h=CLOUD?cloudAccountCard():SHARED?'':`<div class="card"><div class="iname">あなたの名前</div><div class="sub">店長の画面に表示されます</div><div class="field"><input value="${esc(S.me.name)}" data-a="myname" placeholder="例：山田"></div></div>`;
-  h+=`<div class="card"><div class="iname">項目</div><div class="sub">「設定」から足切り・目標・ポイントを決められます。足切りと目標は「毎月同じ」か「月ごと」を選べ、月ごとの値は上の ‹ › で月を切り替えて入力します。</div>`;
+  h+=`<div class="card"><div class="iname">ソフトバンクの項目</div><div class="sub">入力タブの「ソフトバンク成果」で選べる項目です。種類（例：端末あり／なし）も分けられます。</div>`;
+  if(!SBI().length)h+=`<div class="empty">項目がありません</div>`;
+  SBI().forEach((it,i)=>{const sb=it.subs||[];
+    h+=`<button class="ihead" data-a="toggle" data-id="${it.id}"><span><b>${esc(it.name||'名前なし')}</b><span class="sub">${sb.length?sb.map(x=>esc(x.name||'種類')).join('／'):'単位：'+esc(it.unit||'—')}</span></span><span class="chev">${openId===it.id?'閉じる ▲':'設定 ▼'}</span></button>`;
+    if(openId!==it.id)return;
+    h+=`<div class="ibody"><div class="row2"><div class="field"><label>項目名</label><input value="${esc(it.name)}" data-a="sbiname" data-id="${it.id}" placeholder="例：新規"></div>
+      <div class="field"><label>単位</label><input value="${esc(it.unit||'')}" data-a="sbiunit" data-id="${it.id}" placeholder="件"></div></div>
+      <div class="field"><label>種類（なくてもOK）</label>${sb.map(x=>`<div class="flex" style="margin-top:6px"><input value="${esc(x.name)}" data-a="sbsname" data-id="${it.id}" data-s="${x.id}" placeholder="例：端末あり" style="flex:1"><button class="mini" data-a="sbsdel" data-id="${it.id}" data-s="${x.id}" style="color:var(--bad)">${delAsk===x.id?'削除':'✕'}</button></div>`).join('')}
+      <button class="mini" data-a="sbsadd" data-id="${it.id}" style="margin-top:8px;padding:0 12px;height:36px;color:var(--acc);font-weight:700">＋ 種類を追加</button></div>
+      <div class="flex" style="margin-top:8px;justify-content:flex-end">
+        <button class="mini" data-a="sbup" data-id="${it.id}" ${i===0?'disabled':''}>↑</button>
+        <button class="mini" data-a="sbdown" data-id="${it.id}" ${i===SBI().length-1?'disabled':''}>↓</button>
+        <button class="mini" data-a="sbidel" data-id="${it.id}" style="color:var(--bad);padding:0 10px">${delAsk===it.id?'本当に削除':'削除'}</button></div></div>`;});
+  h+=`<button class="btn" data-a="sbnew">＋ ソフトバンクの項目を追加</button></div>`;
+  h+=`<div class="card"><div class="iname">フェニックスの項目</div><div class="sub">「設定」から足切り・目標・ポイントを決められます。足切りと目標は「毎月同じ」か「月ごと」を選べ、月ごとの値は上の ‹ › で月を切り替えて入力します。</div>`;
   if(!S.items.length)h+=`<div class="empty">項目がありません</div>`;
   S.items.forEach((it,i)=>{
     const sm=KINDS.map(([k,l])=>{const v=tval(ym,it,k);return v===null?'':`${l} ${fmt(v)}${uOf(it,k)}`}).filter(Boolean).join('・')||'目標未設定';
@@ -1349,6 +1401,15 @@ $app.addEventListener('click',e=>{
   const t=e.target.closest('[data-a],[data-tab]');if(!t)return;
   if(t.dataset.tab){view.tab=t.dataset.tab;view.offMode=false;delAsk=null;render();window.scrollTo(0,0);return;}
   const a=t.dataset.a,id=t.dataset.id;
+  if(a==='dprev'||a==='dnext'||a==='dtoday'){let k=view.inDay||todayKey;if(a==='dtoday')k=todayKey;else{const d=new Date(k.slice(0,4),k.slice(5,7)-1,Number(k.slice(8))+(a==='dnext'?1:-1));k=`${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`;}view.inDay=k;view.ym=k.slice(0,7);render();return;}
+  if(a==='sbaddlog'){const k=t.dataset.k,iid=document.getElementById('sa').value,q=Number(document.getElementById('sq').value),el=document.getElementById('sbs'),sid=el?el.value:null;if(!SBI().some(x=>x.id===iid))return;sbA=iid;sbQ=q;if(sid)sbS=sid;
+    const m=ensure(k.slice(0,7));m.sbLogs=m.sbLogs||{};const rec={id:uid(),i:iid,q};if(sid)rec.s=sid;(m.sbLogs[k]=m.sbLogs[k]||[]).push(rec);changed();render();return;}
+  if(a==='sbdellog'){const k=t.dataset.k,m=ensure(k.slice(0,7)),L=(m.sbLogs||{})[k]||[],i=L.findIndex(r=>r.id===t.dataset.r);if(i<0)return;L.splice(i,1);if(!L.length)delete m.sbLogs[k];changed();render();return;}
+  if(a==='sbnew'){S.sb=S.sb||{items:[]};S.sb.items.push({id:(openId=uid()),name:'',unit:'件',subs:[]});changed();render();return;}
+  if(a==='sbsadd'){const it=SBI().find(x=>x.id===id);if(!it)return;it.subs=it.subs||[];it.subs.push({id:uid(),name:''});changed();render();return;}
+  if(a==='sbsdel'){const it=SBI().find(x=>x.id===id),sid=t.dataset.s;if(!it)return;if(delAsk===sid){it.subs=(it.subs||[]).filter(x=>x.id!==sid);delAsk=null;changed();}else delAsk=sid;render();return;}
+  if(a==='sbup'||a==='sbdown'){const L=SBI(),i=L.findIndex(x=>x.id===id),j=a==='sbup'?i-1:i+1;if(i<0||j<0||j>=L.length)return;[L[i],L[j]]=[L[j],L[i]];changed();render();return;}
+  if(a==='sbidel'){if(delAsk===id){S.sb.items=SBI().filter(x=>x.id!==id);delAsk=null;changed();}else delAsk=id;render();return;}
   if(a==='prev'||a==='next'){const[y,mo]=view.ym.split('-').map(Number);const d=new Date(y,mo-1+(a==='next'?1:-1),1);view.ym=`${d.getFullYear()}-${pad(d.getMonth()+1)}`;render();return;}
   if(a==='inc'||a==='dec'){const m=ensure(view.ym);const cur=Number((m.entries[todayKey]||{})[id]||0);setEntry(m,todayKey,id,Math.max(0,cur+(a==='inc'?1:-1)));changed();render();return;}
   if(a==='addlog'){const k=t.dataset.k,m=ensure(k.slice(0,7)),iid=document.getElementById('la').value,q=Number(document.getElementById('lq').value),ls=document.getElementById('ls'),sid=ls?ls.value:null;if(!S.items.some(x=>x.id===iid))return;const ly=document.getElementById('ly'),yv=ly?Number(ly.value):0;if(ly&&!(yv>0)){ly.style.borderColor='var(--bad)';ly.focus();return;}lastAct=iid;lastQty=q;if(sid)lastSub=sid;
@@ -1405,6 +1466,10 @@ $app.addEventListener('click',e=>{
 });
 $app.addEventListener('change',e=>{
   const t=e.target;
+  if(t.id==='sa'){sbA=t.value;sbQ=Number(document.getElementById('sq').value);sbS=null;render();return;}
+  if(t.id==='sbs'||t.id==='sq'){const el=document.getElementById('sbs');if(el)sbS=el.value;sbQ=Number(document.getElementById('sq').value);return;}
+  if(t.dataset.a==='sbiname'||t.dataset.a==='sbiunit'||t.dataset.a==='sbsname'){const it=SBI().find(x=>x.id===t.dataset.id);if(!it)return;
+    if(t.dataset.a==='sbiname')it.name=t.value;else if(t.dataset.a==='sbiunit')it.unit=t.value;else{const x=(it.subs||[]).find(v=>v.id===t.dataset.s);if(x)x.name=t.value;}changed();render();return;}
   if(t.id==='la'){lastAct=t.value;lastQty=Number(document.getElementById('lq').value);lastSub=null;render();return;}
   if(t.id==='ls'||t.id==='lq'){const ls=document.getElementById('ls');if(ls)lastSub=ls.value;lastQty=Number(document.getElementById('lq').value);updPrev();return;}
   const a=t.dataset.a,id=t.dataset.id;if(!a)return;

@@ -20,6 +20,7 @@
 ## 目標達成マネージャー改（takami）
 - `takami/` … https://chaitentou6464.github.io/clearfile-app/takami/
 - フェニックスの評価基準とソフトバンクの評価基準を1つのアプリで管理する版。`target/index.html` をもとに作った別アプリ（target/manager などにはコピーしない）。
+- 入力タブ：日付を ‹ › で切り替えて、上に「ソフトバンク成果」（`S.sb.items`、記録は月の `sbLogs`）、下に「フェニックス実績」（元の今日の成果＝`logs`）を入力。項目は右上の⚙で設定。
 - データは端末の中だけ（localStorage の `takami_v1`）。元の目標達成マネージャー（`target_v1`）とは別保存。
 
 ## 施策キャンペーン確認
