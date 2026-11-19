@@ -14,7 +14,8 @@
 *{box-sizing:border-box;-webkit-tap-highlight-color:transparent}
 body{margin:0;background:var(--bg);color:var(--ink);font-family:-apple-system,"Hiragino Sans","Noto Sans JP",sans-serif;font-size:15px;padding-bottom:84px}
 header{position:sticky;top:0;z-index:5;background:var(--ink);color:#fff;padding:12px 14px 10px}
-.mrow{display:flex;align-items:center;justify-content:space-between}
+.mrow{display:grid;grid-template-columns:1fr auto 1fr;align-items:center}.mrow>:first-child{justify-self:start}.mrow>:last-child{justify-self:end}
+.mrow .orgbtn{width:auto;height:32px;padding:0 9px;font-size:12px;white-space:nowrap;font-weight:700;border-radius:16px;display:flex;align-items:center;gap:4px;background:var(--oc);color:#fff}
 .mrow button{background:rgba(255,255,255,.12);color:#fff;border:0;border-radius:10px;width:40px;height:36px;font-size:18px}
 .mtitle{font-size:19px;font-weight:700}
 .mgrp{display:flex;align-items:center;gap:12px}.mgrp button{width:34px;height:32px}.hsp{width:40px;flex:none}
@@ -217,7 +218,8 @@ function sanitizeState(D){
       goal:{fixed:!!g.fixed,value:cNumB(g.value)}};});
   const sbMap={},sbSub={};
   out.sb={items:(D.sb&&Array.isArray(D.sb.items)?D.sb.items:[]).filter(it=>it&&typeof it==='object').slice(0,60).map(it=>{const id=cleanId(it.id);sbMap[String(it.id)]=id;const sm={};sbSub[id]=sm;
-    return{id,name:cStr(it.name),unit:cStr(it.unit,10),subs:(Array.isArray(it.subs)?it.subs:[]).filter(x=>x&&typeof x==='object').slice(0,30).map(x=>{const sid=cleanId(x.id);sm[String(x.id)]=sid;return{id:sid,name:cStr(x.name)};})};})};
+    const c=it.cut&&typeof it.cut==='object'?it.cut:{},g=it.goal&&typeof it.goal==='object'?it.goal:{};
+    return{id,name:cStr(it.name),unit:cStr(it.unit,10),cut:{fixed:c.fixed===undefined?true:!!c.fixed,value:cNumB(c.value),mode:'cnt'},goal:{fixed:!!g.fixed,value:cNumB(g.value)},subs:(Array.isArray(it.subs)?it.subs:[]).filter(x=>x&&typeof x==='object').slice(0,30).map(x=>{const sid=cleanId(x.id);sm[String(x.id)]=sid;return{id:sid,name:cStr(x.name)};})};})};
   const mapI=v=>idMap[String(v)]||(ID_RE.test(String(v))?String(v):null);
   out.months={};
   const M=D.months&&typeof D.months==='object'?D.months:{};
@@ -232,6 +234,7 @@ function sanitizeState(D){
       const L=m.sbLogs[k].filter(r=>r&&typeof r==='object').map(r=>{const ni=sbMap[String(r.i)]||(ID_RE.test(String(r.i))?String(r.i):null);if(!ni)return null;const rec={id:cleanId(r.id),i:ni,q:Math.max(0,Math.round(cNum(r.q)))};
         if(r.s!=null){const ns=(sbSub[ni]||{})[String(r.s)]||(ID_RE.test(String(r.s))?String(r.s):null);if(ns)rec.s=ns;}return rec;}).filter(Boolean);
       if(L.length){o.sbLogs=o.sbLogs||{};o.sbLogs[k]=L;}}
+    for(const i in (m.sbT||{})){const ni=sbMap[String(i)]||(ID_RE.test(String(i))?String(i):null);if(!ni)continue;const tv=m.sbT[i]||{},ot={};if('cut' in tv)ot.cut=cNumB(tv.cut);if('goal' in tv)ot.goal=cNumB(tv.goal);o.sbT=o.sbT||{};o.sbT[ni]=ot;}
     out.months[ym]=o;}
   if(Array.isArray(D.acts))out.acts=D.acts; // 旧形式（あとで移行）
   out.ptCut=D.ptCut===undefined?undefined:cNumB(D.ptCut);
@@ -1046,6 +1049,7 @@ function render(){
   const m=monthOf(ym);
   let body='';
   if(view.tab==='today')body=inputView();
+  else if(view.tab==='prog')body=progView(ym,m);
   else if(view.tab==='cut')body=cutView(ym,m);
   else if(view.tab==='pts'||view.tab==='sets'){if(view.tab==='sets'){view.tab='pts';view.ptsMode='set';}
     const pm=SETS_ON&&view.ptsMode==='set'?'set':'list';
@@ -1060,13 +1064,14 @@ function render(){
   $app.innerHTML=`
   <header>
     ${SHARED?`<div class="whorow"><span>👤 <b>${esc(SH.profiles[CUR].name)}</b> さん</span><button class="who" data-a="switch">切り替え</button></div>`:''}
-    <div class="mrow"><span class="hsp"></span><div class="mgrp"><button data-a="prev" aria-label="前の月">‹</button><div class="mtitle">${MGR?'<span class="mgrb">店長用</span>':''}${y}年${Number(mo)}月</div><button data-a="next" aria-label="次の月">›</button></div><button class="hgear ${view.tab==='set'?'on':''}" data-tab="set" aria-label="項目設定"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg></button></div>
+    <div class="mrow">${view.tab==='prog'?(view.org==='px'?'<button class="orgbtn" style="--oc:#d97706" data-a="org">フェニックス ⇄</button>':'<button class="orgbtn" style="--oc:#e60012" data-a="org">ソフトバンク ⇄</button>'):'<span class="hsp"></span>'}<div class="mgrp"><button data-a="prev" aria-label="前の月">‹</button><div class="mtitle">${MGR?'<span class="mgrb">店長用</span>':''}${y}年${Number(mo)}月</div><button data-a="next" aria-label="次の月">›</button></div><button class="hgear ${view.tab==='set'?'on':''}" data-tab="set" aria-label="項目設定"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg></button></div>
     <div class="sub">営業日 ${n-offs}日（休み ${offs}日）${ym===curYM?` ／ 今日から残り ${calcRemain(ym,m)}日`:''}</div>
     <div class="save" id="savemsg">${esc(saveMsg)}</div>
   </header>
   <main>${body}</main>
   <nav>
     <button data-tab="today" class="${view.tab==='today'?'on':''}">${ic('today')}入力</button>
+    <button data-tab="prog" class="${view.tab==='prog'?'on':''}">${ic('graph')}目標/実績</button>
     <button data-tab="cut" class="${view.tab==='cut'?'on':''}">${ic('cut')}足切り</button>
     <button data-tab="pts" class="${view.tab==='pts'?'on':''}">${ic('pts')}ポイント</button>
     <button data-tab="graph" class="${view.tab==='graph'?'on':''}">${ic('graph')}グラフ</button>
@@ -1107,13 +1112,22 @@ function inputView(){
   <div class="sect" style="--sc:#e60012">ソフトバンク成果</div>${sbBlock(k)}
   <div class="sect" style="--sc:#f59e0b;margin-top:18px">フェニックス実績</div>${logBlock(k)}`;
 }
+function withSB(ym,fn){ // ソフトバンクの項目・記録を、フェニックスと同じ形に置きかえて計算する
+  const sI=S.items,had=Object.prototype.hasOwnProperty.call(S.months,ym),sM=S.months[ym],m=monthOf(ym),e={};
+  for(const k in (m.sbLogs||{}))for(const r of m.sbLogs[k]){e[k]=e[k]||{};e[k][r.i]=(e[k][r.i]||0)+r.q;}
+  S.items=SBI();S.months[ym]={off:m.off||[],entries:e,t:m.sbT||{},logs:{}};
+  try{return fn(S.months[ym]);}finally{S.items=sI;if(had)S.months[ym]=sM;else delete S.months[ym];}
+}
+function progView(ym,m){
+  if(view.org==='px')return `<div class="sect" style="--sc:#f59e0b">フェニックス</div><div class="card">${ptLine(ym)}</div>`+todayView(ym,m);
+  return `<div class="sect" style="--sc:#e60012">ソフトバンク</div>`+withSB(ym,mm=>todayView(ym,mm));
+}
 function todayView(ym,m){
-  if(!S.items.length)return (ym===curYM&&!m.off.includes(todayKey)?logBlock(todayKey):'')+`<div class="card empty">まだ目標の項目がありません。<br>右上の⚙「項目設定」から追加してください。<button class="btn" data-tab="set">項目を追加する</button></div>`;
+  if(!S.items.length)return `<div class="card empty">まだ目標の項目がありません。<br>右上の⚙「項目設定」から追加してください。<button class="btn" data-tab="set">項目を追加する</button></div>`;
   const isCur=ym===curYM,past=ym<curYM;
   let h='';
   const unset=S.items.filter(it=>KINDS.some(([k])=>it[k]&&!it[k].fixed&&tval(ym,it,k)===null));
   if(unset.length)h+=`<div class="notice">この月の目標がまだ入っていない項目があります（${unset.map(i=>esc(i.name||'名前なし')).join('、')}）。<button class="btn ghost" data-tab="set" style="height:38px;margin-top:6px">この月の目標を入れる</button></div>`;
-  if(isCur&&!m.off.includes(todayKey))h+=logBlock(todayKey);
   if(isCur&&m.off.includes(todayKey))h+=`<div class="notice">今日は休みに設定されています。目標は次の出勤日からの残り日数で計算しています。</div>`;
   for(const it of S.items){
     const r=calc(ym,it),u=esc(it.unit||''),g=r.t.goal,c=r.t.cut,main_=g||c,cu=uOf(it,'cut'),mu=main_&&main_.yen?'円':u;
@@ -1130,8 +1144,7 @@ function todayView(ym,m){
       if(g&&!g.done&&g.daily!==null)lines.push(`目標まで：今日 <b>${fmt(g.daily)}${u}</b>（残り${fmt(g.left)}${u}）`);
       mid=`<div class="between"><div><div class="sub">今日の${g?'目標':'足切り目標'}</div><div class="big">${d===null?'—':fmt(d)}<small>${mu}</small></div></div>
       <div style="text-align:right"><div class="sub">今日の${main_&&main_.yen?'売上':'実績'}</div><div class="big" style="color:${done?'var(--ok)':'var(--ink)'}">${fmt(nowV)}<small>${mu}</small></div></div></div>
-      ${lines.length?`<div class="sub" style="margin-top:6px;line-height:1.7">${lines.join('<br>')}</div>`:''}
-      ${m.off.includes(todayKey)?'':`<div class="step"><button data-a="dec" data-id="${it.id}">−</button><input type="number" inputmode="decimal" value="${r.todayV||''}" placeholder="0" data-a="setToday" data-id="${it.id}"><button data-a="inc" data-id="${it.id}">＋</button></div>`}`;
+      ${lines.length?`<div class="sub" style="margin-top:6px;line-height:1.7">${lines.join('<br>')}</div>`:''}`;
     }else if(!past&&main_){
       mid=`<div class="sub">1日あたりの目安</div><div class="big">${main_.daily===null?'—':fmt(main_.daily)}<small>${mu}</small></div>${g&&c?`<div class="sub">足切りなら1日 ${fmt(c.daily)}${cu}</div>`:''}`;
     }
@@ -1151,7 +1164,7 @@ function todayView(ym,m){
       ${isCur?`<div class="sub" style="margin-top:6px">着地予測：<b>${fmt(Math.round(r.proj*10)/10)}${u}</b>${c&&c.yen?`／売上 <b>${fmt(Math.round(c.proj))}円</b>`:''}</div>`:''}
     </div>`;
   }
-  if(isCur)h+=`<div class="sub" style="text-align:center;margin-bottom:12px">バーの赤線＝足切りライン、黒線＝今日までに進んでいたい位置</div>`+sendCard();
+  if(isCur)h+=`<div class="sub" style="text-align:center;margin-bottom:12px">バーの赤線＝足切りライン、黒線＝今日までに進んでいたい位置</div>`;
   return h;
 }
 
@@ -1182,10 +1195,13 @@ function setView(ym,m){
   h+=`<div class="card"><div class="iname">ソフトバンクの項目</div><div class="sub">入力タブの「ソフトバンク成果」で選べる項目です。種類（例：端末あり／なし）も分けられます。</div>`;
   if(!SBI().length)h+=`<div class="empty">項目がありません</div>`;
   SBI().forEach((it,i)=>{const sb=it.subs||[];
-    h+=`<button class="ihead" data-a="toggle" data-id="${it.id}"><span><b>${esc(it.name||'名前なし')}</b><span class="sub">${sb.length?sb.map(x=>esc(x.name||'種類')).join('／'):'単位：'+esc(it.unit||'—')}</span></span><span class="chev">${openId===it.id?'閉じる ▲':'設定 ▼'}</span></button>`;
+    const sm=KINDS.map(([k,l])=>{const c=it[k],v=c.fixed?c.value:(((monthOf(ym).sbT)||{})[it.id]||{})[k];return v===''||v==null?'':`${l} ${fmt(Number(v))}${esc(it.unit||'')}`}).filter(Boolean).join('・')||'目標未設定';
+    h+=`<button class="ihead" data-a="toggle" data-id="${it.id}"><span><b>${esc(it.name||'名前なし')}</b><span class="sub">${sm}${sb.length?'・'+sb.map(x=>esc(x.name||'種類')).join('／'):''}</span></span><span class="chev">${openId===it.id?'閉じる ▲':'設定 ▼'}</span></button>`;
     if(openId!==it.id)return;
     h+=`<div class="ibody"><div class="row2"><div class="field"><label>項目名</label><input value="${esc(it.name)}" data-a="sbiname" data-id="${it.id}" placeholder="例：新規"></div>
       <div class="field"><label>単位</label><input value="${esc(it.unit||'')}" data-a="sbiunit" data-id="${it.id}" placeholder="件"></div></div>
+      ${KINDS.map(([k,label])=>{const c=it[k],v=c.fixed?c.value:(((monthOf(ym).sbT)||{})[it.id]||{})[k];return `<div class="field"><label>${label}　<span class="seg"><button class="${c.fixed?'on':''}" data-a="sbfixed" data-k="${k}" data-v="1" data-id="${it.id}">毎月同じ</button><button class="${c.fixed?'':'on'}" data-a="sbfixed" data-k="${k}" data-v="0" data-id="${it.id}">月ごと</button></span></label>
+        <div class="flex"><input type="number" inputmode="decimal" value="${v??''}" data-a="sbtval" data-k="${k}" data-id="${it.id}" placeholder="${c.fixed?'未設定（使わないなら空欄）':mo+'月の'+label+'を入力'}"><span class="sub" style="white-space:nowrap">${esc(it.unit||'')}・${c.fixed?'全月共通':mo+'月分'}</span></div></div>`;}).join('')}
       <div class="field"><label>種類（なくてもOK）</label>${sb.map(x=>`<div class="flex" style="margin-top:6px"><input value="${esc(x.name)}" data-a="sbsname" data-id="${it.id}" data-s="${x.id}" placeholder="例：端末あり" style="flex:1"><button class="mini" data-a="sbsdel" data-id="${it.id}" data-s="${x.id}" style="color:var(--bad)">${delAsk===x.id?'削除':'✕'}</button></div>`).join('')}
       <button class="mini" data-a="sbsadd" data-id="${it.id}" style="margin-top:8px;padding:0 12px;height:36px;color:var(--acc);font-weight:700">＋ 種類を追加</button></div>
       <div class="flex" style="margin-top:8px;justify-content:flex-end">
@@ -1401,11 +1417,13 @@ $app.addEventListener('click',e=>{
   const t=e.target.closest('[data-a],[data-tab]');if(!t)return;
   if(t.dataset.tab){view.tab=t.dataset.tab;view.offMode=false;delAsk=null;render();window.scrollTo(0,0);return;}
   const a=t.dataset.a,id=t.dataset.id;
+  if(a==='org'){view.org=view.org==='px'?'sb':'px';render();return;}
   if(a==='dprev'||a==='dnext'||a==='dtoday'){let k=view.inDay||todayKey;if(a==='dtoday')k=todayKey;else{const d=new Date(k.slice(0,4),k.slice(5,7)-1,Number(k.slice(8))+(a==='dnext'?1:-1));k=`${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`;}view.inDay=k;view.ym=k.slice(0,7);render();return;}
   if(a==='sbaddlog'){const k=t.dataset.k,iid=document.getElementById('sa').value,q=Number(document.getElementById('sq').value),el=document.getElementById('sbs'),sid=el?el.value:null;if(!SBI().some(x=>x.id===iid))return;sbA=iid;sbQ=q;if(sid)sbS=sid;
     const m=ensure(k.slice(0,7));m.sbLogs=m.sbLogs||{};const rec={id:uid(),i:iid,q};if(sid)rec.s=sid;(m.sbLogs[k]=m.sbLogs[k]||[]).push(rec);changed();render();return;}
   if(a==='sbdellog'){const k=t.dataset.k,m=ensure(k.slice(0,7)),L=(m.sbLogs||{})[k]||[],i=L.findIndex(r=>r.id===t.dataset.r);if(i<0)return;L.splice(i,1);if(!L.length)delete m.sbLogs[k];changed();render();return;}
-  if(a==='sbnew'){S.sb=S.sb||{items:[]};S.sb.items.push({id:(openId=uid()),name:'',unit:'件',subs:[]});changed();render();return;}
+  if(a==='sbnew'){S.sb=S.sb||{items:[]};S.sb.items.push({id:(openId=uid()),name:'',unit:'件',cut:{fixed:true,value:'',mode:'cnt'},goal:{fixed:false,value:''},subs:[]});changed();render();return;}
+  if(a==='sbfixed'){const it=SBI().find(x=>x.id===id);if(!it)return;it[t.dataset.k].fixed=t.dataset.v==='1';changed();render();return;}
   if(a==='sbsadd'){const it=SBI().find(x=>x.id===id);if(!it)return;it.subs=it.subs||[];it.subs.push({id:uid(),name:''});changed();render();return;}
   if(a==='sbsdel'){const it=SBI().find(x=>x.id===id),sid=t.dataset.s;if(!it)return;if(delAsk===sid){it.subs=(it.subs||[]).filter(x=>x.id!==sid);delAsk=null;changed();}else delAsk=sid;render();return;}
   if(a==='sbup'||a==='sbdown'){const L=SBI(),i=L.findIndex(x=>x.id===id),j=a==='sbup'?i-1:i+1;if(i<0||j<0||j>=L.length)return;[L[i],L[j]]=[L[j],L[i]];changed();render();return;}
@@ -1468,6 +1486,7 @@ $app.addEventListener('change',e=>{
   const t=e.target;
   if(t.id==='sa'){sbA=t.value;sbQ=Number(document.getElementById('sq').value);sbS=null;render();return;}
   if(t.id==='sbs'||t.id==='sq'){const el=document.getElementById('sbs');if(el)sbS=el.value;sbQ=Number(document.getElementById('sq').value);return;}
+  if(t.dataset.a==='sbtval'){const it=SBI().find(x=>x.id===t.dataset.id);if(!it)return;const k=t.dataset.k,v=t.value===''?'':Number(t.value);if(it[k].fixed)it[k].value=v;else{const m=ensure(view.ym);m.sbT=m.sbT||{};m.sbT[it.id]=m.sbT[it.id]||{};m.sbT[it.id][k]=v;}changed();render();return;}
   if(t.dataset.a==='sbiname'||t.dataset.a==='sbiunit'||t.dataset.a==='sbsname'){const it=SBI().find(x=>x.id===t.dataset.id);if(!it)return;
     if(t.dataset.a==='sbiname')it.name=t.value;else if(t.dataset.a==='sbiunit')it.unit=t.value;else{const x=(it.subs||[]).find(v=>v.id===t.dataset.s);if(x)x.name=t.value;}changed();render();return;}
   if(t.id==='la'){lastAct=t.value;lastQty=Number(document.getElementById('lq').value);lastSub=null;render();return;}
