@@ -219,7 +219,7 @@ function sanitizeState(D){
   const sbMap={},sbSub={};
   out.sb={items:(D.sb&&Array.isArray(D.sb.items)?D.sb.items:[]).filter(it=>it&&typeof it==='object').slice(0,60).map(it=>{const id=cleanId(it.id);sbMap[String(it.id)]=id;const sm={};sbSub[id]=sm;
     const c=it.cut&&typeof it.cut==='object'?it.cut:{},g=it.goal&&typeof it.goal==='object'?it.goal:{};
-    return{id,name:cStr(it.name),unit:cStr(it.unit,10),cut:{fixed:c.fixed===undefined?true:!!c.fixed,value:cNumB(c.value),mode:'cnt'},goal:{fixed:!!g.fixed,value:cNumB(g.value)},subs:(Array.isArray(it.subs)?it.subs:[]).filter(x=>x&&typeof x==='object').slice(0,30).map(x=>{const sid=cleanId(x.id);sm[String(x.id)]=sid;return{id:sid,name:cStr(x.name)};})};})};
+    return{id,name:cStr(it.name),unit:cStr(it.unit,10),cut:{fixed:c.fixed===undefined?true:!!c.fixed,value:cNumB(c.value),mode:'cnt'},goal:{fixed:!!g.fixed,value:cNumB(g.value)},pt:cNumB(it.pt),keep:it.keep===''||it.keep==null?'':Math.max(0,Math.min(60,Math.round(cNum(it.keep)))),subs:(Array.isArray(it.subs)?it.subs:[]).filter(x=>x&&typeof x==='object').slice(0,30).map(x=>{const sid=cleanId(x.id);sm[String(x.id)]=sid;return{id:sid,name:cStr(x.name),pt:cNumB(x.pt)};})};})};
   const mapI=v=>idMap[String(v)]||(ID_RE.test(String(v))?String(v):null);
   out.months={};
   const M=D.months&&typeof D.months==='object'?D.months:{};
@@ -1087,16 +1087,22 @@ let sbA=null,sbQ=1,sbS=null;
 const SBI=()=>(S.sb&&S.sb.items)||[];
 const WD='日月火水木金土';
 function dayLabel(k){const[,mm,dd]=k.split('-');return `${Number(mm)}月${Number(dd)}日（${WD[dow(k)]}）`;}
+function sbPt(it,r){const st=(it.subs||[]).find(v=>v.id===r.s);return Number((st?st.pt:it.pt)||0);}
+function keepDate(k,n){const d=new Date(k.slice(0,4),k.slice(5,7)-1,Number(k.slice(8)));d.setMonth(d.getMonth()+Number(n));return `${d.getFullYear()}年${d.getMonth()+1}月${d.getDate()}日`;}
+function sbMonthPts(ym){const m=monthOf(ym);let t=0;for(const k in (m.sbLogs||{}))for(const r of m.sbLogs[k]){const it=SBI().find(x=>x.id===r.i);if(it)t+=r.q*sbPt(it,r);}return t;}
 function sbBlock(k){
   const items=SBI();
   if(!items.length)return `<div class="card"><div class="sub">右上の⚙で「ソフトバンクの項目」を追加すると、ここで入力できます。</div><button class="btn ghost" data-tab="set">項目を設定する</button></div>`;
   const m=monthOf(k.slice(0,7)),L=(m.sbLogs||{})[k]||[];
   const sel=items.some(a=>a.id===sbA)?sbA:items[0].id,it=items.find(x=>x.id===sel),sb=it.subs||[];
   const ss=sb.some(x=>x.id===sbS)?sbS:(sb[0]||{}).id;
-  const rows=L.map(r=>{const x=items.find(v=>v.id===r.i);if(!x)return '';const st=(x.subs||[]).find(v=>v.id===r.s);
-    return `<div class="drow"><div><b>${esc(x.name||'名前なし')}${st?`（${esc(st.name||'種類')}）`:''}</b></div><div class="flex"><b>${r.q}${esc(x.unit||'')}</b><button class="mini" data-a="sbdellog" data-k="${k}" data-r="${r.id}">✕</button></div></div>`;}).join('');
+  let tot=0;
+  const rows=L.map(r=>{const x=items.find(v=>v.id===r.i);if(!x)return '';const st=(x.subs||[]).find(v=>v.id===r.s),pp=sbPt(x,r);tot+=r.q*pp;
+    return `<div class="drow"><div><b>${esc(x.name||'名前なし')}${st?`（${esc(st.name||'種類')}）`:''}</b> ${r.q}${esc(x.unit||'')}${x.keep?`<div class="sub">継続${x.keep}か月：${keepDate(k,x.keep)}まで</div>`:''}</div><div class="flex"><span class="sub">${r.q}×${fmt(pp)}pt＝</span><b>${fmt(r.q*pp)}pt</b><button class="mini" data-a="sbdellog" data-k="${k}" data-r="${r.id}">✕</button></div></div>`;}).join('');
+  const mo=Number(k.slice(5,7));
   return `<div class="card">
-    <div class="flex" style="flex-wrap:wrap">
+    <div class="between" style="align-items:center"><div class="sub">${mo}月の合計 <b style="color:var(--ink)">${fmt(sbMonthPts(k.slice(0,7)))}pt</b></div><div class="big" style="font-size:26px;color:#e60012">${fmt(tot)}<small>pt</small></div></div>
+    <div class="flex" style="flex-wrap:wrap;margin-top:8px">
       <select id="sa" class="sel" style="flex:2">${items.map(a=>`<option value="${a.id}" ${a.id===sel?'selected':''}>${esc(a.name||'名前なし')}</option>`).join('')}</select>
       ${sb.length?`<select id="sbs" class="sel" style="flex:2">${sb.map(x=>`<option value="${x.id}" ${x.id===ss?'selected':''}>${esc(x.name||'種類')}</option>`).join('')}</select>`:''}
       <select id="sq" class="sel" style="flex:1">${Array.from({length:10},(_,i)=>`<option value="${i+1}" ${i+1===sbQ?'selected':''}>${i+1}</option>`).join('')}</select>
@@ -1119,7 +1125,7 @@ function withSB(ym,fn){ // ソフトバンクの項目・記録を、フェニ�
 }
 function progView(ym,m){
   if(view.org==='px')return `<div class="sect" style="--sc:#f59e0b">フェニックス</div>`+cutView(ym,m,true)+todayView(ym,m);
-  return `<div class="sect" style="--sc:#e60012">ソフトバンク</div>`+withSB(ym,mm=>cutView(ym,mm,true)+todayView(ym,mm));
+  return `<div class="sect" style="--sc:#e60012">ソフトバンク</div>`+`<div class="card"><div class="between" style="align-items:center"><span class="sub">${Number(ym.slice(5))}月の合計ポイント</span><b style="font-size:24px;color:#e60012">${fmt(sbMonthPts(ym))}<small style="font-size:13px">pt</small></b></div></div>`+withSB(ym,mm=>cutView(ym,mm,true)+todayView(ym,mm));
 }
 function todayView(ym,m){
   if(!S.items.length)return `<div class="card empty">まだ目標の項目がありません。<br>右上の⚙「項目設定」から追加してください。<button class="btn" data-tab="set">項目を追加する</button></div>`;
@@ -1195,13 +1201,15 @@ function setView(ym,m){
   if(!SBI().length)h+=`<div class="empty">項目がありません</div>`;
   SBI().forEach((it,i)=>{const sb=it.subs||[];
     const sm=KINDS.map(([k,l])=>{const c=it[k],v=c.fixed?c.value:(((monthOf(ym).sbT)||{})[it.id]||{})[k];return v===''||v==null?'':`${l} ${fmt(Number(v))}${esc(it.unit||'')}`}).filter(Boolean).join('・')||'目標未設定';
-    h+=`<button class="ihead" data-a="toggle" data-id="${it.id}"><span><b>${esc(it.name||'名前なし')}</b><span class="sub">${sm}${sb.length?'・'+sb.map(x=>esc(x.name||'種類')).join('／'):''}</span></span><span class="chev">${openId===it.id?'閉じる ▲':'設定 ▼'}</span></button>`;
+    h+=`<button class="ihead" data-a="toggle" data-id="${it.id}"><span><b>${esc(it.name||'名前なし')}</b><span class="sub">${sm}${sb.length?'・'+sb.map(x=>`${esc(x.name||'種類')} ${fmt(Number(x.pt||0))}pt`).join('／'):(it.pt===''||it.pt==null?'':`・1${esc(it.unit||'件')} ${fmt(Number(it.pt))}pt`)}${it.keep?`・継続${it.keep}か月`:''}</span></span><span class="chev">${openId===it.id?'閉じる ▲':'設定 ▼'}</span></button>`;
     if(openId!==it.id)return;
     h+=`<div class="ibody"><div class="row2"><div class="field"><label>項目名</label><input value="${esc(it.name)}" data-a="sbiname" data-id="${it.id}" placeholder="例：新規"></div>
       <div class="field"><label>単位</label><input value="${esc(it.unit||'')}" data-a="sbiunit" data-id="${it.id}" placeholder="件"></div></div>
       ${KINDS.map(([k,label])=>{const c=it[k],v=c.fixed?c.value:(((monthOf(ym).sbT)||{})[it.id]||{})[k];return `<div class="field"><label>${label}　<span class="seg"><button class="${c.fixed?'on':''}" data-a="sbfixed" data-k="${k}" data-v="1" data-id="${it.id}">毎月同じ</button><button class="${c.fixed?'':'on'}" data-a="sbfixed" data-k="${k}" data-v="0" data-id="${it.id}">月ごと</button></span></label>
         <div class="flex"><input type="number" inputmode="decimal" value="${v??''}" data-a="sbtval" data-k="${k}" data-id="${it.id}" placeholder="${c.fixed?'未設定（使わないなら空欄）':mo+'月の'+label+'を入力'}"><span class="sub" style="white-space:nowrap">${esc(it.unit||'')}・${c.fixed?'全月共通':mo+'月分'}</span></div></div>`;}).join('')}
-      <div class="field"><label>種類（なくてもOK）</label>${sb.map(x=>`<div class="flex" style="margin-top:6px"><input value="${esc(x.name)}" data-a="sbsname" data-id="${it.id}" data-s="${x.id}" placeholder="例：端末あり" style="flex:1"><button class="mini" data-a="sbsdel" data-id="${it.id}" data-s="${x.id}" style="color:var(--bad)">${delAsk===x.id?'削除':'✕'}</button></div>`).join('')}
+      <div class="field"><label>ポイント</label>${sb.length?'<div class="sub">種類ごとに下で決めます</div>':`<div class="flex"><span class="sub" style="white-space:nowrap">1${esc(it.unit||'件')}につき</span><input type="number" inputmode="decimal" value="${it.pt??''}" data-a="sbipt" data-id="${it.id}" placeholder="0"><span class="sub">pt</span></div>`}</div>
+      <div class="field"><label>継続（何か月続けば評価されるか）</label><div class="flex"><input type="number" inputmode="numeric" value="${it.keep??''}" data-a="sbkeep" data-id="${it.id}" placeholder="なしなら空欄"><span class="sub" style="white-space:nowrap">か月継続</span></div></div>
+      <div class="field"><label>種類（なくてもOK）</label>${sb.map(x=>`<div class="flex" style="margin-top:6px"><input value="${esc(x.name)}" data-a="sbsname" data-id="${it.id}" data-s="${x.id}" placeholder="例：端末あり" style="flex:2"><input type="number" inputmode="decimal" value="${x.pt??''}" data-a="sbspt" data-id="${it.id}" data-s="${x.id}" placeholder="0" style="flex:1"><span class="sub">pt</span><button class="mini" data-a="sbsdel" data-id="${it.id}" data-s="${x.id}" style="color:var(--bad)">${delAsk===x.id?'削除':'✕'}</button></div>`).join('')}
       <button class="mini" data-a="sbsadd" data-id="${it.id}" style="margin-top:8px;padding:0 12px;height:36px;color:var(--acc);font-weight:700">＋ 種類を追加</button></div>
       <div class="flex" style="margin-top:8px;justify-content:flex-end">
         <button class="mini" data-a="sbup" data-id="${it.id}" ${i===0?'disabled':''}>↑</button>
@@ -1422,9 +1430,9 @@ $app.addEventListener('click',e=>{
   if(a==='sbaddlog'){const k=t.dataset.k,iid=document.getElementById('sa').value,q=Number(document.getElementById('sq').value),el=document.getElementById('sbs'),sid=el?el.value:null;if(!SBI().some(x=>x.id===iid))return;sbA=iid;sbQ=q;if(sid)sbS=sid;
     const m=ensure(k.slice(0,7));m.sbLogs=m.sbLogs||{};const rec={id:uid(),i:iid,q};if(sid)rec.s=sid;(m.sbLogs[k]=m.sbLogs[k]||[]).push(rec);changed();render();return;}
   if(a==='sbdellog'){const k=t.dataset.k,m=ensure(k.slice(0,7)),L=(m.sbLogs||{})[k]||[],i=L.findIndex(r=>r.id===t.dataset.r);if(i<0)return;L.splice(i,1);if(!L.length)delete m.sbLogs[k];changed();render();return;}
-  if(a==='sbnew'){S.sb=S.sb||{items:[]};S.sb.items.push({id:(openId=uid()),name:'',unit:'件',cut:{fixed:true,value:'',mode:'cnt'},goal:{fixed:false,value:''},subs:[]});changed();render();return;}
+  if(a==='sbnew'){S.sb=S.sb||{items:[]};S.sb.items.push({id:(openId=uid()),name:'',unit:'件',cut:{fixed:true,value:'',mode:'cnt'},goal:{fixed:false,value:''},pt:'',keep:'',subs:[]});changed();render();return;}
   if(a==='sbfixed'){const it=SBI().find(x=>x.id===id);if(!it)return;it[t.dataset.k].fixed=t.dataset.v==='1';changed();render();return;}
-  if(a==='sbsadd'){const it=SBI().find(x=>x.id===id);if(!it)return;it.subs=it.subs||[];it.subs.push({id:uid(),name:''});changed();render();return;}
+  if(a==='sbsadd'){const it=SBI().find(x=>x.id===id);if(!it)return;it.subs=it.subs||[];it.subs.push({id:uid(),name:'',pt:it.subs.length?'':(it.pt??'')});changed();render();return;}
   if(a==='sbsdel'){const it=SBI().find(x=>x.id===id),sid=t.dataset.s;if(!it)return;if(delAsk===sid){it.subs=(it.subs||[]).filter(x=>x.id!==sid);delAsk=null;changed();}else delAsk=sid;render();return;}
   if(a==='sbup'||a==='sbdown'){const L=SBI(),i=L.findIndex(x=>x.id===id),j=a==='sbup'?i-1:i+1;if(i<0||j<0||j>=L.length)return;[L[i],L[j]]=[L[j],L[i]];changed();render();return;}
   if(a==='sbidel'){if(delAsk===id){S.sb.items=SBI().filter(x=>x.id!==id);delAsk=null;changed();}else delAsk=id;render();return;}
@@ -1487,8 +1495,9 @@ $app.addEventListener('change',e=>{
   if(t.id==='sa'){sbA=t.value;sbQ=Number(document.getElementById('sq').value);sbS=null;render();return;}
   if(t.id==='sbs'||t.id==='sq'){const el=document.getElementById('sbs');if(el)sbS=el.value;sbQ=Number(document.getElementById('sq').value);return;}
   if(t.dataset.a==='sbtval'){const it=SBI().find(x=>x.id===t.dataset.id);if(!it)return;const k=t.dataset.k,v=t.value===''?'':Number(t.value);if(it[k].fixed)it[k].value=v;else{const m=ensure(view.ym);m.sbT=m.sbT||{};m.sbT[it.id]=m.sbT[it.id]||{};m.sbT[it.id][k]=v;}changed();render();return;}
-  if(t.dataset.a==='sbiname'||t.dataset.a==='sbiunit'||t.dataset.a==='sbsname'){const it=SBI().find(x=>x.id===t.dataset.id);if(!it)return;
-    if(t.dataset.a==='sbiname')it.name=t.value;else if(t.dataset.a==='sbiunit')it.unit=t.value;else{const x=(it.subs||[]).find(v=>v.id===t.dataset.s);if(x)x.name=t.value;}changed();render();return;}
+  if(['sbiname','sbiunit','sbsname','sbipt','sbspt','sbkeep'].includes(t.dataset.a)){const it=SBI().find(x=>x.id===t.dataset.id);if(!it)return;const nv=t.value===''?'':Number(t.value);
+    if(t.dataset.a==='sbipt')it.pt=nv;else if(t.dataset.a==='sbkeep')it.keep=nv===''?'':Math.max(0,Math.min(60,Math.round(nv)));else if(t.dataset.a==='sbspt'){const x=(it.subs||[]).find(v=>v.id===t.dataset.s);if(x)x.pt=nv;}
+    else if(t.dataset.a==='sbiname')it.name=t.value;else if(t.dataset.a==='sbiunit')it.unit=t.value;else{const x=(it.subs||[]).find(v=>v.id===t.dataset.s);if(x)x.name=t.value;}changed();render();return;}
   if(t.id==='la'){lastAct=t.value;lastQty=Number(document.getElementById('lq').value);lastSub=null;render();return;}
   if(t.id==='ls'||t.id==='lq'){const ls=document.getElementById('ls');if(ls)lastSub=ls.value;lastQty=Number(document.getElementById('lq').value);updPrev();return;}
   const a=t.dataset.a,id=t.dataset.id;if(!a)return;
