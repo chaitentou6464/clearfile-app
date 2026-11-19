@@ -17,6 +17,11 @@
 - `hq/` 本部用（店舗合計・店舗ランキング・スタッフ別・全体ランキング・店舗追加）
 - どれも `target/index.html` のコピー（title と apple-touch-icon だけ違う）。パスで動きが変わる。
 
+## 目標達成マネージャー改（takami）
+- `takami/` … https://chaitentou6464.github.io/clearfile-app/takami/
+- フェニックスの評価基準とソフトバンクの評価基準を1つのアプリで管理する版。`target/index.html` をもとに作った別アプリ（target/manager などにはコピーしない）。
+- データは端末の中だけ（localStorage の `takami_v1`）。元の目標達成マネージャー（`target_v1`）とは別保存。
+
 ## 施策キャンペーン確認
 - `campaign/` … https://chaitentou6464.github.io/clearfile-app/campaign/
 - 施策を登録して、手続き（MNP・機種変更など）や機種名・「一括1円」などで検索するアプリ。言い換え（機変＝機種変更、のりかえ＝MNP、アイフォン＝iPhone など）にも対応。
