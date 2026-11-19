@@ -1072,7 +1072,6 @@ function render(){
   <nav>
     <button data-tab="today" class="${view.tab==='today'?'on':''}">${ic('today')}入力</button>
     <button data-tab="prog" class="${view.tab==='prog'?'on':''}">${ic('graph')}目標/実績</button>
-    <button data-tab="cut" class="${view.tab==='cut'?'on':''}">${ic('cut')}足切り</button>
     <button data-tab="pts" class="${view.tab==='pts'?'on':''}">${ic('pts')}ポイント</button>
     <button data-tab="graph" class="${view.tab==='graph'?'on':''}">${ic('graph')}グラフ</button>
     <button data-tab="cal" class="${view.tab==='cal'?'on':''}">${ic('cal')}カレンダー</button>
@@ -1115,12 +1114,12 @@ function inputView(){
 function withSB(ym,fn){ // ソフトバンクの項目・記録を、フェニックスと同じ形に置きかえて計算する
   const sI=S.items,had=Object.prototype.hasOwnProperty.call(S.months,ym),sM=S.months[ym],m=monthOf(ym),e={};
   for(const k in (m.sbLogs||{}))for(const r of m.sbLogs[k]){e[k]=e[k]||{};e[k][r.i]=(e[k][r.i]||0)+r.q;}
-  S.items=SBI();S.months[ym]={off:m.off||[],entries:e,t:m.sbT||{},logs:{}};
-  try{return fn(S.months[ym]);}finally{S.items=sI;if(had)S.months[ym]=sM;else delete S.months[ym];}
+  const sP=S.ptCut;S.ptCut='';S.items=SBI();S.months[ym]={off:m.off||[],entries:e,t:m.sbT||{},logs:{}};
+  try{return fn(S.months[ym]);}finally{S.items=sI;S.ptCut=sP;if(had)S.months[ym]=sM;else delete S.months[ym];}
 }
 function progView(ym,m){
-  if(view.org==='px')return `<div class="sect" style="--sc:#f59e0b">フェニックス</div><div class="card">${ptLine(ym)}</div>`+todayView(ym,m);
-  return `<div class="sect" style="--sc:#e60012">ソフトバンク</div>`+withSB(ym,mm=>todayView(ym,mm));
+  if(view.org==='px')return `<div class="sect" style="--sc:#f59e0b">フェニックス</div>`+cutView(ym,m,true)+todayView(ym,m);
+  return `<div class="sect" style="--sc:#e60012">ソフトバンク</div>`+withSB(ym,mm=>cutView(ym,mm,true)+todayView(ym,mm));
 }
 function todayView(ym,m){
   if(!S.items.length)return `<div class="card empty">まだ目標の項目がありません。<br>右上の⚙「項目設定」から追加してください。<button class="btn" data-tab="set">項目を追加する</button></div>`;
@@ -1266,7 +1265,7 @@ function subBarsHtml(list,sc,u,yen){
   if(!list||!list.length)return '';
   return '<div class="sbars">'+list.map(x=>`<div class="sbr"><span class="sbn">${x.c?'<i class="sbc">足切り</i>':''}${esc(x.n)}</span><span class="sbt"><i style="width:${Math.min(100,x.q/sc*100)}%" class="${x.c?'on':''}${x.o?' oth':''}"></i></span><span class="sbq">${fmt(x.q)}${u}${yen&&x.y?`<small> ${fmt(x.y)}円</small>`:''}</span></div>`).join('')+'</div>';
 }
-function cutView(ym,m){
+function cutView(ym,m,quiet){
   const isCur=ym===curYM,past=ym<curYM,mo=Number(ym.slice(5));
   let work=0,el=0,rem=0;for(let d=1;d<=daysIn(ym);d++){const k=dkey(ym,d);if(m.off.includes(k))continue;work++;if(k<=todayKey)el++;if(k>=todayKey)rem++;}
   const rows=[];
@@ -1275,6 +1274,7 @@ function cutView(ym,m){
     rows.push({pt:1,n:'ポイント',sub:'今日の成果の合計',T:pc,tot,u:'pt',done:tot>=pc,left:Math.max(0,pc-tot),daily:isCur&&rem?Math.max(0,Math.ceil((pc-bef)/rem)):null,proj:isCur&&el?tot/el*work:null});}
   for(const it of S.items){const r=calc(ym,it),c=r.t.cut;if(!c)continue;
     rows.push({n:it.name||'名前なし',sub:c.yen?(cutSet(it)?cutNames(it)+'の売上合計':'売上合計'):(c.flt?cutNames(it)+'のみ':''),T:c.T,tot:c.tot,u:uOf(it,'cut'),done:c.done,left:c.left,daily:isCur?c.daily:null,proj:isCur?c.proj:null});}
+  if(!rows.length&&quiet)return '';
   if(!rows.length)return `<div class="card empty">足切りが設定されていません。<br>項目設定で、項目の足切りやポイントの足切りを入れてください。<button class="btn" data-tab="set">項目設定へ</button></div>`;
   const st=x=>x.done?'ok':(isCur&&x.proj!=null&&x.proj>=x.T)?'pace':(past?'ng':'bad');
   const cnt={ok:0,pace:0,bad:0,ng:0};rows.forEach(x=>cnt[st(x)]++);
