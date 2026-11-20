@@ -1054,7 +1054,13 @@ function render(){
   else if(view.tab==='cut')body=cutView(ym,m);
   else if(view.tab==='pts'||view.tab==='sets'){if(view.tab==='sets'){view.tab='pts';view.ptsMode='set';}
     const pm=SETS_ON&&view.ptsMode==='set'?'set':'list';
-    body=(SETS_ON?`<div class="seg segb" style="margin:0 0 12px;background:#fff">${[['list','ポイント一覧'],['set','自分セット']].map(([v,l])=>`<button data-a="ptsmode" data-v="${v}" class="${pm===v?'on':''}">${l}</button>`).join('')}</div>`:'')+(pm==='set'?setsView():ptsView());}
+    if(view.org!=='px'){const sI=S.items;S.items=SBI();let h;try{h=ptsView();}finally{S.items=sI;}
+      h=h.replace(/data-a="ptgo"/g,'data-a="sbptgo"').replace(/「今日の成果」/g,'「ソフトバンク成果」');
+      const rc=SBI().filter(x=>x.rate&&x.rate.on).map(it=>{const T=(it.rate.tiers||[]).filter(x=>x.p!==''&&x.p!=null).slice().sort((a,b)=>Number(a.p)-Number(b.p)),r=sbRate(ym,it);
+        return `<div class="card"><div class="iname">${esc(it.name||'名前なし')}の割合で配点</div><div class="sub" style="margin:2px 0 6px">${esc(r.names||'（数える種類が未設定）')} ÷ ${it.rate.base==='keep'?'継続提案':'全部'}の件数　今月 <b style="color:var(--ink)">${r.pct===null?'—':fmt(Math.floor(r.pct*10)/10)+'%'}</b></div>
+          ${T.length?T.map(x=>`<div class="drow"><span>${r.cur&&Number(r.cur.p)===Number(x.p)?'👉 ':''}${fmt(Number(x.p))}%以上</span><b>${fmt(Number(x.pt||0))}pt</b></div>`).join(''):'<div class="sub">段階がまだありません</div>'}</div>`;}).join('');
+      body=`<div class="sect" style="--sc:#e60012">ソフトバンク</div>`+h+rc;}
+    else body=`<div class="sect" style="--sc:#f59e0b">フェニックス</div>`+(SETS_ON?`<div class="seg segb" style="margin:0 0 12px;background:#fff">${[['list','ポイント一覧'],['set','自分セット']].map(([v,l])=>`<button data-a="ptsmode" data-v="${v}" class="${pm===v?'on':''}">${l}</button>`).join('')}</div>`:'')+(pm==='set'?setsView():ptsView());}
   else if(view.tab==='graph')body=graphView(ym,m);
   else if(view.tab==='cal')body=calView(ym,m);
   else if(view.tab==='member'&&MGR)body=memberView(ym);
@@ -1065,7 +1071,7 @@ function render(){
   $app.innerHTML=`
   <header>
     ${SHARED?`<div class="whorow"><span>👤 <b>${esc(SH.profiles[CUR].name)}</b> さん</span><button class="who" data-a="switch">切り替え</button></div>`:''}
-    <div class="mrow">${view.tab==='prog'?(view.org==='px'?'<button class="orgbtn" style="--oc:#d97706" data-a="org">フェニックス ⇄</button>':'<button class="orgbtn" style="--oc:#e60012" data-a="org">ソフトバンク ⇄</button>'):'<span class="hsp"></span>'}<div class="mgrp"><button data-a="prev" aria-label="前の月">‹</button><div class="mtitle">${MGR?'<span class="mgrb">店長用</span>':''}${y}年${Number(mo)}月</div><button data-a="next" aria-label="次の月">›</button></div><button class="hgear ${view.tab==='set'?'on':''}" data-tab="set" aria-label="項目設定"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg></button></div>
+    <div class="mrow">${view.tab==='prog'||view.tab==='pts'?(view.org==='px'?'<button class="orgbtn" style="--oc:#d97706" data-a="org">フェニックス ⇄</button>':'<button class="orgbtn" style="--oc:#e60012" data-a="org">ソフトバンク ⇄</button>'):'<span class="hsp"></span>'}<div class="mgrp"><button data-a="prev" aria-label="前の月">‹</button><div class="mtitle">${MGR?'<span class="mgrb">店長用</span>':''}${y}年${Number(mo)}月</div><button data-a="next" aria-label="次の月">›</button></div><button class="hgear ${view.tab==='set'?'on':''}" data-tab="set" aria-label="項目設定"><svg viewBox="0 0 24 24" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 0 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 0 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 0 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 0 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg></button></div>
     <div class="sub">営業日 ${n-offs}日（休み ${offs}日）${ym===curYM?` ／ 今日から残り ${calcRemain(ym,m)}日`:''}</div>
     <div class="save" id="savemsg">${esc(saveMsg)}</div>
   </header>
@@ -1490,6 +1496,7 @@ $app.addEventListener('click',e=>{
     if(!E.parts.length)return;S.sets=S.sets||[];if(E.id){const i=S.sets.findIndex(x=>x.id===E.id);if(i>=0)S.sets[i]=E;}else{E.id=uid();S.sets.push(E);}view.setEdit=null;changed();render();return;}
   if(a==='sedel'){if(!view.sedel){view.sedel=true;render();return;}S.sets=(S.sets||[]).filter(x=>x.id!==view.setEdit.id);view.setEdit=null;view.sedel=false;changed();render();return;}
   if(a==='seapply'){const st=(S.sets||[]).find(x=>x.id===id);if(st)setApply(st);return;}
+  if(a==='sbptgo'){sbA=id;sbS=t.dataset.s||null;view.inDay=todayKey;view.tab='today';view.ym=curYM;render();window.scrollTo(0,0);return;}
   if(a==='ptgo'){lastAct=id;lastSub=t.dataset.s||null;view.tab='today';view.ym=curYM;render();window.scrollTo(0,0);return;}
   if(a==='switch'){leaveProfile();return;}
   if(a==='pickp'){const pr=SH.profiles[id];if(!pr)return;if(pr.pin)pinModal(esc(pr.name)+'さん','暗証番号を入れてください。',v=>{if(v!==pr.pin)return false;enterProfile(id);});else enterProfile(id);return;}
