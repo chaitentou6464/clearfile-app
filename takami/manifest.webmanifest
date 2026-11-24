@@ -2,7 +2,7 @@
   "id": "./takami/index.html",
   "name": "目標達成マネージャー改（takami）",
   "short_name": "takami",
-  "description": "フェニックスの評価基準とソフトバンクの評価基準を1つで管理するアプリ",
+  "description": "ソフトバンクとフェニックスの実績を1回の入力で管理するアプリ",
   "lang": "ja",
   "start_url": "./index.html",
   "scope": "./",
