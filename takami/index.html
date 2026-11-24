@@ -202,6 +202,7 @@ function render(){
 const noSetup=()=>`<div class="card empty">まだ入力ボタンがありません。<br>右上の⚙「項目設定」で設定ファイルを読み込むと、ここに並びます。<button class="btn" data-a="gear">項目設定を開く</button></div>`;
 
 const catOf=x=>x.cat==='sb'||x.cat==='px'?x.cat:(x.grp==='フェニックス'||(!x.sb.length&&x.px.length))?'px':'sb';
+const sbGroups=()=>[...new Set(S.inp.filter(x=>catOf(x)==='sb').map(x=>x.grp||'その他'))];
 const grpName=x=>{if(catOf(x)!=='px')return x.grp||'その他';if(x.grp&&x.grp!=='フェニックス'&&x.grp!=='その他')return x.grp;for(const l of x.px){const it=pxById(l.i);if(it&&it.grp)return it.grp;}return x.grp||'フェニックス';};
 const nm=v=>String(v||'').replace(/[\s　]/g,'').toLowerCase();
 const covered=(x,y)=>y.px.length&&y.px.every(l=>x.px.some(m=>m.i===l.i&&(m.s||'')===(l.s||'')));
@@ -221,7 +222,7 @@ function inView(){
   let h=`<div class="dayrow"><button class="mini" data-a="dprev" aria-label="前の日">‹</button><div class="dt">${dayLabel(k)}</div><button class="mini" data-a="dnext" aria-label="次の日">›</button>${k!==todayKey?'<button class="mini" data-a="dtoday">今日</button>':''}</div>`;
   if(!S.inp.length)return h+noSetup();
   const cats=[['sb','ソフトバンク'],['px','フェニックス']].filter(([c])=>S.inp.some(x=>catOf(x)===c));
-  const grpOf=c=>{const G=[];S.inp.filter(x=>catOf(x)===c).forEach(x=>{const g=grpName(x);let v=G.find(w=>w[0]===g);if(!v)G.push(v=[g,[]]);v[1].push(x);});return G;};
+  const grpOf=c=>{const G=[];S.inp.filter(x=>catOf(x)===c).forEach(x=>{const g=grpName(x);let v=G.find(w=>w[0]===g);if(!v)G.push(v=[g,[]]);v[1].push(x);});if(c==='px'){const o=sbGroups(),r=g=>{const i=o.indexOf(g);return i<0?999:i;};G.sort((a,b)=>r(a[0])-r(b[0]));}return G;};
   const inc=incMap();
   const chosen=S.inp.filter(x=>sel[x.id]);
   let pt=0;const sbc={},pxs=[];chosen.forEach(x=>{pt+=selN*inpPt(x);x.sb.forEach(l=>{sbc[l.i]=(sbc[l.i]||0)+selN*num(l.q);});x.px.forEach(l=>{const it=pxById(l.i);if(it)pxs.push(pxLabel(it,l.s));});});
@@ -371,7 +372,7 @@ function setView(){
     h+=`<button class="ihead" data-a="open" data-id="${it.id}"><span><b>${esc(it.name||'名前なし')}</b><span class="sub">　${it.grp?'（'+esc(it.grp)+'）':''}${(it.subs||[]).length?it.subs.map(s=>esc(s.name)+' '+fmt(s.pt)+'pt').join('／'):fmt(it.pt)+'pt'}</span></span><span class="chev">${o===it.id?'閉じる ▲':'設定 ▼'}</span></button>`;
     if(o!==it.id)return;
     h+=`<div class="ibody"><div class="r2"><div class="field"><label>項目名</label><input value="${esc(it.name)}" data-a="f" data-kind="px" data-id="${it.id}" data-f="name"></div><div class="field"><label>単位</label><input value="${esc(it.unit)}" data-a="f" data-kind="px" data-id="${it.id}" data-f="unit"></div></div>
-      <div class="field"><label>グループ（入力タブでこの見出しの下に並ぶ）</label><input value="${esc(it.grp)}" data-a="f" data-kind="px" data-id="${it.id}" data-f="grp" list="pxgrps" placeholder="例：アクセサリー、サービス"><datalist id="pxgrps">${[...new Set(S.px.map(v=>v.grp).filter(Boolean))].map(g=>`<option value="${esc(g)}">`).join('')}</datalist></div>
+      <div class="field"><label>グループ（ソフトバンクのグループから選ぶ）</label><select data-a="f" data-kind="px" data-id="${it.id}" data-f="grp"><option value="">（グループなし）</option>${[...new Set([...sbGroups(),...(it.grp?[it.grp]:[])])].map(g=>`<option value="${esc(g)}" ${g===it.grp?'selected':''}>${esc(g)}</option>`).join('')}</select></div>
       ${(it.subs||[]).length?'':`<div class="field"><label>1件あたりのポイント</label><input type="number" inputmode="decimal" value="${it.pt??''}" data-a="f" data-kind="px" data-id="${it.id}" data-f="pt"></div>`}
       <div class="field"><label>種類（なくてもOK）</label>${(it.subs||[]).map(s=>`<div class="lnk"><input style="flex:3" value="${esc(s.name)}" data-a="sf" data-id="${it.id}" data-s="${s.id}" data-f="name"><input type="number" inputmode="decimal" value="${s.pt??''}" data-a="sf" data-id="${it.id}" data-s="${s.id}" data-f="pt" placeholder="pt"><span class="sub">pt</span><button class="mini" data-a="sdel" data-id="${it.id}" data-s="${s.id}" style="color:var(--bad)">✕</button></div>`).join('')}
         <button class="mini" data-a="sadd" data-id="${it.id}" style="margin-top:6px;color:var(--acc);font-weight:700">＋ 種類</button></div>
