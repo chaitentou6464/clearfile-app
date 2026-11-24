@@ -62,6 +62,8 @@ tr.sumrow td:first-child{background:#fff8dc}
 .note{font-size:12px;color:var(--sub);margin:8px 2px}
 .empty{text-align:center;color:var(--sub);padding:30px 10px}
 #tbl td{padding:6px 4px}
+tr.addrow td{position:static;background:#fff;text-align:left}
+.addm{background:#fff;border:1.5px dashed #b9c6db;padding:9px 14px;position:sticky;left:4px}
 .ti{width:96px;text-align:right;font-size:16px;padding:7px 6px;border:1px solid var(--line);border-radius:6px;font-family:inherit;color:var(--ink);background:#fff}
 .ti.inc{color:var(--in);font-weight:700}
 .thi{width:96px;font-size:14px;font-weight:700;text-align:right;border:1px dashed #b9c6db;border-radius:6px;padding:6px;background:#fff;color:var(--ink);font-family:inherit}
@@ -136,8 +138,10 @@ function tot(m){return num(m.inc)-outSum(m)}
 
 function addMonth(){
   let d=new Date();
-  if(D.months.length){const [y,mo]=D.months[0].ym.split('-').map(Number);d=new Date(y,mo,1)}
+  const yms=D.months.map(m=>m.ym).filter(Boolean).sort();
+  if(yms.length){const [y,mo]=yms[yms.length-1].split('-').map(Number);d=new Date(y,mo,1)}
   D.months.unshift({ym:ym(d),inc:'',out:[]});save();render();
+  if(curTab===1)setTimeout(()=>{const r=document.querySelectorAll('#tbl tbody tr.mrow');const last=r[r.length-1];if(last){last.scrollIntoView({block:'center'});const w=document.querySelector('.tblwrap');if(w)w.scrollLeft=0;const f=last.querySelector('.ti');if(f)f.focus()}},30);
 }
 function delMonth(i){ask(D.months[i].ym.replace('-','年')+'月を消しますか？',()=>{D.months.splice(i,1);save();render()})}
 function setVal(i,k,j,el){
@@ -196,13 +200,14 @@ function renderTbl(){
   if(!D.months.length){T.innerHTML='<div class="empty">下の「＋ 次の月を追加」から<br>月を追加してください</div>';return}
   const idx=D.months.map((_,i)=>i).sort((a,b)=>D.months[a].ym<D.months[b].ym?-1:1);
   const rows=idx.map(i=>{const m=D.months[i];
-    return '<tr><td><input type="month" class="tm" value="'+esc(m.ym)+'" onchange="if(this.value){D.months['+i+'].ym=this.value;save();render()}"></td>'+
+    return '<tr class="mrow"><td><input type="month" class="tm" value="'+esc(m.ym)+'" onchange="if(this.value){D.months['+i+'].ym=this.value;save();render()}"></td>'+
     '<td><input class="ti inc" inputmode="numeric" value="'+esc(m.inc)+'" placeholder="0" oninput="tblSet('+i+',\'inc\',0,this)"></td>'+
     D.cols.map((_,j)=>'<td><input class="ti" inputmode="numeric" value="'+esc(m.out[j]||'')+'" placeholder="0" oninput="tblSet('+i+',\'out\','+j+',this)"></td>').join('')+
     '<td></td><td class="os" id="ro'+i+'"></td><td id="rt'+i+'"></td><td><button class="del" onclick="delMonth('+i+')">🗑</button></td></tr>'}).join('');
   T.innerHTML='<div class="tblwrap"><table><thead><tr><th>月</th><th><input class="thi inc" value="'+esc(D.incLabel||'収入')+'" onchange="D.incLabel=this.value.trim()||\'収入\';save();render()"></th>'+
     D.cols.map((c,j)=>'<th><div class="thc"><input class="thi" value="'+esc(c)+'" onchange="renCol('+j+',this)"><button class="x" onclick="delCol('+j+')">✕</button></div></th>').join('')+
     '<th><input class="thi new" placeholder="＋欄を追加" onchange="newColTbl(this)"></th><th>支出計</th><th>合計</th><th></th></tr></thead><tbody>'+rows+
+    '<tr class="addrow"><td colspan="'+(D.cols.length+6)+'"><button class="addm" onclick="addMonth()">＋ 次の月を追加</button></td></tr>'+
     '<tr class="sumrow"><td>総計</td><td class="inc" id="sumInc"></td>'+D.cols.map((_,j)=>'<td id="sumC'+j+'"></td>').join('')+'<td></td><td class="os" id="sumO"></td><td id="sumT"></td><td></td></tr></tbody></table></div>'+
     '<div class="note">項目名・数字のマスはタップすると直接入力できます。右の「＋欄を追加」に名前を入れると欄が増えます。✕で欄を消せます。表が入りきらないときは横にスクロールできます。</div>';
   tblSums();
