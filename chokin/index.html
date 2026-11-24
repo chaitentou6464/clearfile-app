@@ -70,6 +70,8 @@ tr.addrow td{position:static;background:#fff;text-align:left}
 .thi{width:96px;font-size:14px;font-weight:700;text-align:right;border:1px dashed #b9c6db;border-radius:6px;padding:6px;background:#fff;color:var(--ink);font-family:inherit}
 .thi.inc{color:var(--in)}.thi.new{color:var(--main);text-align:center;font-weight:400}
 .thc{display:flex;align-items:center;gap:2px;justify-content:flex-end}
+.auto{display:flex;align-items:center;justify-content:flex-end;gap:4px;margin-top:4px;font-size:12px;color:var(--sub);font-weight:400}
+.auto input{width:18px;height:18px;margin:0}
 .x{background:none;color:var(--sub);padding:4px;font-size:12px}
 .tm{font-size:15px;font-weight:700;border:none;background:none;color:var(--ink);font-family:inherit;padding:0;width:112px}
 </style>
@@ -142,6 +144,8 @@ function fix(d){
   }
   d.months.forEach(m=>{if(!Array.isArray(m.ins)){m.ins=[m.inc||''];}delete m.inc;if(!Array.isArray(m.out))m.out=[]});
   delete d.incLabel;
+  if(!Array.isArray(d.inAuto))d.inAuto=[];
+  if(!Array.isArray(d.outAuto))d.outAuto=[];
   return d;
 }
 try{const s=localStorage.getItem(KEY);if(s)D=JSON.parse(s)}catch(e){}
@@ -152,15 +156,19 @@ const num=v=>{const n=Number(String(v).replace(/[^\d.-]/g,''));return isNaN(n)?0
 function ym(d){return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')}
 const colsOf=k=>k==='in'?D.inCols:D.cols;
 const valsOf=(m,k)=>k==='in'?m.ins:m.out;
+const autoOf=k=>k==='in'?D.inAuto:D.outAuto;
+function setAuto(k,j,on){const a=autoOf(k);while(a.length<colsOf(k).length)a.push(false);a[j]=on;save()}
 function inSum(m){return D.inCols.reduce((a,_,i)=>a+num(m.ins[i]||0),0)}
 function outSum(m){return D.cols.reduce((a,_,i)=>a+num(m.out[i]||0),0)}
 function tot(m){return inSum(m)-outSum(m)}
 
 function addMonth(){
   let d=new Date();
-  const yms=D.months.map(m=>m.ym).filter(Boolean).sort();
-  if(yms.length){const [y,mo]=yms[yms.length-1].split('-').map(Number);d=new Date(y,mo,1)}
-  D.months.unshift({ym:ym(d),ins:[],out:[]});save();render();
+  const prev=D.months.filter(m=>m.ym).sort((a,b)=>a.ym<b.ym?-1:1).pop();
+  if(prev){const [y,mo]=prev.ym.split('-').map(Number);d=new Date(y,mo,1)}
+  const nm={ym:ym(d),ins:[],out:[]};
+  if(prev)['in','out'].forEach(k=>colsOf(k).forEach((_,j)=>{if(autoOf(k)[j])valsOf(nm,k)[j]=valsOf(prev,k)[j]||''}));
+  D.months.unshift(nm);save();render();
   if(curTab===1)setTimeout(()=>{const r=document.querySelectorAll('#tbl tbody tr.mrow');const last=r[r.length-1];if(last){last.scrollIntoView({block:'center'});const w=document.querySelector('.tblwrap');if(w)w.scrollLeft=0;const f=last.querySelector('.ti');if(f)f.focus()}},30);
 }
 function delMonth(i){ask(D.months[i].ym.replace('-','年')+'月を消しますか？',()=>{D.months.splice(i,1);save();render()})}
@@ -202,7 +210,7 @@ function summary(){
     const rest=g-all;t.textContent='目標 '+yen(g)+' ／ 達成 '+p.toFixed(1)+'%'+(rest>0?' ／ あと '+yen(rest):' 🎉 達成！');}
   else{bar.style.width='0';t.textContent='⚙ 設定から目標額を入れられます'}
 }
-function addColK(k,name){const n=(name||'').trim();if(!n)return false;colsOf(k).push(n);save();render();return true}
+function addColK(k,name){const n=(name||'').trim();if(!n)return false;colsOf(k).push(n);const a=autoOf(k);while(a.length<colsOf(k).length)a.push(false);save();render();return true}
 function addCol(k){const e=document.getElementById(k==='in'?'newInCol':'newCol');if(addColK(k,e.value)){e.value='';renderCols()}}
 function renderCols(){
   ['in','out'].forEach(k=>{
@@ -213,7 +221,7 @@ function renColK(k,j,el){const v=el.value.trim();if(!v){el.value=colsOf(k)[j];re
 function delColK(k,j){
   if(k==='in'&&D.inCols.length<=1){alert('収入の欄は1つ以上必要です');return}
   ask('「'+colsOf(k)[j]+'」の欄を消しますか？（全部の月から消えます）',()=>{
-  colsOf(k).splice(j,1);D.months.forEach(m=>valsOf(m,k).splice(j,1));save();render();renderCols()})}
+  colsOf(k).splice(j,1);autoOf(k).splice(j,1);D.months.forEach(m=>valsOf(m,k).splice(j,1));save();render();renderCols()})}
 function openSet(f){document.getElementById('goal').value=D.goal||'';renderCols();document.getElementById('mSet').classList.add('on');if(f===true)setTimeout(()=>document.getElementById('newCol').focus(),50)}
 function closeSet(){D.goal=num(document.getElementById('goal').value);save();document.getElementById('mSet').classList.remove('on');summary()}
 
@@ -231,14 +239,15 @@ function renderTbl(){
     D.inCols.map((_,j)=>cell(i,'in',j,m.ins[j])).join('')+'<td></td><td class="inc" id="ri'+i+'"></td>'+
     D.cols.map((_,j)=>cell(i,'out',j,m.out[j])).join('')+'<td></td><td class="os" id="ro'+i+'"></td>'+
     '<td id="rt'+i+'"></td><td><button class="del" onclick="delMonth('+i+')">🗑</button></td></tr>'}).join('');
-  const hd=k=>colsOf(k).map((c,j)=>'<th><div class="thc"><input class="thi'+(k==='in'?' inc':'')+'" value="'+esc(c)+'" onchange="renColK(\''+k+'\','+j+',this)"><button class="x" onclick="delColK(\''+k+'\','+j+')">✕</button></div></th>').join('')+
+  const hd=k=>colsOf(k).map((c,j)=>'<th><div class="thc"><input class="thi'+(k==='in'?' inc':'')+'" value="'+esc(c)+'" onchange="renColK(\''+k+'\','+j+',this)"><button class="x" onclick="delColK(\''+k+'\','+j+')">✕</button></div>'+
+    '<label class="auto"><input type="checkbox"'+(autoOf(k)[j]?' checked':'')+' onchange="setAuto(\''+k+'\','+j+',this.checked)">毎月同じ</label></th>').join('')+
     '<th><input class="thi new" placeholder="'+(k==='in'?'＋収入の欄':'＋支出の欄')+'" onchange="newColTbl(\''+k+'\',this)"></th>';
   const nCol=D.inCols.length+D.cols.length+7;
   T.innerHTML='<div class="tblwrap"><table><thead><tr><th>月</th>'+hd('in')+'<th class="inc">収入計</th>'+hd('out')+'<th>支出計</th><th>合計</th><th></th></tr></thead><tbody>'+rows+
     '<tr class="addrow"><td colspan="'+nCol+'"><button class="addm" onclick="addMonth()">＋ 次の月を追加</button></td></tr>'+
     '<tr class="sumrow"><td>総計</td>'+D.inCols.map((_,j)=>'<td class="inc" id="sumI'+j+'"></td>').join('')+'<td></td><td class="inc" id="sumIn"></td>'+
     D.cols.map((_,j)=>'<td id="sumC'+j+'"></td>').join('')+'<td></td><td class="os" id="sumO"></td><td id="sumT"></td><td></td></tr></tbody></table></div>'+
-    '<div class="note">項目名・数字のマスはタップすると直接入力できます。「＋収入の欄」「＋支出の欄」に名前を入れると欄が増えます。✕で欄を消せます。表が入りきらないときは横にスクロールできます。</div>';
+    '<div class="note">項目名・数字のマスはタップすると直接入力できます。「＋収入の欄」「＋支出の欄」に名前を入れると欄が増えます。「毎月同じ」にチェックした欄は、月を追加したとき前の月の金額が自動で入ります。✕で欄を消せます。表が入りきらないときは横にスクロールできます。</div>';
   tblSums();
 }
 function newColTbl(k,el){const v=el.value.trim();if(!v)return;
