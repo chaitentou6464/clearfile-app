@@ -63,6 +63,10 @@ tr.sumrow td:first-child{background:#fff8dc}
 #tbl td{padding:6px 4px}
 .ti{width:96px;text-align:right;font-size:16px;padding:7px 6px;border:1px solid var(--line);border-radius:6px;font-family:inherit;color:var(--ink);background:#fff}
 .ti.inc{color:var(--in);font-weight:700}
+.thi{width:96px;font-size:14px;font-weight:700;text-align:right;border:1px dashed #b9c6db;border-radius:6px;padding:6px;background:#fff;color:var(--ink);font-family:inherit}
+.thi.inc{color:var(--in)}.thi.new{color:var(--main);text-align:center;font-weight:400}
+.thc{display:flex;align-items:center;gap:2px;justify-content:flex-end}
+.x{background:none;color:var(--sub);padding:4px;font-size:12px}
 .tm{font-size:15px;font-weight:700;border:none;background:none;color:var(--ink);font-family:inherit;padding:0;width:112px}
 </style>
 </head>
@@ -141,7 +145,7 @@ function render(){
       <input type="month" value="${m.ym}" onchange="D.months[${i}].ym=this.value;save()">
       <button class="del" onclick="delMonth(${i})">🗑 削除</button>
     </div>
-    <div class="row inc"><label>収入</label><input inputmode="numeric" value="${esc(m.inc)}" placeholder="0" oninput="setVal(${i},'inc',0,this)"></div>
+    <div class="row inc"><label>${esc(D.incLabel||'収入')}</label><input inputmode="numeric" value="${esc(m.inc)}" placeholder="0" oninput="setVal(${i},'inc',0,this)"></div>
     <div class="sec">支出（合計 <span id="o${i}">${yen(outSum(m))}</span>）</div>
     ${D.cols.map((c,j)=>`<div class="row"><label>${esc(c)}</label><input inputmode="numeric" value="${esc(m.out[j]||'')}" placeholder="0" oninput="setVal(${i},'out',${j},this)"></div>`).join('')}
     <button class="addcol" onclick="openSet(true)">＋ 支出の欄を追加</button>
@@ -168,7 +172,7 @@ function openSet(f){document.getElementById('goal').value=D.goal||'';renderCols(
 function closeSet(){D.goal=num(document.getElementById('goal').value);save();document.getElementById('mSet').classList.remove('on');summary()}
 
 let curTab=0;
-function tab(n){curTab=n;['list','tbl'].forEach((id,i)=>document.getElementById(id).style.display=i===n?'':'none');
+function tab(n){curTab=n;if(n===0)render();['list','tbl'].forEach((id,i)=>document.getElementById(id).style.display=i===n?'':'none');
   document.getElementById('tb0').classList.toggle('on',n===0);document.getElementById('tb1').classList.toggle('on',n===1);
   if(n===1)renderTbl();window.scrollTo(0,0)}
 function renderTbl(){
@@ -179,13 +183,17 @@ function renderTbl(){
     return '<tr><td><input type="month" class="tm" value="'+esc(m.ym)+'" onchange="if(this.value){D.months['+i+'].ym=this.value;save();render()}"></td>'+
     '<td><input class="ti inc" inputmode="numeric" value="'+esc(m.inc)+'" placeholder="0" oninput="tblSet('+i+',\'inc\',0,this)"></td>'+
     D.cols.map((_,j)=>'<td><input class="ti" inputmode="numeric" value="'+esc(m.out[j]||'')+'" placeholder="0" oninput="tblSet('+i+',\'out\','+j+',this)"></td>').join('')+
-    '<td class="os" id="ro'+i+'"></td><td id="rt'+i+'"></td><td><button class="del" onclick="delMonth('+i+')">🗑</button></td></tr>'}).join('');
-  T.innerHTML='<div class="tblwrap"><table><thead><tr><th>月</th><th>収入</th>'+D.cols.map(c=>'<th>'+esc(c)+'</th>').join('')+'<th>支出計</th><th>合計</th><th></th></tr></thead><tbody>'+rows+
-    '<tr class="sumrow"><td>総計</td><td class="inc" id="sumInc"></td>'+D.cols.map((_,j)=>'<td id="sumC'+j+'"></td>').join('')+'<td class="os" id="sumO"></td><td id="sumT"></td><td></td></tr></tbody></table></div>'+
-    '<button class="addcol" onclick="openSet(true)">＋ 支出の欄を追加</button>'+
-    '<div class="note">マスをタップすると直接入力できます。表が入りきらないときは横にスクロールできます。</div>';
+    '<td></td><td class="os" id="ro'+i+'"></td><td id="rt'+i+'"></td><td><button class="del" onclick="delMonth('+i+')">🗑</button></td></tr>'}).join('');
+  T.innerHTML='<div class="tblwrap"><table><thead><tr><th>月</th><th><input class="thi inc" value="'+esc(D.incLabel||'収入')+'" onchange="D.incLabel=this.value.trim()||\'収入\';save();render()"></th>'+
+    D.cols.map((c,j)=>'<th><div class="thc"><input class="thi" value="'+esc(c)+'" onchange="renCol('+j+',this)"><button class="x" onclick="delCol('+j+')">✕</button></div></th>').join('')+
+    '<th><input class="thi new" placeholder="＋欄を追加" onchange="newColTbl(this)"></th><th>支出計</th><th>合計</th><th></th></tr></thead><tbody>'+rows+
+    '<tr class="sumrow"><td>総計</td><td class="inc" id="sumInc"></td>'+D.cols.map((_,j)=>'<td id="sumC'+j+'"></td>').join('')+'<td></td><td class="os" id="sumO"></td><td id="sumT"></td><td></td></tr></tbody></table></div>'+
+    '<div class="note">項目名・数字のマスはタップすると直接入力できます。右の「＋欄を追加」に名前を入れると欄が増えます。✕で欄を消せます。表が入りきらないときは横にスクロールできます。</div>';
   tblSums();
 }
+function renCol(j,el){const v=el.value.trim();if(!v){el.value=D.cols[j];return}D.cols[j]=v;save();render()}
+function newColTbl(el){const v=el.value.trim();if(!v)return;D.cols.push(v);save();render();
+  setTimeout(()=>{const w=document.querySelector('.tblwrap');if(w)w.scrollLeft=w.scrollWidth},30)}
 function tblSet(i,k,j,el){
   const m=D.months[i];
   if(k==='inc')m.inc=el.value;else m.out[j]=el.value;
