@@ -60,6 +60,10 @@ tr.sumrow td{background:#fff8dc;font-weight:700}
 tr.sumrow td:first-child{background:#fff8dc}
 .note{font-size:12px;color:var(--sub);margin:8px 2px}
 .empty{text-align:center;color:var(--sub);padding:30px 10px}
+#tbl td{padding:6px 4px}
+.ti{width:96px;text-align:right;font-size:16px;padding:7px 6px;border:1px solid var(--line);border-radius:6px;font-family:inherit;color:var(--ink);background:#fff}
+.ti.inc{color:var(--in);font-weight:700}
+.tm{font-size:15px;font-weight:700;border:none;background:none;color:var(--ink);font-family:inherit;padding:0;width:112px}
 </style>
 </head>
 <body>
@@ -128,6 +132,7 @@ function fmtTot(m){const t=tot(m);return '<span class="v '+(t<0?'minus':'plus')+
 function esc(s){return String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]))}
 
 function render(){
+  if(curTab===1)renderTbl();
   const L=document.getElementById('list');
   if(!D.months.length){L.innerHTML='<div class="empty">下の「＋ 次の月を追加」から<br>月を追加してください</div>';summary();return}
   L.innerHTML=D.months.map((m,i)=>`
@@ -144,7 +149,7 @@ function render(){
   </div>`).join('');
   summary();
 }
-function summary(){if(curTab===1)renderTbl();
+function summary(){
   const all=D.months.reduce((a,m)=>a+tot(m),0);
   document.getElementById('sAll').textContent=yen(all);
   document.getElementById('sAvg').textContent=yen(D.months.length?all/D.months.length:0);
@@ -165,19 +170,37 @@ function closeSet(){D.goal=num(document.getElementById('goal').value);save();doc
 let curTab=0;
 function tab(n){curTab=n;['list','tbl'].forEach((id,i)=>document.getElementById(id).style.display=i===n?'':'none');
   document.getElementById('tb0').classList.toggle('on',n===0);document.getElementById('tb1').classList.toggle('on',n===1);
-  document.getElementById('fab').style.display=n===0?'':'none';if(n===1)renderTbl();window.scrollTo(0,0)}
+  if(n===1)renderTbl();window.scrollTo(0,0)}
 function renderTbl(){
   const T=document.getElementById('tbl');
-  if(!D.months.length){T.innerHTML='<div class="empty">まだ月がありません</div>';return}
-  const ms=[...D.months].sort((a,b)=>a.ym<b.ym?-1:1);
-  const lab=s=>{const [y,m]=s.split('-');return y+'年'+Number(m)+'月'};
+  if(!D.months.length){T.innerHTML='<div class="empty">下の「＋ 次の月を追加」から<br>月を追加してください</div>';return}
+  const idx=D.months.map((_,i)=>i).sort((a,b)=>D.months[a].ym<D.months[b].ym?-1:1);
+  const rows=idx.map(i=>{const m=D.months[i];
+    return '<tr><td><input type="month" class="tm" value="'+esc(m.ym)+'" onchange="if(this.value){D.months['+i+'].ym=this.value;save();render()}"></td>'+
+    '<td><input class="ti inc" inputmode="numeric" value="'+esc(m.inc)+'" placeholder="0" oninput="tblSet('+i+',\'inc\',0,this)"></td>'+
+    D.cols.map((_,j)=>'<td><input class="ti" inputmode="numeric" value="'+esc(m.out[j]||'')+'" placeholder="0" oninput="tblSet('+i+',\'out\','+j+',this)"></td>').join('')+
+    '<td class="os" id="ro'+i+'"></td><td id="rt'+i+'"></td><td><button class="del" onclick="delMonth('+i+')">🗑</button></td></tr>'}).join('');
+  T.innerHTML='<div class="tblwrap"><table><thead><tr><th>月</th><th>収入</th>'+D.cols.map(c=>'<th>'+esc(c)+'</th>').join('')+'<th>支出計</th><th>合計</th><th></th></tr></thead><tbody>'+rows+
+    '<tr class="sumrow"><td>総計</td><td class="inc" id="sumInc"></td>'+D.cols.map((_,j)=>'<td id="sumC'+j+'"></td>').join('')+'<td class="os" id="sumO"></td><td id="sumT"></td><td></td></tr></tbody></table></div>'+
+    '<button class="addcol" onclick="openSet(true)">＋ 支出の欄を追加</button>'+
+    '<div class="note">マスをタップすると直接入力できます。表が入りきらないときは横にスクロールできます。</div>';
+  tblSums();
+}
+function tblSet(i,k,j,el){
+  const m=D.months[i];
+  if(k==='inc')m.inc=el.value;else m.out[j]=el.value;
+  save();tblSums();summary();
+}
+function tblSums(){
   let sInc=0,sOut=D.cols.map(()=>0),sO=0,sT=0;
-  const rows=ms.map(m=>{const inc=num(m.inc),o=outSum(m),t=inc-o;sInc+=inc;sO+=o;sT+=t;
-    return '<tr><td>'+lab(m.ym)+'</td><td class="inc">'+yen(inc)+'</td>'+D.cols.map((_,j)=>{const v=num(m.out[j]||0);sOut[j]+=v;return '<td>'+yen(v)+'</td>'}).join('')+
-    '<td class="os">'+yen(o)+'</td><td class="'+(t<0?'minus':'plus')+'"><b>'+yen(t)+'</b></td></tr>'}).join('');
-  T.innerHTML='<div class="tblwrap"><table><thead><tr><th>月</th><th>収入</th>'+D.cols.map(c=>'<th>'+esc(c)+'</th>').join('')+'<th>支出計</th><th>合計</th></tr></thead><tbody>'+rows+
-    '<tr class="sumrow"><td>総計</td><td class="inc">'+yen(sInc)+'</td>'+sOut.map(v=>'<td>'+yen(v)+'</td>').join('')+'<td class="os">'+yen(sO)+'</td><td class="'+(sT<0?'minus':'plus')+'">'+yen(sT)+'</td></tr></tbody></table></div>'+
-    '<div class="note">表が入りきらないときは横にスクロールできます。数字は「入力」タブで変えてください。</div>';
+  D.months.forEach((m,i)=>{const inc=num(m.inc),o=outSum(m),t=inc-o;sInc+=inc;sO+=o;sT+=t;
+    D.cols.forEach((_,j)=>sOut[j]+=num(m.out[j]||0));
+    const ro=document.getElementById('ro'+i),rt=document.getElementById('rt'+i);
+    if(ro)ro.textContent=yen(o);
+    if(rt){rt.className=t<0?'minus':'plus';rt.innerHTML='<b>'+yen(t)+'</b>'}});
+  const set=(id,v)=>{const e=document.getElementById(id);if(e)e.textContent=yen(v)};
+  set('sumInc',sInc);sOut.forEach((v,j)=>set('sumC'+j,v));set('sumO',sO);
+  const st=document.getElementById('sumT');if(st){st.className=sT<0?'minus':'plus';st.textContent=yen(sT)}
 }
 if(!D.months.length)addMonth();else render();
 </script>
