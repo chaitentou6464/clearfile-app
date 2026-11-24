@@ -72,6 +72,14 @@ tr.addrow td{position:static;background:#fff;text-align:left}
 .thc{display:flex;align-items:center;gap:2px;justify-content:flex-end}
 .auto{display:flex;align-items:center;justify-content:flex-end;gap:4px;margin-top:4px;font-size:12px;color:var(--sub);font-weight:400}
 .auto input{width:18px;height:18px;margin:0}
+.selbox{background:var(--card);border-radius:14px;padding:12px;margin-bottom:10px;box-shadow:0 1px 3px rgba(0,0,0,.06)}
+.selhd{font-size:14px;font-weight:700;display:flex;align-items:center;gap:6px;flex-wrap:wrap}
+.selhd select{font-size:16px;font-weight:700;padding:6px 8px;border:1px solid var(--line);border-radius:8px;background:#fff;color:var(--ink);font-family:inherit}
+.selbig{font-size:26px;font-weight:800;margin-top:6px}
+.selsub{font-size:12px;color:var(--sub);margin-top:3px}
+.bar2{height:8px;background:#e9eef6;border-radius:4px;margin-top:8px;overflow:hidden}.bar2 i{display:block;height:100%;background:#ffc400}
+tr.mrow.sel td,tr.mrow.sel td:first-child{background:#e8f0ff}
+td.cum{font-weight:700}
 .x{background:none;color:var(--sub);padding:4px;font-size:12px}
 .tm{font-size:15px;font-weight:700;border:none;background:none;color:var(--ink);font-family:inherit;padding:0;width:112px}
 </style>
@@ -168,7 +176,7 @@ function addMonth(){
   if(prev){const [y,mo]=prev.ym.split('-').map(Number);d=new Date(y,mo,1)}
   const nm={ym:ym(d),ins:[],out:[]};
   if(prev)['in','out'].forEach(k=>colsOf(k).forEach((_,j)=>{if(autoOf(k)[j])valsOf(nm,k)[j]=valsOf(prev,k)[j]||''}));
-  D.months.unshift(nm);save();render();
+  D.months.unshift(nm);selYm=nm.ym;save();render();
   if(curTab===1)setTimeout(()=>{const r=document.querySelectorAll('#tbl tbody tr.mrow');const last=r[r.length-1];if(last){last.scrollIntoView({block:'center'});const w=document.querySelector('.tblwrap');if(w)w.scrollLeft=0;const f=last.querySelector('.ti');if(f)f.focus()}},30);
 }
 function delMonth(i){ask(D.months[i].ym.replace('-','年')+'月を消しますか？',()=>{D.months.splice(i,1);save();render()})}
@@ -235,24 +243,32 @@ function renderTbl(){
   const idx=D.months.map((_,i)=>i).sort((a,b)=>D.months[a].ym<D.months[b].ym?-1:1);
   const cell=(i,k,j,v)=>'<td><input class="ti'+(k==='in'?' inc':'')+'" inputmode="numeric" value="'+esc(v||'')+'" placeholder="0" oninput="tblSet('+i+',\''+k+'\','+j+',this)"></td>';
   const rows=idx.map(i=>{const m=D.months[i];
-    return '<tr class="mrow"><td><input type="month" class="tm" value="'+esc(m.ym)+'" onchange="if(this.value){D.months['+i+'].ym=this.value;save();render()}"></td>'+
+    return '<tr class="mrow'+(m.ym===selYm?' sel':'')+'" data-ym="'+esc(m.ym)+'" onclick="pickRow(event,this)"><td><input type="month" class="tm" value="'+esc(m.ym)+'" onchange="if(this.value){D.months['+i+'].ym=this.value;save();render()}"></td>'+
     D.inCols.map((_,j)=>cell(i,'in',j,m.ins[j])).join('')+'<td></td><td class="inc" id="ri'+i+'"></td>'+
     D.cols.map((_,j)=>cell(i,'out',j,m.out[j])).join('')+'<td></td><td class="os" id="ro'+i+'"></td>'+
-    '<td id="rt'+i+'"></td><td><button class="del" onclick="delMonth('+i+')">🗑</button></td></tr>'}).join('');
+    '<td id="rt'+i+'"></td><td class="cum" id="rc'+i+'"></td><td><button class="del" onclick="delMonth('+i+')">🗑</button></td></tr>'}).join('');
   const hd=k=>colsOf(k).map((c,j)=>'<th><div class="thc"><input class="thi'+(k==='in'?' inc':'')+'" value="'+esc(c)+'" onchange="renColK(\''+k+'\','+j+',this)"><button class="x" onclick="delColK(\''+k+'\','+j+')">✕</button></div>'+
     '<label class="auto"><input type="checkbox"'+(autoOf(k)[j]?' checked':'')+' onchange="setAuto(\''+k+'\','+j+',this.checked)">毎月同じ</label></th>').join('')+
     '<th><input class="thi new" placeholder="'+(k==='in'?'＋収入の欄':'＋支出の欄')+'" onchange="newColTbl(\''+k+'\',this)"></th>';
-  const nCol=D.inCols.length+D.cols.length+7;
-  T.innerHTML='<div class="tblwrap"><table><thead><tr><th>月</th>'+hd('in')+'<th class="inc">収入計</th>'+hd('out')+'<th>支出計</th><th>合計</th><th></th></tr></thead><tbody>'+rows+
+  const nCol=D.inCols.length+D.cols.length+8;
+  const yms=[...new Set(D.months.map(m=>m.ym).filter(Boolean))].sort();
+  if(!yms.includes(selYm))selYm=yms[yms.length-1]||'';
+  const selBox='<div class="selbox"><div class="selhd">月を選ぶ <select id="selM" onchange="pickYm(this.value)">'+
+    yms.map(v=>'<option value="'+v+'"'+(v===selYm?' selected':'')+'>'+lab(v)+'</option>').join('')+'</select> までの合計</div><div id="selOut"></div></div>';
+  T.innerHTML=selBox+'<div class="tblwrap"><table><thead><tr><th>月</th>'+hd('in')+'<th class="inc">収入計</th>'+hd('out')+'<th>支出計</th><th>合計</th><th>累計</th><th></th></tr></thead><tbody>'+rows+
     '<tr class="addrow"><td colspan="'+nCol+'"><button class="addm" onclick="addMonth()">＋ 次の月を追加</button></td></tr>'+
     '<tr class="sumrow"><td>総計</td>'+D.inCols.map((_,j)=>'<td class="inc" id="sumI'+j+'"></td>').join('')+'<td></td><td class="inc" id="sumIn"></td>'+
-    D.cols.map((_,j)=>'<td id="sumC'+j+'"></td>').join('')+'<td></td><td class="os" id="sumO"></td><td id="sumT"></td><td></td></tr></tbody></table></div>'+
-    '<div class="note">項目名・数字のマスはタップすると直接入力できます。「＋収入の欄」「＋支出の欄」に名前を入れると欄が増えます。「毎月同じ」にチェックした欄は、月を追加したとき前の月の金額が自動で入ります。✕で欄を消せます。表が入りきらないときは横にスクロールできます。</div>';
+    D.cols.map((_,j)=>'<td id="sumC'+j+'"></td>').join('')+'<td></td><td class="os" id="sumO"></td><td id="sumT"></td><td></td><td></td></tr></tbody></table></div>'+
+    '<div class="note">項目名・数字のマスはタップすると直接入力できます。「＋収入の欄」「＋支出の欄」に名前を入れると欄が増えます。「毎月同じ」にチェックした欄は、月を追加したとき前の月の金額が自動で入ります。✕で欄を消せます。月の行（数字のマス以外）をタップするか、上の「月を選ぶ」で、その月までの合計が出ます。表が入りきらないときは横にスクロールできます。</div>';
   tblSums();
 }
 function newColTbl(k,el){const v=el.value.trim();if(!v)return;
   const pos=k==='in'?D.inCols.length:null;addColK(k,v);
   setTimeout(()=>{const w=document.querySelector('.tblwrap');if(w)w.scrollLeft=k==='in'?0:w.scrollWidth},30)}
+let selYm='';
+const lab=s=>{const [y,m]=String(s).split('-');return y+'年'+Number(m)+'月'};
+function pickYm(v){selYm=v;document.querySelectorAll('#tbl tr.mrow').forEach(r=>r.classList.toggle('sel',r.dataset.ym===v));const sm=document.getElementById('selM');if(sm)sm.value=v;tblSums()}
+function pickRow(e,tr){if(e.target.closest('input,button,label,select'))return;pickYm(tr.dataset.ym)}
 function tblSet(i,k,j,el){
   valsOf(D.months[i],k)[j]=el.value;
   save();tblSums();summary();
@@ -270,6 +286,19 @@ function tblSums(){
   sIn.forEach((v,j)=>set('sumI'+j,v));set('sumIn',sI);
   sOut.forEach((v,j)=>set('sumC'+j,v));set('sumO',sO);
   const st=document.getElementById('sumT');if(st){st.className=sT<0?'minus':'plus';st.textContent=yen(sT)}
+  // 累計（月の古い順）と、選んだ月までの合計
+  let run=0,upto={n:0,o:0,t:0,c:0};
+  D.months.map((m,i)=>[m,i]).sort((a,b)=>a[0].ym<b[0].ym?-1:1).forEach(([m,i])=>{
+    const n=inSum(m),o=outSum(m);run+=n-o;
+    const rc=document.getElementById('rc'+i);if(rc){rc.className='cum '+(run<0?'minus':'plus');rc.textContent=yen(run)}
+    if(selYm&&m.ym<=selYm){upto.n+=n;upto.o+=o;upto.t+=n-o;upto.c++}});
+  const so=document.getElementById('selOut');
+  if(so){const g=num(D.goal);
+    let h='<div class="selbig '+(upto.t<0?'minus':'plus')+'">'+yen(upto.t)+'</div><div class="selsub">'+upto.c+'か月分 ／ 収入 '+yen(upto.n)+' ／ 支出 '+yen(upto.o)+'</div>';
+    if(g>0){const p=Math.max(0,upto.t/g*100),rest=g-upto.t;
+      h+='<div class="bar2"><i style="width:'+Math.min(100,p)+'%"></i></div><div class="selsub">目標 '+yen(g)+' の '+p.toFixed(1)+'%'+(rest>0?' ／ あと '+yen(rest):' 🎉 達成！')+'</div>'}
+    else h+='<div class="selsub">⚙ 設定で目標額を入れると、達成率も出ます</div>';
+    so.innerHTML=h}
 }
 const b64u=u8=>{let s='';for(let i=0;i<u8.length;i+=8192)s+=String.fromCharCode.apply(null,u8.subarray(i,i+8192));return btoa(s).replace(/\+/g,'-').replace(/\//g,'_').replace(/=+$/,'')};
 const ub64=t=>{t=t.replace(/-/g,'+').replace(/_/g,'/');while(t.length%4)t+='=';const s=atob(t),u=new Uint8Array(s.length);for(let i=0;i<s.length;i++)u[i]=s.charCodeAt(i);return u};
