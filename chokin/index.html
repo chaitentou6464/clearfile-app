@@ -1,0 +1,185 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<title>貯金アプリ</title>
+<link rel="manifest" href="manifest.webmanifest?v=1">
+<link rel="apple-touch-icon" href="apple-touch-icon-v1.png">
+<meta name="theme-color" content="#2f6fde">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-title" content="貯金アプリ">
+<style>
+:root{--bg:#f4f6f8;--card:#fff;--ink:#1d2430;--sub:#6b7585;--line:#e3e7ec;--in:#1f9d6b;--out:#d9534f;--main:#2f6fde}
+*{box-sizing:border-box}
+body{margin:0;background:var(--bg);color:var(--ink);font-family:-apple-system,"Hiragino Sans","Noto Sans JP",sans-serif;font-size:16px;padding-bottom:90px}
+header{position:sticky;top:0;z-index:5;background:var(--main);color:#fff;padding:14px 16px 12px}
+header h1{margin:0;font-size:18px}
+.sum{display:flex;gap:8px;margin-top:10px}
+.sum div{flex:1;background:rgba(255,255,255,.16);border-radius:10px;padding:8px}
+.sum small{display:block;font-size:11px;opacity:.85}
+.sum b{font-size:18px}
+.bar{height:8px;background:rgba(255,255,255,.25);border-radius:4px;margin-top:8px;overflow:hidden}
+.bar i{display:block;height:100%;background:#ffd84d;width:0}
+.goalTxt{font-size:12px;margin-top:4px;opacity:.9}
+main{padding:12px}
+.card{background:var(--card);border-radius:14px;padding:12px;margin-bottom:12px;box-shadow:0 1px 3px rgba(0,0,0,.06)}
+.head{display:flex;align-items:center;gap:8px;margin-bottom:8px}
+.head input[type=month]{font-size:17px;font-weight:700;border:none;background:none;color:var(--ink);padding:0}
+.head .del{margin-left:auto}
+.row{display:flex;align-items:center;gap:8px;padding:6px 0;border-top:1px solid var(--line)}
+.row label{flex:1;font-size:15px}
+.row input{width:46%;text-align:right;font-size:16px;padding:8px;border:1px solid var(--line);border-radius:8px}
+.row.inc label{color:var(--in);font-weight:700}
+.sec{font-size:12px;color:var(--sub);margin:8px 0 2px}
+.total{display:flex;justify-content:space-between;align-items:center;margin-top:8px;padding:10px;border-radius:10px;background:#f0f4fb;font-weight:700}
+.total .v{font-size:20px}
+.plus{color:var(--in)}.minus{color:var(--out)}
+button{font-family:inherit;font-size:14px;border:none;border-radius:8px;padding:8px 12px;background:#e9eef6;color:var(--main);font-weight:700}
+.del{background:none;color:var(--sub);font-size:13px;padding:4px 6px}
+.addcol{width:100%;margin-top:6px;background:#fff;border:1.5px dashed #b9c6db}
+.fab{position:fixed;left:12px;right:12px;bottom:14px;padding:14px;font-size:16px;background:var(--main);color:#fff;border-radius:12px;box-shadow:0 4px 12px rgba(47,111,222,.35)}
+.gear{position:absolute;right:12px;top:10px;background:rgba(255,255,255,.18);color:#fff}
+.modal{position:fixed;inset:0;background:rgba(0,0,0,.4);display:none;align-items:flex-end;z-index:20}
+.modal.on{display:flex}
+.sheet{background:#fff;width:100%;border-radius:16px 16px 0 0;padding:16px;max-height:85vh;overflow:auto}
+.sheet h2{font-size:17px;margin:0 0 10px}
+.sheet .row input{width:55%;text-align:left}
+#mConf{z-index:30}
+.tabs{display:flex;gap:6px;margin-top:10px}
+.tabs button{flex:1;background:rgba(255,255,255,.16);color:#fff;padding:9px}
+.tabs button.on{background:#fff;color:var(--main)}
+.tblwrap{overflow-x:auto;background:var(--card);border-radius:14px;box-shadow:0 1px 3px rgba(0,0,0,.06)}
+table{border-collapse:collapse;min-width:100%;font-size:14px}
+th,td{padding:10px 8px;border-bottom:1px solid var(--line);text-align:right;white-space:nowrap}
+th{background:#f0f4fb;font-size:12px;color:var(--sub);position:sticky;top:0}
+th:first-child,td:first-child{text-align:left;position:sticky;left:0;background:#fff;font-weight:700}
+th:first-child{background:#f0f4fb}
+td.inc{color:var(--in)}td.os{color:var(--out)}
+tr.sumrow td{background:#fff8dc;font-weight:700}
+tr.sumrow td:first-child{background:#fff8dc}
+.note{font-size:12px;color:var(--sub);margin:8px 2px}
+.empty{text-align:center;color:var(--sub);padding:30px 10px}
+</style>
+</head>
+<body>
+<header>
+  <h1>貯金アプリ</h1>
+  <button class="gear" onclick="openSet()">⚙ 設定</button>
+  <div class="sum">
+    <div><small>貯金の合計</small><b id="sAll">0円</b></div>
+    <div><small>月の平均</small><b id="sAvg">0円</b></div>
+  </div>
+  <div class="bar"><i id="gBar"></i></div>
+  <div class="goalTxt" id="gTxt"></div>
+  <div class="tabs"><button id="tb0" class="on" onclick="tab(0)">入力</button><button id="tb1" onclick="tab(1)">表</button></div>
+</header>
+<main id="list"></main>
+<main id="tbl" style="display:none"></main>
+<button class="fab" id="fab" onclick="addMonth()">＋ 次の月を追加</button>
+
+<div class="modal" id="mSet" onclick="if(event.target===this)closeSet()">
+  <div class="sheet">
+    <h2>設定</h2>
+    <div class="sec">貯金の目標額</div>
+    <div class="row"><label>目標</label><input id="goal" inputmode="numeric" placeholder="例 1000000"></div>
+    <div class="sec">支出の欄（全部の月に共通）</div>
+    <div id="cols"></div>
+    <div class="row"><input id="newCol" placeholder="例：保険、交際費"><button onclick="addCol()">＋追加</button></div>
+    <div style="height:12px"></div>
+    <button style="width:100%" onclick="closeSet()">閉じる</button>
+  </div>
+</div>
+
+<div class="modal" id="mConf" onclick="if(event.target===this)confNo()">
+  <div class="sheet"><h2 id="confMsg"></h2>
+  <div style="display:flex;gap:8px"><button style="flex:1" onclick="confNo()">やめる</button><button style="flex:1;background:var(--out);color:#fff" onclick="confYes()">削除する</button></div></div>
+</div>
+<script>
+let confCb=null;
+function ask(msg,cb){confCb=cb;document.getElementById('confMsg').textContent=msg;document.getElementById('mConf').classList.add('on')}
+function confNo(){confCb=null;document.getElementById('mConf').classList.remove('on')}
+function confYes(){const c=confCb;confNo();if(c)c()}
+const KEY='chokin-app-v1';
+let D={goal:0,cols:['家賃','食費','光熱費','スマホ代'],months:[]};
+try{const s=localStorage.getItem(KEY);if(s)D=JSON.parse(s)}catch(e){}
+function save(){try{localStorage.setItem(KEY,JSON.stringify(D))}catch(e){}}
+const yen=n=>(n<0?'-':'')+Math.abs(Math.round(n)).toLocaleString('ja-JP')+'円';
+const num=v=>{const n=Number(String(v).replace(/[^\d.-]/g,''));return isNaN(n)?0:n};
+function ym(d){return d.getFullYear()+'-'+String(d.getMonth()+1).padStart(2,'0')}
+function outSum(m){return D.cols.reduce((a,_,i)=>a+num(m.out[i]||0),0)}
+function tot(m){return num(m.inc)-outSum(m)}
+
+function addMonth(){
+  let d=new Date();
+  if(D.months.length){const [y,mo]=D.months[0].ym.split('-').map(Number);d=new Date(y,mo,1)}
+  D.months.unshift({ym:ym(d),inc:'',out:[]});save();render();
+}
+function delMonth(i){ask(D.months[i].ym.replace('-','年')+'月を消しますか？',()=>{D.months.splice(i,1);save();render()})}
+function setVal(i,k,j,el){
+  const m=D.months[i];
+  if(k==='inc')m.inc=el.value;else m.out[j]=el.value;
+  save();
+  document.getElementById('t'+i).innerHTML=fmtTot(m);
+  document.getElementById('o'+i).textContent=yen(outSum(m));
+  summary();
+}
+function fmtTot(m){const t=tot(m);return '<span class="v '+(t<0?'minus':'plus')+'">'+yen(t)+'</span>'}
+function esc(s){return String(s).replace(/[&<>"]/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;'}[c]))}
+
+function render(){
+  const L=document.getElementById('list');
+  if(!D.months.length){L.innerHTML='<div class="empty">下の「＋ 次の月を追加」から<br>月を追加してください</div>';summary();return}
+  L.innerHTML=D.months.map((m,i)=>`
+  <div class="card">
+    <div class="head">
+      <input type="month" value="${m.ym}" onchange="D.months[${i}].ym=this.value;save()">
+      <button class="del" onclick="delMonth(${i})">🗑 削除</button>
+    </div>
+    <div class="row inc"><label>収入</label><input inputmode="numeric" value="${esc(m.inc)}" placeholder="0" oninput="setVal(${i},'inc',0,this)"></div>
+    <div class="sec">支出（合計 <span id="o${i}">${yen(outSum(m))}</span>）</div>
+    ${D.cols.map((c,j)=>`<div class="row"><label>${esc(c)}</label><input inputmode="numeric" value="${esc(m.out[j]||'')}" placeholder="0" oninput="setVal(${i},'out',${j},this)"></div>`).join('')}
+    <button class="addcol" onclick="openSet(true)">＋ 支出の欄を追加</button>
+    <div class="total"><span>合計（収入−支出）</span><span id="t${i}">${fmtTot(m)}</span></div>
+  </div>`).join('');
+  summary();
+}
+function summary(){if(curTab===1)renderTbl();
+  const all=D.months.reduce((a,m)=>a+tot(m),0);
+  document.getElementById('sAll').textContent=yen(all);
+  document.getElementById('sAvg').textContent=yen(D.months.length?all/D.months.length:0);
+  const g=num(D.goal),bar=document.getElementById('gBar'),t=document.getElementById('gTxt');
+  if(g>0){const p=Math.max(0,Math.min(100,all/g*100));bar.style.width=p+'%';
+    const rest=g-all;t.textContent='目標 '+yen(g)+' ／ 達成 '+p.toFixed(1)+'%'+(rest>0?' ／ あと '+yen(rest):' 🎉 達成！');}
+  else{bar.style.width='0';t.textContent='⚙ 設定から目標額を入れられます'}
+}
+function addCol(){const e=document.getElementById('newCol'),n=e.value.trim();if(!n)return;D.cols.push(n);e.value='';save();render();renderCols()}
+function renderCols(){
+  document.getElementById('cols').innerHTML=D.cols.map((c,j)=>`<div class="row"><input value="${esc(c)}" onchange="D.cols[${j}]=this.value;save();render()"><button class="del" onclick="delCol(${j})">🗑</button></div>`).join('');
+}
+function delCol(j){ask('「'+D.cols[j]+'」の欄を消しますか？（全部の月から消えます）',()=>{
+  D.cols.splice(j,1);D.months.forEach(m=>m.out.splice(j,1));save();render();renderCols()})}
+function openSet(f){document.getElementById('goal').value=D.goal||'';renderCols();document.getElementById('mSet').classList.add('on');if(f===true)setTimeout(()=>document.getElementById('newCol').focus(),50)}
+function closeSet(){D.goal=num(document.getElementById('goal').value);save();document.getElementById('mSet').classList.remove('on');summary()}
+
+let curTab=0;
+function tab(n){curTab=n;['list','tbl'].forEach((id,i)=>document.getElementById(id).style.display=i===n?'':'none');
+  document.getElementById('tb0').classList.toggle('on',n===0);document.getElementById('tb1').classList.toggle('on',n===1);
+  document.getElementById('fab').style.display=n===0?'':'none';if(n===1)renderTbl();window.scrollTo(0,0)}
+function renderTbl(){
+  const T=document.getElementById('tbl');
+  if(!D.months.length){T.innerHTML='<div class="empty">まだ月がありません</div>';return}
+  const ms=[...D.months].sort((a,b)=>a.ym<b.ym?-1:1);
+  const lab=s=>{const [y,m]=s.split('-');return y+'年'+Number(m)+'月'};
+  let sInc=0,sOut=D.cols.map(()=>0),sO=0,sT=0;
+  const rows=ms.map(m=>{const inc=num(m.inc),o=outSum(m),t=inc-o;sInc+=inc;sO+=o;sT+=t;
+    return '<tr><td>'+lab(m.ym)+'</td><td class="inc">'+yen(inc)+'</td>'+D.cols.map((_,j)=>{const v=num(m.out[j]||0);sOut[j]+=v;return '<td>'+yen(v)+'</td>'}).join('')+
+    '<td class="os">'+yen(o)+'</td><td class="'+(t<0?'minus':'plus')+'"><b>'+yen(t)+'</b></td></tr>'}).join('');
+  T.innerHTML='<div class="tblwrap"><table><thead><tr><th>月</th><th>収入</th>'+D.cols.map(c=>'<th>'+esc(c)+'</th>').join('')+'<th>支出計</th><th>合計</th></tr></thead><tbody>'+rows+
+    '<tr class="sumrow"><td>総計</td><td class="inc">'+yen(sInc)+'</td>'+sOut.map(v=>'<td>'+yen(v)+'</td>').join('')+'<td class="os">'+yen(sO)+'</td><td class="'+(sT<0?'minus':'plus')+'">'+yen(sT)+'</td></tr></tbody></table></div>'+
+    '<div class="note">表が入りきらないときは横にスクロールできます。数字は「入力」タブで変えてください。</div>';
+}
+if(!D.months.length)addMonth();else render();
+</script>
+</body>
+</html>
