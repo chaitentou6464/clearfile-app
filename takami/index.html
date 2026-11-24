@@ -21,7 +21,7 @@ header{position:sticky;top:0;z-index:5;background:var(--ink);color:#fff;padding:
 .hb{background:rgba(255,255,255,.12);color:#fff;border:0;border-radius:10px;width:38px;height:36px;font-size:18px}
 .mg{display:flex;align-items:center;gap:8px}.mt{font-size:18px;font-weight:800;white-space:nowrap}
 .org{height:32px;padding:0 10px;border:0;border-radius:16px;color:#fff;font-size:12.5px;font-weight:800;white-space:nowrap}
-.gear{background:none;border:0;color:#fff;width:40px;height:36px;display:flex;align-items:center;justify-content:center}
+.gear{background:none;border:0;color:#fff;min-width:40px;height:36px;display:flex;align-items:center;justify-content:center}
 main{padding:12px;max-width:640px;margin:0 auto}
 .card{background:var(--card);border-radius:16px;padding:14px;margin-bottom:12px;box-shadow:0 1px 2px rgba(0,0,0,.05)}
 .ttl{font-weight:800;font-size:16px}.sub{color:var(--sub);font-size:13px}
@@ -117,7 +117,7 @@ function sanitize(D){
   const tg=g=>({fixed:!!(g&&g.fixed),value:numB(g&&g.value)});
   o.sb=A(D.sb).filter(x=>x&&typeof x==='object').slice(0,80).map(x=>({id:cid(x.id),name:str(x.name),kind:x.kind==='rate'?'rate':'cnt',den:ID_RE.test(String(x.den||''))?String(x.den):'',
     hai:numB(x.hai),note:str(x.note,300),tiers:A(x.tiers).filter(t=>t&&typeof t==='object').slice(0,20).map(t=>({id:cid(t.id),p:numB(t.p),pt:numB(t.pt)})),goal:tg(x.goal)}));
-  o.px=A(D.px).filter(x=>x&&typeof x==='object').slice(0,80).map(x=>({id:cid(x.id),name:str(x.name),grp:str(x.grp,30),unit:str(x.unit,10),pt:numB(x.pt),mode:x.mode==='yen'?'yen':'cnt',
+  o.px=A(D.px).filter(x=>x&&typeof x==='object').slice(0,80).map(x=>({id:cid(x.id),name:str(x.name),grp:str(x.grp,30),sbl:ID_RE.test(String(x.sbl||''))?String(x.sbl):'',unit:str(x.unit,10),pt:numB(x.pt),mode:x.mode==='yen'?'yen':'cnt',
     subs:A(x.subs).filter(s=>s&&typeof s==='object').slice(0,30).map(s=>({id:cid(s.id),name:str(s.name),pt:numB(s.pt),cut:!!s.cut})),cut:tg(x.cut),goal:tg(x.goal)}));
   o.ptCut=numB(D.ptCut);
   o.inp=A(D.inp).filter(x=>x&&typeof x==='object').slice(0,150).map(x=>({id:cid(x.id),name:str(x.name),grp:str(x.grp,30),cat:x.cat==='sb'||x.cat==='px'?x.cat:'',link:x.link==='none'||ID_RE.test(String(x.link||''))?String(x.link||''):'',
@@ -193,7 +193,7 @@ function render(){
   const org=view.org==='px'?'<button class="org" style="background:var(--px)" data-a="org">フェニックス ⇄</button>':'<button class="org" style="background:var(--sb)" data-a="org">ソフトバンク ⇄</button>';
   document.getElementById('hd').innerHTML=`<div class="hrow">${showOrg?org:'<span></span>'}
     ${showMonth?`<div class="mg"><button class="hb" data-a="mprev" aria-label="前の月">‹</button><div class="mt">${ymLabel(view.ym)}</div><button class="hb" data-a="mnext" aria-label="次の月">›</button></div>`:`<div class="mt">${T==='set'?'項目設定':'takami'}</div>`}
-    <button class="gear" data-a="${T==='set'?'back':'gear'}" aria-label="項目設定">${T==='set'?'<span style="font-size:15px;font-weight:700">閉じる</span>':IC.gear}</button></div>`;
+    <button class="gear" data-a="${T==='set'?'back':'gear'}" aria-label="項目設定">${T==='set'?'<span style="font-size:15px;font-weight:700;white-space:nowrap;padding:0 4px">閉じる</span>':IC.gear}</button></div>`;
   let h='';
   if(T==='in')h=inView();else if(T==='res')h=resView();else if(T==='pts')h=ptsView();else if(T==='cal')h=calView();else h=setView();
   document.getElementById('app').innerHTML=h;
@@ -203,11 +203,13 @@ const noSetup=()=>`<div class="card empty">まだ入力ボタンがありませ�
 
 const catOf=x=>x.cat==='sb'||x.cat==='px'?x.cat:(x.grp==='フェニックス'||(!x.sb.length&&x.px.length))?'px':'sb';
 const sbGroups=()=>[...new Set(S.inp.filter(x=>catOf(x)==='sb').map(x=>x.grp||'その他'))];
-const grpName=x=>{if(catOf(x)!=='px')return x.grp||'その他';if(x.grp&&x.grp!=='フェニックス'&&x.grp!=='その他')return x.grp;for(const l of x.px){const it=pxById(l.i);if(it&&it.grp)return it.grp;}return x.grp||'フェニックス';};
+const grpName=x=>{if(catOf(x)!=='px')return x.grp||'その他';{const L=x.link&&x.link!=='none'?x.link:pxSbl(x),z=L&&inpById(L);if(z)return z.grp||'その他';}if(x.grp&&x.grp!=='フェニックス'&&x.grp!=='その他')return x.grp;for(const l of x.px){const it=pxById(l.i);if(it&&it.grp)return it.grp;}return x.grp||'フェニックス';};
 const nm=v=>String(v||'').replace(/[\s　]/g,'').toLowerCase();
 const covered=(x,y)=>y.px.length&&y.px.every(l=>x.px.some(m=>m.i===l.i&&(m.s||'')===(l.s||'')));
 // SBのボタンxに連動するフェニックスのボタン（設定で指定、なければ同じ名前）
-const linkedOf=x=>catOf(x)!=='sb'?[]:S.inp.filter(y=>y!==x&&catOf(y)==='px'&&y.link!=='none'&&(y.link?y.link===x.id:nm(y.name)&&nm(y.name)===nm(x.name)));
+// フェニックスのボタンがつながるソフトバンクのボタン：ボタンの設定 → 項目の「大項目・小項目」 → 同じ名前
+const pxSbl=y=>{for(const l of y.px){const it=pxById(l.i);if(it&&it.sbl&&inpById(it.sbl))return it.sbl;}return '';};
+const linkedOf=x=>catOf(x)!=='sb'?[]:S.inp.filter(y=>{if(y===x||catOf(y)!=='px'||y.link==='none')return false;const L=y.link||pxSbl(y);return L?L===x.id:nm(y.name)&&nm(y.name)===nm(x.name);});
 function incMap(){const m={};S.inp.forEach(x=>{if(sel[x.id])linkedOf(x).forEach(y=>{if(covered(x,y)&&!sel[y.id])m[y.id]=x.id;});});return m;}
 function toggleSel(id){const x=inpById(id);if(!x)return;
   if(sel[id]){delete sel[id];delete selA[id];Object.keys(selA).forEach(k=>{if(selA[k]===id){delete sel[k];delete selA[k];}});return;}
@@ -369,10 +371,12 @@ function setView(){
   h+=`<div class="card"><div class="ttl" style="color:var(--px)">フェニックスの項目</div>
     <div class="field"><label>ポイントの足切り（月）</label><div class="flex"><input class="inp" type="number" inputmode="decimal" value="${S.ptCut??''}" data-a="ptcut" placeholder="なしなら空欄"><span class="sub">pt</span></div></div>`;
   S.px.forEach((it,i)=>{
-    h+=`<button class="ihead" data-a="open" data-id="${it.id}"><span><b>${esc(it.name||'名前なし')}</b><span class="sub">　${it.grp?'（'+esc(it.grp)+'）':''}${(it.subs||[]).length?it.subs.map(s=>esc(s.name)+' '+fmt(s.pt)+'pt').join('／'):fmt(it.pt)+'pt'}</span></span><span class="chev">${o===it.id?'閉じる ▲':'設定 ▼'}</span></button>`;
+    h+=`<button class="ihead" data-a="open" data-id="${it.id}"><span><b>${esc(it.name||'名前なし')}</b><span class="sub">　${it.grp?'（'+esc(it.grp)+(it.sbl&&inpById(it.sbl)?'→'+esc(inpById(it.sbl).name):'')+'）':''}${(it.subs||[]).length?it.subs.map(s=>esc(s.name)+' '+fmt(s.pt)+'pt').join('／'):fmt(it.pt)+'pt'}</span></span><span class="chev">${o===it.id?'閉じる ▲':'設定 ▼'}</span></button>`;
     if(o!==it.id)return;
     h+=`<div class="ibody"><div class="r2"><div class="field"><label>項目名</label><input value="${esc(it.name)}" data-a="f" data-kind="px" data-id="${it.id}" data-f="name"></div><div class="field"><label>単位</label><input value="${esc(it.unit)}" data-a="f" data-kind="px" data-id="${it.id}" data-f="unit"></div></div>
-      <div class="field"><label>グループ（ソフトバンクのグループから選ぶ）</label><select data-a="f" data-kind="px" data-id="${it.id}" data-f="grp"><option value="">（グループなし）</option>${[...new Set([...sbGroups(),...(it.grp?[it.grp]:[])])].map(g=>`<option value="${esc(g)}" ${g===it.grp?'selected':''}>${esc(g)}</option>`).join('')}</select></div>
+      <div class="r2"><div class="field"><label>大項目（ソフトバンク）</label><select data-a="f" data-kind="px" data-id="${it.id}" data-f="grp"><option value="">（なし）</option>${[...new Set([...sbGroups(),...(it.grp?[it.grp]:[])])].map(g=>`<option value="${esc(g)}" ${g===it.grp?'selected':''}>${esc(g)}</option>`).join('')}</select></div>
+        <div class="field"><label>小項目</label><select data-a="f" data-kind="px" data-id="${it.id}" data-f="sbl" ${it.grp?'':'disabled'}><option value="">（なし）</option>${S.inp.filter(v=>catOf(v)==='sb'&&(v.grp||'その他')===it.grp).map(v=>`<option value="${v.id}" ${v.id===it.sbl?'selected':''}>${esc(v.name||'名前なし')}</option>`).join('')}</select></div></div>
+      <div class="sub">小項目を選ぶと、入力タブでソフトバンクのそのボタンと連動します（例：他社MNP → 回線・MNP）。</div>
       ${(it.subs||[]).length?'':`<div class="field"><label>1件あたりのポイント</label><input type="number" inputmode="decimal" value="${it.pt??''}" data-a="f" data-kind="px" data-id="${it.id}" data-f="pt"></div>`}
       <div class="field"><label>種類（なくてもOK）</label>${(it.subs||[]).map(s=>`<div class="lnk"><input style="flex:3" value="${esc(s.name)}" data-a="sf" data-id="${it.id}" data-s="${s.id}" data-f="name"><input type="number" inputmode="decimal" value="${s.pt??''}" data-a="sf" data-id="${it.id}" data-s="${s.id}" data-f="pt" placeholder="pt"><span class="sub">pt</span><button class="mini" data-a="sdel" data-id="${it.id}" data-s="${s.id}" style="color:var(--bad)">✕</button></div>`).join('')}
         <button class="mini" data-a="sadd" data-id="${it.id}" style="margin-top:6px;color:var(--acc);font-weight:700">＋ 種類</button></div>
@@ -528,6 +532,7 @@ document.addEventListener('change',e=>{
   if(a==='ptcut'){S.ptCut=numB(t.value);save();render();return;}
   if(a==='f'){const it=findK(t.dataset.kind,id);if(!it)return;const f=t.dataset.f;
     if(['hai','pt'].includes(f))it[f]=numB(t.value);else if(f==='kind')it.kind=t.value==='rate'?'rate':'cnt';else if(f==='mode')it.mode=t.value==='yen'?'yen':'cnt';else it[f]=t.value.slice(0,f==='note'?300:60);
+    if(t.dataset.kind==='px'&&f==='grp'&&it.sbl){const z=inpById(it.sbl);if(!z||(z.grp||'その他')!==it.grp)it.sbl='';}
     save();render();return;}
   if(a==='tval'){const it=findK(t.dataset.kind,id);if(!it)return;setT(view.ym,it,t.dataset.k,numB(t.value));save();render();return;}
   if(a==='tier'){const it=sbById(id);const x=it&&it.tiers.find(v=>v.id===t.dataset.t);if(!x)return;x[t.dataset.f]=numB(t.value);save();render();return;}
