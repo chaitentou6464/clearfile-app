@@ -32,12 +32,13 @@ main{padding:12px;max-width:640px;margin:0 auto}
 .mini.on{background:var(--ink);color:#fff;border-color:var(--ink)}
 .flex{display:flex;align-items:center;gap:8px}.between{display:flex;justify-content:space-between;align-items:center;gap:8px}
 .wrap{flex-wrap:wrap}
+.csec{margin:16px 0 0;padding:6px 10px;border-radius:9px;font-size:14px;font-weight:800;color:#fff}.csec.sb{background:var(--sb)}.csec.px{background:var(--px)}
 .ctabs{display:flex;gap:6px;margin-top:10px}
 .ctab{flex:1;height:40px;border:1.5px solid var(--line);border-radius:12px;background:#fff;font-size:14.5px;font-weight:800;color:var(--sub)}
 .ctab.sb.on{background:var(--sb);border-color:var(--sb);color:#fff}.ctab.px.on{background:var(--px);border-color:var(--px);color:#fff}
 .ctab i{font-style:normal;display:inline-block;min-width:18px;height:18px;line-height:18px;margin-left:4px;border-radius:9px;background:var(--acc);color:#fff;font-size:11.5px;padding:0 5px}
 .ctab.on i{background:#fff;color:var(--ink)}
-.pick{display:flex;align-items:center;gap:8px;margin-top:10px}.pick .pl{flex:none;min-width:64px;white-space:nowrap;font-size:13px;font-weight:800;color:var(--sub)}
+.pick{display:flex;align-items:center;gap:8px;margin-top:10px}.pick .pl{flex:none;min-width:96px;white-space:nowrap;font-size:13px;font-weight:800;color:var(--sub)}
 .pick select{flex:1;min-width:0;height:42px;border:1.5px solid var(--line);border-radius:11px;background:#fff;padding:0 10px;font-size:15px;font-weight:700;color:var(--ink)}
 .chip.on.auto{border-style:dashed;background:#f4f5f7;color:var(--sub);border-color:var(--line)}.chip.on.auto small{color:var(--sub)}
 .grp{font-size:12.5px;font-weight:800;color:var(--sub);margin:12px 0 6px}
@@ -215,17 +216,15 @@ function inView(){
   let h=`<div class="dayrow"><button class="mini" data-a="dprev" aria-label="前の日">‹</button><div class="dt">${dayLabel(k)}</div><button class="mini" data-a="dnext" aria-label="次の日">›</button>${k!==todayKey?'<button class="mini" data-a="dtoday">今日</button>':''}</div>`;
   if(!S.inp.length)return h+noSetup();
   const cats=[['sb','ソフトバンク'],['px','フェニックス']].filter(([c])=>S.inp.some(x=>catOf(x)===c));
-  const cc=cats.some(C=>C[0]===view.cat)?view.cat:cats[0][0];
-  const groups=[];S.inp.filter(x=>catOf(x)===cc).forEach(x=>{const g=x.grp||'その他';let G=groups.find(v=>v[0]===g);if(!G)groups.push(G=[g,[]]);G[1].push(x);});
+  const grpOf=c=>{const G=[];S.inp.filter(x=>catOf(x)===c).forEach(x=>{const g=x.grp||'その他';let v=G.find(w=>w[0]===g);if(!v)G.push(v=[g,[]]);v[1].push(x);});return G;};
   const inc=incMap();
   const chosen=S.inp.filter(x=>sel[x.id]);
   let pt=0;const sbc={},pxs=[];chosen.forEach(x=>{pt+=selN*inpPt(x);x.sb.forEach(l=>{sbc[l.i]=(sbc[l.i]||0)+selN*num(l.q);});x.px.forEach(l=>{const it=pxById(l.i);if(it)pxs.push(pxLabel(it,l.s));});});
   const yenSel=chosen.filter(x=>x.px.some(l=>{const it=pxById(l.i);return it&&it.mode==='yen';}));
   h+=`<div class="card"><div class="between"><div class="ttl">1件の獲得を入力</div>${chosen.length?'<button class="mini" data-a="clr">選び直す</button>':''}</div>
-    <div class="sub">お客さま1人分の内容を選んで、最後に「登録」を1回押します。ソフトバンクとかぶるフェニックスの項目は自動で入ります。</div>
-    ${cats.length>1?`<div class="ctabs">${cats.map(([c,l])=>{const n=S.inp.filter(x=>catOf(x)===c&&(sel[x.id]||inc[x.id])).length;return `<button class="ctab ${c} ${c===cc?'on':''}" data-a="ctab" data-c="${c}">【${l}】${n?`<i>${n}</i>`:''}</button>`;}).join('')}</div>`:''}
-    ${cc==='px'?groups.map(([g,cur])=>`${groups.length>1?`<div class="grp">（${esc(g)}）</div>`:'<div style="height:10px"></div>'}<div class="chips">${cur.map(x=>{const p=inpPt(x);return inc[x.id]?`<span class="chip on auto">${esc(x.name)}<small>ソフトバンクで入力済</small></span>`:`<button class="chip ${sel[x.id]?'on':''}" data-a="chip" data-id="${x.id}">${sel[x.id]?'✓ ':''}${esc(x.name||'名前なし')}${selA[x.id]?'<small>自動</small>':p?`<small>${fmt(p)}pt</small>`:''}</button>`;}).join('')}</div>`).join(''):groups.map(([g,cur])=>{const on=cur.filter(x=>sel[x.id]||inc[x.id]);return `<div class="pick"><div class="pl">（${esc(g)}）</div><select data-a="pick"><option value="">${on.length?'＋ 追加／外す':'選んでください'}</option>${cur.map(x=>{const p=inpPt(x);return `<option value="${x.id}" ${inc[x.id]?'disabled':''}>${sel[x.id]||inc[x.id]?'✓ ':''}${esc(x.name||'名前なし')}${p?`（${fmt(p)}pt）`:''}</option>`;}).join('')}</select></div>
-      ${on.length?`<div class="chips" style="margin:6px 0 2px">${on.map(x=>inc[x.id]?`<span class="chip on auto">${esc(x.name)}<small>ソフトバンクで入力済</small></span>`:`<button class="chip on" data-a="chip" data-id="${x.id}">${esc(x.name||'名前なし')}${selA[x.id]?'<small>自動</small>':''} ✕</button>`).join('')}</div>`:''}`;}).join('')}
+    <div class="sub">上から順に選んで、最後に「登録」を1回押します。ソフトバンクとかぶるフェニックスの項目は自動で入ります。</div>
+    ${cats.map(([cc,lab])=>{const groups=grpOf(cc);return `<div class="csec ${cc}">【${lab}】</div>${cc==='px'?groups.map(([g,cur])=>`${groups.length>1?`<div class="grp">（${esc(g)}）</div>`:'<div style="height:10px"></div>'}<div class="chips">${cur.map(x=>{const p=inpPt(x);return inc[x.id]?`<span class="chip on auto">${esc(x.name)}<small>ソフトバンクで入力済</small></span>`:`<button class="chip ${sel[x.id]?'on':''}" data-a="chip" data-id="${x.id}">${sel[x.id]?'✓ ':''}${esc(x.name||'名前なし')}${selA[x.id]?'<small>自動</small>':p?`<small>${fmt(p)}pt</small>`:''}</button>`;}).join('')}</div>`).join(''):groups.map(([g,cur])=>{const on=cur.filter(x=>sel[x.id]||inc[x.id]);return `<div class="pick"><div class="pl">（${esc(g)}）</div><select data-a="pick"><option value="">${on.length?'＋ 追加／外す':'選んでください'}</option>${cur.map(x=>{const p=inpPt(x);return `<option value="${x.id}" ${inc[x.id]?'disabled':''}>${sel[x.id]||inc[x.id]?'✓ ':''}${esc(x.name||'名前なし')}${p?`（${fmt(p)}pt）`:''}</option>`;}).join('')}</select></div>
+      ${on.length?`<div class="chips" style="margin:6px 0 2px">${on.map(x=>inc[x.id]?`<span class="chip on auto">${esc(x.name)}<small>ソフトバンクで入力済</small></span>`:`<button class="chip on" data-a="chip" data-id="${x.id}">${esc(x.name||'名前なし')}${selA[x.id]?'<small>自動</small>':''} ✕</button>`).join('')}</div>`:''}`;}).join('')}`;}).join('')}
     ${yenSel.map(x=>`<div class="field"><label>${esc(x.name)}の金額（円）</label><input type="number" inputmode="numeric" data-a="yen" data-id="${x.id}" value="${selY[x.id]??''}" placeholder="例：3000"></div>`).join('')}
     <div class="prev">${chosen.length?`<div><b>ソフトバンク</b>　${Object.keys(sbc).map(i=>{const it=sbById(i);return it?`<span class="tag sb">${esc(it.name)} +${fmt(sbc[i])}</span>`:'';}).join('')||'<span class="sub">数える項目なし</span>'}</div>
       <div><b>フェニックス</b>　${pxs.map(n=>`<span class="tag px">${esc(n)}</span>`).join('')||'<span class="sub">項目なし</span>'}　<b style="color:var(--px)">${fmt(pt)}pt</b></div>`:'<span class="sub">上のボタンから選んでください</span>'}</div>
@@ -462,7 +461,6 @@ document.addEventListener('click',async e=>{
   if(a==='mprev'||a==='mnext'){const d=new Date(+view.ym.slice(0,4),+view.ym.slice(5,7)-1+(a==='mnext'?1:-1),1);view.ym=d.getFullYear()+'-'+pad(d.getMonth()+1);render();return;}
   if(a==='dprev'||a==='dnext'){view.day=addDay(view.day,a==='dnext'?1:-1);view.ym=view.day.slice(0,7);render();return;}
   if(a==='dtoday'){view.day=todayKey;view.ym=curYM;render();return;}
-  if(a==='ctab'){view.cat=t.dataset.c;render();return;}
   if(a==='chip'){toggleSel(id);render();return;}
   if(a==='clr'){sel={};selY={};selA={};selN=1;render();return;}
   if(a==='reg'){const x=S.inp.filter(v=>sel[v.id]).map(v=>v.id);if(!x.length)return;const y={};x.forEach(i=>{if(selY[i])y[i]=num(selY[i]);});
