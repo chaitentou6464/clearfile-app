@@ -32,6 +32,10 @@ main{padding:12px;max-width:640px;margin:0 auto}
 .mini.on{background:var(--ink);color:#fff;border-color:var(--ink)}
 .flex{display:flex;align-items:center;gap:8px}.between{display:flex;justify-content:space-between;align-items:center;gap:8px}
 .wrap{flex-wrap:wrap}
+.gtabs{display:flex;gap:6px;overflow-x:auto;margin:10px -14px 0;padding:0 14px 2px;scrollbar-width:none}.gtabs::-webkit-scrollbar{display:none}
+.gtab{flex:none;height:36px;padding:0 14px;border:0;border-radius:18px;background:#e9ecf1;font-size:14px;font-weight:700;color:var(--sub);white-space:nowrap}
+.gtab.on{background:var(--ink);color:#fff}
+.gtab i{font-style:normal;display:inline-block;min-width:18px;height:18px;line-height:18px;margin-left:5px;border-radius:9px;background:var(--acc);color:#fff;font-size:11.5px;padding:0 5px}
 .grp{font-size:12.5px;font-weight:800;color:var(--sub);margin:12px 0 6px}
 .chips{display:flex;flex-wrap:wrap;gap:7px}
 .chip{border:1.5px solid var(--line);background:#fff;border-radius:22px;padding:8px 12px;font-size:14.5px;font-weight:700;color:var(--ink)}
@@ -198,12 +202,14 @@ function inView(){
   let h=`<div class="dayrow"><button class="mini" data-a="dprev" aria-label="前の日">‹</button><div class="dt">${dayLabel(k)}</div><button class="mini" data-a="dnext" aria-label="次の日">›</button>${k!==todayKey?'<button class="mini" data-a="dtoday">今日</button>':''}</div>`;
   if(!S.inp.length)return h+noSetup();
   const groups=[];S.inp.forEach(x=>{const g=x.grp||'その他';let G=groups.find(v=>v[0]===g);if(!G)groups.push(G=[g,[]]);G[1].push(x);});
+  const cg=groups.some(G=>G[0]===view.grp)?view.grp:groups[0][0],cur=groups.find(G=>G[0]===cg)[1];
   const chosen=S.inp.filter(x=>sel[x.id]);
   let pt=0;const sbc={},pxs=[];chosen.forEach(x=>{pt+=selN*inpPt(x);x.sb.forEach(l=>{sbc[l.i]=(sbc[l.i]||0)+selN*num(l.q);});x.px.forEach(l=>{const it=pxById(l.i);if(it)pxs.push(pxLabel(it,l.s));});});
   const yenSel=chosen.filter(x=>x.px.some(l=>{const it=pxById(l.i);return it&&it.mode==='yen';}));
   h+=`<div class="card"><div class="between"><div class="ttl">1件の獲得を入力</div>${chosen.length?'<button class="mini" data-a="clr">選び直す</button>':''}</div>
     <div class="sub">お客さま1人分の内容をまとめてタップして、最後に「登録」を1回押します。ソフトバンクとフェニックスの両方に入ります。</div>
-    ${groups.map(([g,L])=>`<div class="grp">${esc(g)}</div><div class="chips">${L.map(x=>{const p=inpPt(x);return `<button class="chip ${sel[x.id]?'on':''}" data-a="chip" data-id="${x.id}">${sel[x.id]?'✓ ':''}${esc(x.name||'名前なし')}${p?`<small>${fmt(p)}pt</small>`:''}</button>`;}).join('')}</div>`).join('')}
+    ${groups.length>1?`<div class="gtabs">${groups.map(([g,L])=>{const c=L.filter(x=>sel[x.id]).length;return `<button class="gtab ${g===cg?'on':''}" data-a="gtab" data-g="${esc(g)}">${esc(g)}${c?`<i>${c}</i>`:''}</button>`;}).join('')}</div>`:''}
+    <div class="chips" style="margin-top:10px">${cur.map(x=>{const p=inpPt(x);return `<button class="chip ${sel[x.id]?'on':''}" data-a="chip" data-id="${x.id}">${sel[x.id]?'✓ ':''}${esc(x.name||'名前なし')}${p?`<small>${fmt(p)}pt</small>`:''}</button>`;}).join('')}</div>
     ${yenSel.map(x=>`<div class="field"><label>${esc(x.name)}の金額（円）</label><input type="number" inputmode="numeric" data-a="yen" data-id="${x.id}" value="${selY[x.id]??''}" placeholder="例：3000"></div>`).join('')}
     <div class="prev">${chosen.length?`<div><b>ソフトバンク</b>　${Object.keys(sbc).map(i=>{const it=sbById(i);return it?`<span class="tag sb">${esc(it.name)} +${fmt(sbc[i])}</span>`:'';}).join('')||'<span class="sub">数える項目なし</span>'}</div>
       <div><b>フェニックス</b>　${pxs.map(n=>`<span class="tag px">${esc(n)}</span>`).join('')||'<span class="sub">項目なし</span>'}　<b style="color:var(--px)">${fmt(pt)}pt</b></div>`:'<span class="sub">上のボタンから選んでください</span>'}</div>
@@ -438,6 +444,7 @@ document.addEventListener('click',async e=>{
   if(a==='mprev'||a==='mnext'){const d=new Date(+view.ym.slice(0,4),+view.ym.slice(5,7)-1+(a==='mnext'?1:-1),1);view.ym=d.getFullYear()+'-'+pad(d.getMonth()+1);render();return;}
   if(a==='dprev'||a==='dnext'){view.day=addDay(view.day,a==='dnext'?1:-1);view.ym=view.day.slice(0,7);render();return;}
   if(a==='dtoday'){view.day=todayKey;view.ym=curYM;render();return;}
+  if(a==='gtab'){view.grp=t.dataset.g;render();return;}
   if(a==='chip'){if(sel[id])delete sel[id];else sel[id]=1;render();return;}
   if(a==='clr'){sel={};selY={};selN=1;render();return;}
   if(a==='reg'){const x=S.inp.filter(v=>sel[v.id]).map(v=>v.id);if(!x.length)return;const y={};x.forEach(i=>{if(selY[i])y[i]=num(selY[i]);});
