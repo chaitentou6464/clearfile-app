@@ -39,6 +39,7 @@ button{font-family:inherit;font-size:14px;border:none;border-radius:8px;padding:
 .del{background:none;color:var(--sub);font-size:13px;padding:4px 6px}
 .addcol{width:100%;margin-top:6px;background:#fff;border:1.5px dashed #b9c6db}
 .fab{position:fixed;left:12px;right:12px;bottom:14px;padding:14px;font-size:16px;background:var(--main);color:#fff;border-radius:12px;box-shadow:0 4px 12px rgba(47,111,222,.35)}
+.shareBtn{position:absolute;right:92px;top:10px;background:rgba(255,255,255,.18);color:#fff}
 .gear{position:absolute;right:12px;top:10px;background:rgba(255,255,255,.18);color:#fff}
 .modal{position:fixed;inset:0;background:rgba(0,0,0,.4);display:none;align-items:flex-end;z-index:20}
 .modal.on{display:flex}
@@ -73,6 +74,7 @@ tr.sumrow td:first-child{background:#fff8dc}
 <body>
 <header>
   <h1>貯金アプリ</h1>
+  <button class="shareBtn" onclick="openShare()">🔗 共有</button>
   <button class="gear" onclick="openSet()">⚙ 設定</button>
   <div class="sum">
     <div><small>貯金の合計</small><b id="sAll">0円</b></div>
@@ -99,13 +101,27 @@ tr.sumrow td:first-child{background:#fff8dc}
   </div>
 </div>
 
+<div class="modal" id="mShare" onclick="if(event.target===this)closeShare()">
+  <div class="sheet">
+    <h2>ほかの端末と共有</h2>
+    <div class="note" style="margin:0 0 10px">今のデータ（全部の月・項目・目標）をURLにします。ほかの端末でこのURLを開くと、同じデータを読み込めます。<br>※URLを作った時点のデータです。あとで変えたら、もう一度URLを作って送ってください。<br>※URLを知っている人は中身を見られるので、送る相手に気をつけてください。</div>
+    <textarea id="shareUrl" readonly style="width:100%;height:90px;font-size:13px;border:1px solid var(--line);border-radius:8px;padding:8px;font-family:inherit"></textarea>
+    <div style="display:flex;gap:8px;margin-top:8px">
+      <button style="flex:1" onclick="copyShare()" id="copyBtn">コピー</button>
+      <button style="flex:1;background:var(--main);color:#fff" onclick="sendShare()" id="sendBtn">送る（LINEなど）</button>
+    </div>
+    <div style="height:10px"></div>
+    <button style="width:100%" onclick="closeShare()">閉じる</button>
+  </div>
+</div>
+
 <div class="modal" id="mConf" onclick="if(event.target===this)confNo()">
   <div class="sheet"><h2 id="confMsg"></h2>
-  <div style="display:flex;gap:8px"><button style="flex:1" onclick="confNo()">やめる</button><button style="flex:1;background:var(--out);color:#fff" onclick="confYes()">削除する</button></div></div>
+  <div style="display:flex;gap:8px"><button style="flex:1" onclick="confNo()">やめる</button><button style="flex:1;background:var(--out);color:#fff" onclick="confYes()" id="confOk">削除する</button></div></div>
 </div>
 <script>
 let confCb=null;
-function ask(msg,cb){confCb=cb;document.getElementById('confMsg').textContent=msg;document.getElementById('mConf').classList.add('on')}
+function ask(msg,cb,ok){confCb=cb;const b=document.getElementById('confOk');b.textContent=ok||'削除する';b.style.background=ok?'var(--main)':'var(--out)';document.getElementById('confMsg').textContent=msg;document.getElementById('mConf').classList.add('on')}
 function confNo(){confCb=null;document.getElementById('mConf').classList.remove('on')}
 function confYes(){const c=confCb;confNo();if(c)c()}
 const KEY='chokin-app-v1';
@@ -210,7 +226,35 @@ function tblSums(){
   set('sumInc',sInc);sOut.forEach((v,j)=>set('sumC'+j,v));set('sumO',sO);
   const st=document.getElementById('sumT');if(st){st.className=sT<0?'minus':'plus';st.textContent=yen(sT)}
 }
+const b64u=u8=>{let s='';for(let i=0;i<u8.length;i+=8192)s+=String.fromCharCode.apply(null,u8.subarray(i,i+8192));return btoa(s).replace(/\+/g,'-').replace(/\//g,'_').replace(/=+$/,'')};
+const ub64=t=>{t=t.replace(/-/g,'+').replace(/_/g,'/');while(t.length%4)t+='=';const s=atob(t),u=new Uint8Array(s.length);for(let i=0;i<s.length;i++)u[i]=s.charCodeAt(i);return u};
+async function pipe(u8,Stream,kind){return new Uint8Array(await new Response(new Blob([u8]).stream().pipeThrough(new Stream(kind))).arrayBuffer())}
+async function encData(){const u=new TextEncoder().encode(JSON.stringify(D));
+  if(window.CompressionStream){try{return 'z'+b64u(await pipe(u,CompressionStream,'deflate'))}catch(e){}}
+  return 'j'+b64u(u)}
+async function decData(t){let u=ub64(t.slice(1));if(t[0]==='z')u=await pipe(u,DecompressionStream,'deflate');return JSON.parse(new TextDecoder().decode(u))}
+let shareLink='';
+async function openShare(){shareLink=location.href.split('#')[0]+'#d='+await encData();
+  document.getElementById('shareUrl').value=shareLink;document.getElementById('copyBtn').textContent='コピー';
+  document.getElementById('sendBtn').style.display=navigator.share?'':'none';
+  document.getElementById('mShare').classList.add('on')}
+function closeShare(){document.getElementById('mShare').classList.remove('on')}
+async function copyShare(){const b=document.getElementById('copyBtn');
+  try{await navigator.clipboard.writeText(shareLink);b.textContent='コピーしました ✓'}
+  catch(e){const t=document.getElementById('shareUrl');t.focus();t.select();try{document.execCommand('copy');b.textContent='コピーしました ✓'}catch(_){b.textContent='長押しでコピーしてください'}}}
+async function sendShare(){try{await navigator.share({title:'貯金アプリのデータ',url:shareLink})}catch(e){}}
+async function loadFromHash(){
+  const h=location.hash;if(!h.startsWith('#d='))return;
+  history.replaceState(null,'',location.pathname+location.search);
+  try{const nd=await decData(h.slice(3));
+    if(!nd||!Array.isArray(nd.months)||!Array.isArray(nd.cols))throw 0;
+    const go=()=>{D=nd;save();render()};
+    if(!D.months.some(m=>num(m.inc)||(m.out||[]).some(v=>num(v))))go();
+    else ask('共有されたデータ（'+nd.months.length+'か月分）を読み込みますか？この端末の今のデータは置き換わります。',go,'読み込む');
+  }catch(e){alert('共有URLを読み込めませんでした。URLが途中で切れていないか確かめてください。')}
+}
 if(!D.months.length)addMonth();else render();
+loadFromHash();addEventListener("hashchange",loadFromHash);
 </script>
 </body>
 </html>

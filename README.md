@@ -40,4 +40,4 @@
 ## 貯金アプリ
 - `chokin/` … https://chaitentou6464.github.io/clearfile-app/chokin/
 - 月ごとに収入と支出（欄は⚙で追加・削除）を入れると、貯金の合計・月の平均・目標達成度が出る。「表」タブで月ごとの一覧と総計。
-- データは端末の中だけ（localStorage の `chokin-app-v1`）。
+- データは端末の中だけ（localStorage の `chokin-app-v1`）。「🔗 共有」でデータ全体を圧縮してURLの `#d=` に入れ、ほかの端末で開くと読み込める（その時点のコピー。自動同期ではない）。
