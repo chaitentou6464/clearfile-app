@@ -176,7 +176,7 @@ function remWork(ym){const w=monthWork(ym);if(ym<curYM)return 0;if(ym>curYM)retu
 function elWork(ym){const w=monthWork(ym);if(ym<curYM)return w.length;if(ym>curYM)return 0;return w.filter(k=>k<=todayKey).length;}
 
 // ===================== 画面の状態 =====================
-const view={tab:'in',day:todayKey,ym:curYM,org:'sb',range:'month',from:curYM+'-01',to:todayKey,cday:todayKey,open:null,del:null};
+const view={newG:null,newS:null,tab:'in',day:todayKey,ym:curYM,org:'sb',range:'month',from:curYM+'-01',to:todayKey,cday:todayKey,open:null,del:null};
 let sel={},selN=1,selY={},selA={};
 
 // ===================== アイコン =====================
@@ -374,9 +374,12 @@ function setView(){
     h+=`<button class="ihead" data-a="open" data-id="${it.id}"><span><b>${esc(it.name||'名前なし')}</b><span class="sub">　${it.grp?'（'+esc(it.grp)+(it.sbl&&inpById(it.sbl)?'→'+esc(inpById(it.sbl).name):'')+'）':''}${(it.subs||[]).length?it.subs.map(s=>esc(s.name)+' '+fmt(s.pt)+'pt').join('／'):fmt(it.pt)+'pt'}</span></span><span class="chev">${o===it.id?'閉じる ▲':'設定 ▼'}</span></button>`;
     if(o!==it.id)return;
     h+=`<div class="ibody"><div class="r2"><div class="field"><label>項目名</label><input value="${esc(it.name)}" data-a="f" data-kind="px" data-id="${it.id}" data-f="name"></div><div class="field"><label>単位</label><input value="${esc(it.unit)}" data-a="f" data-kind="px" data-id="${it.id}" data-f="unit"></div></div>
-      <div class="r2"><div class="field"><label>大項目（ソフトバンク）</label><select data-a="f" data-kind="px" data-id="${it.id}" data-f="grp"><option value="">（なし）</option>${[...new Set([...sbGroups(),...(it.grp?[it.grp]:[])])].map(g=>`<option value="${esc(g)}" ${g===it.grp?'selected':''}>${esc(g)}</option>`).join('')}</select></div>
-        <div class="field"><label>小項目</label><select data-a="f" data-kind="px" data-id="${it.id}" data-f="sbl" ${it.grp?'':'disabled'}><option value="">（なし）</option>${S.inp.filter(v=>catOf(v)==='sb'&&(v.grp||'その他')===it.grp).map(v=>`<option value="${v.id}" ${v.id===it.sbl?'selected':''}>${esc(v.name||'名前なし')}</option>`).join('')}</select></div></div>
-      <div class="sub">小項目を選ぶと、入力タブでソフトバンクのそのボタンと連動します（例：他社MNP → 回線・MNP）。</div>
+      <div class="r2"><div class="field"><label>大項目（ソフトバンク）</label><select data-a="f" data-kind="px" data-id="${it.id}" data-f="grp"><option value="">（なし）</option>${[...new Set([...sbGroups(),...(it.grp?[it.grp]:[])])].map(g=>`<option value="${esc(g)}" ${g===it.grp?'selected':''}>${esc(g)}</option>`).join('')}<option value="__new">＋ 大項目を追加</option></select></div>
+        <div class="field"><label>小項目</label><select data-a="f" data-kind="px" data-id="${it.id}" data-f="sbl" ${it.grp?'':'disabled'}><option value="">（なし）</option>${S.inp.filter(v=>catOf(v)==='sb'&&(v.grp||'その他')===it.grp).map(v=>`<option value="${v.id}" ${v.id===it.sbl?'selected':''}>${esc(v.name||'名前なし')}</option>`).join('')}<option value="__new">＋ 小項目を追加</option></select></div></div>
+      ${view.newG===it.id?`<div class="lnk"><input id="newG" placeholder="新しい大項目（例：ワイモバイル）"><button class="mini" data-a="newg" data-id="${it.id}" style="color:var(--acc);font-weight:700">追加</button><button class="mini" data-a="newx">✕</button></div>`:''}
+      ${view.newS===it.id?`<div class="lnk"><input id="newS" placeholder="「${esc(it.grp)}」に追加する小項目（例：シンプル3 M）"><button class="mini" data-a="news" data-id="${it.id}" style="color:var(--acc);font-weight:700">追加</button><button class="mini" data-a="newx">✕</button></div>`:''}
+      ${(()=>{const z=it.sbl&&inpById(it.sbl);if(!z)return '';const cur=(z.sb[0]||{}).i||'';return `<div class="field"><label>「${esc(z.name)}」をソフトバンクで数える項目</label><select data-a="pxsbc" data-id="${it.id}"><option value="">（数えない）</option>${S.sb.map(v=>`<option value="${v.id}" ${v.id===cur?'selected':''}>${esc(v.name)}</option>`).join('')}</select></div>`;})()}
+      <div class="sub">小項目を選ぶと、入力タブでソフトバンクのそのボタンと連動します（例：他社MNP → 回線・MNP）。ボタン1つでソフトバンクとフェニックスの両方が計算されます。</div>
       ${(it.subs||[]).length?'':`<div class="field"><label>1件あたりのポイント</label><input type="number" inputmode="decimal" value="${it.pt??''}" data-a="f" data-kind="px" data-id="${it.id}" data-f="pt"></div>`}
       <div class="field"><label>種類（なくてもOK）</label>${(it.subs||[]).map(s=>`<div class="lnk"><input style="flex:3" value="${esc(s.name)}" data-a="sf" data-id="${it.id}" data-s="${s.id}" data-f="name"><input type="number" inputmode="decimal" value="${s.pt??''}" data-a="sf" data-id="${it.id}" data-s="${s.id}" data-f="pt" placeholder="pt"><span class="sub">pt</span><button class="mini" data-a="sdel" data-id="${it.id}" data-s="${s.id}" style="color:var(--bad)">✕</button></div>`).join('')}
         <button class="mini" data-a="sadd" data-id="${it.id}" style="margin-top:6px;color:var(--acc);font-weight:700">＋ 種類</button></div>
@@ -502,6 +505,12 @@ document.addEventListener('click',async e=>{
     if(!c||c.kind!=='cfg'||!Array.isArray(c.items)){alert('目標達成マネージャーの設定リンクではありません');return;}
     if(!confirm(`前のアプリの項目を読み込みます。\n${c.items.map(x=>'・'+(x.name||'名前なし')).join('\n')}\n\nフェニックスの項目が置き換わります。`))return;
     pxFromOld(c.items,c.ptCut,c.t);save();render();toast('読み込みました');return;}
+  if(a==='newx'){view.newG=view.newS=null;render();return;}
+  if(a==='newg'){const it=pxById(id),v=(document.getElementById('newG')||{}).value||'';const n=v.trim().slice(0,30);if(!it||!n)return;it.grp=n;it.sbl='';view.newG=null;save();render();toast('大項目「'+n+'」を追加しました');return;}
+  if(a==='news'){const it=pxById(id),v=(document.getElementById('newS')||{}).value||'';const n=v.trim().slice(0,60);if(!it||!n||!it.grp)return;
+    let z=S.inp.find(x=>catOf(x)==='sb'&&(x.grp||'その他')===it.grp&&nm(x.name)===nm(n));
+    if(!z){z={id:uid(),name:n,grp:it.grp,cat:'sb',link:'',sb:[],px:[]};S.inp.push(z);}
+    it.sbl=z.id;view.newS=null;save();render();toast('小項目「'+n+'」を追加しました');return;}
   if(a==='add'){const k=t.dataset.kind,nid=uid();
     if(k==='sb')S.sb.push({id:nid,name:'',kind:'cnt',den:'',hai:'',note:'',tiers:[],goal:{fixed:false,value:''}});
     else if(k==='px')S.px.push({id:nid,name:'',unit:'件',pt:'',mode:'cnt',subs:[],cut:{fixed:true,value:''},goal:{fixed:false,value:''}});
@@ -530,6 +539,8 @@ document.addEventListener('change',e=>{
   if(a==='from'||a==='to'){if(DAY_RE.test(t.value))view[a]=t.value;render();return;}
   if(a==='note'){const k=t.dataset.k,n=S.notes[k]=S.notes[k]||{memo:'',mgr:'',bu:''};n[t.dataset.f]=t.value.slice(0,3000);if(!n.memo&&!n.mgr&&!n.bu)delete S.notes[k];save();toast('保存しました');return;}
   if(a==='ptcut'){S.ptCut=numB(t.value);save();render();return;}
+  if(a==='f'&&t.value==='__new'){if(t.dataset.f==='grp'){view.newG=id;view.newS=null;}else{view.newS=id;view.newG=null;}render();const i=document.getElementById(t.dataset.f==='grp'?'newG':'newS');if(i)i.focus();return;}
+  if(a==='pxsbc'){const it=pxById(id),z=it&&inpById(it.sbl);if(!z)return;z.sb=z.sb.slice(1);if(t.value)z.sb.unshift({i:t.value,q:1});save();render();return;}
   if(a==='f'){const it=findK(t.dataset.kind,id);if(!it)return;const f=t.dataset.f;
     if(['hai','pt'].includes(f))it[f]=numB(t.value);else if(f==='kind')it.kind=t.value==='rate'?'rate':'cnt';else if(f==='mode')it.mode=t.value==='yen'?'yen':'cnt';else it[f]=t.value.slice(0,f==='note'?300:60);
     if(t.dataset.kind==='px'&&f==='grp'&&it.sbl){const z=inpById(it.sbl);if(!z||(z.grp||'その他')!==it.grp)it.sbl='';}
