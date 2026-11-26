@@ -494,7 +494,7 @@ function calView(){
     ${view.shm?`<div class="sub" style="margin-top:6px">種類を選んで、カレンダーの日付をタップ（もう一度タップで消す）</div><div class="chips" style="margin-top:8px">${S.shifts.map(x=>`<button class="chip ${view.shp===x.id?'on':''}" data-a="shp" data-id="${x.id}" style="${view.shp===x.id?`background:${x.color};border-color:${x.color};color:#fff`:''}">${esc(x.name)}${x.time?`<small>${esc(x.time)}</small>`:''}</button>`).join('')}</div>`
       :`<div class="sub" style="margin-top:4px">${S.shifts.map(x=>`${esc(x.name)} ${cnt[x.id]||0}日`).join('・')}・出勤 ${monthWork(ym).length}日</div>`}</div>`;
   const k=view.cday&&view.cday.slice(0,7)===ym?view.cday:null;
-  let h=shBar+`<div class="card"><div class="cal">${[...WD].map((w,i)=>`<div class="w" style="${i===0?'color:var(--bad)':i===6?'color:var(--acc)':''}">${w}</div>`).join('')}${g}</div>
+  let h=shBar+`<div class="card" id="calcard"><div class="between" style="margin-bottom:8px"><button class="mini" data-a="mprev" style="min-width:64px">‹ 前月</button><b style="font-size:17px">${ymLabel(ym)}</b><button class="mini" data-a="mnext" style="min-width:64px">次月 ›</button></div><div class="cal">${[...WD].map((w,i)=>`<div class="w" style="${i===0?'color:var(--bad)':i===6?'color:var(--acc)':''}">${w}</div>`).join('')}${g}</div>
     <div class="sub" style="margin-top:8px">数字＝フェニックスのポイント、赤い●＝メモや報告あり</div></div>`;
   if(view.shm)return h;
   if(!k)return h+`<div class="card sub">日付をタップすると、その日のメモと報告が書けます。</div>`;
@@ -623,6 +623,10 @@ document.addEventListener('change',e=>{
   if(a==='ptcut'){S.ptCut=numB(t.value);save();render();return;}
   if(a==='tval'){if(BAD_K(id))return;setT(view.ym,id,t.dataset.k,numB(t.value));save();render();return;}
 });
+let tx=null,ty=null;
+document.addEventListener('touchstart',e=>{if(view.tab!=='cal'||!e.target.closest('#calcard'))return;tx=e.touches[0].clientX;ty=e.touches[0].clientY;},{passive:true});
+document.addEventListener('touchend',e=>{if(tx==null)return;const dx=e.changedTouches[0].clientX-tx,dy=e.changedTouches[0].clientY-ty;tx=null;
+  if(Math.abs(dx)>60&&Math.abs(dx)>Math.abs(dy)*1.5){const d=new Date(+view.ym.slice(0,4),+view.ym.slice(5,7)-1+(dx<0?1:-1),1);view.ym=d.getFullYear()+'-'+pad(d.getMonth()+1);render();}},{passive:true});
 // ===================== 合言葉 =====================
 const GATE_H='9c36935cab82662f8ffaeff5e3351304b8913911fe512dd264d2ab16e9f38f30',GATE_LS='takami_gate';
 const kata=s=>String(s||'').normalize('NFKC').trim().replace(/[\u3041-\u3096]/g,c=>String.fromCharCode(c.charCodeAt(0)+0x60));
