@@ -4,6 +4,7 @@
 <meta charset="utf-8">
 <meta http-equiv="Content-Security-Policy" content="default-src 'self'; script-src 'self' 'unsafe-inline'; style-src 'self' 'unsafe-inline'; img-src 'self' data: blob:; connect-src 'none'; form-action 'none'; base-uri 'none'">
 <meta name="referrer" content="no-referrer">
+<meta name="robots" content="noindex,nofollow">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>takami（目標達成マネージャー改）</title>
 <link rel="manifest" href="manifest.webmanifest?v=3">
@@ -539,6 +540,7 @@ document.getElementById('fileIn').addEventListener('change',async e=>{
   if(!confirm('今のデータを、このバックアップの内容に置き換えます。よろしいですか？'))return;S=sanitize(c);save();render();toast('バックアップから戻しました');
 });
 document.addEventListener('click',async e=>{
+  if(!gateOK)return;
   const tb=e.target.closest('[data-tab]');if(tb){view.tab=tb.dataset.tab;view.del=null;render();window.scrollTo(0,0);return;}
   const t=e.target.closest('[data-a]');if(!t||t.disabled)return;const a=t.dataset.a,id=t.dataset.id;
   if(t.tagName==='INPUT'||t.tagName==='SELECT'||t.tagName==='TEXTAREA')return;
@@ -595,7 +597,18 @@ document.addEventListener('change',e=>{
   if(a==='ptcut'){S.ptCut=numB(t.value);save();render();return;}
   if(a==='tval'){if(BAD_K(id))return;setT(view.ym,id,t.dataset.k,numB(t.value));save();render();return;}
 });
-render();
+// ===================== 合言葉 =====================
+const GATE_H='9c36935cab82662f8ffaeff5e3351304b8913911fe512dd264d2ab16e9f38f30',GATE_LS='takami_gate';
+const kata=s=>String(s||'').normalize('NFKC').trim().replace(/[\u3041-\u3096]/g,c=>String.fromCharCode(c.charCodeAt(0)+0x60));
+async function sha(t){const b=await crypto.subtle.digest('SHA-256',new TextEncoder().encode(t));return [...new Uint8Array(b)].map(x=>x.toString(16).padStart(2,'0')).join('');}
+function gateView(){document.getElementById('hd').innerHTML='<div class="hrow"><span></span><div class="mt">takami</div><span></span></div>';document.getElementById('nv').innerHTML='';
+  document.getElementById('app').innerHTML=`<div class="card" style="margin-top:40px"><div class="ttl">合言葉を入れてください</div><div class="sub" style="margin-top:4px">共有してもらった合言葉を入れると使えます（このスマホでは1回だけ）</div>
+    <div class="field"><input id="gpw" class="inp" type="password" autocomplete="off" placeholder="合言葉"></div><button class="btn" id="gok">開く</button><div id="gmsg" class="sub" style="color:var(--bad);margin-top:8px"></div></div>`;
+  const go=async()=>{const v=kata(document.getElementById('gpw').value);let h='';try{h=await sha(v);}catch(e){}
+    if(h===GATE_H){gateOK=true;try{localStorage.setItem(GATE_LS,h);}catch(e){}render();}else document.getElementById('gmsg').textContent='合言葉がちがいます';};
+  document.getElementById('gok').onclick=go;document.getElementById('gpw').onkeydown=e=>{if(e.key==='Enter')go();};}
+let gateOK=false;try{gateOK=localStorage.getItem(GATE_LS)===GATE_H;}catch(e){}
+if(gateOK)render();else gateView();
 </script>
 </body>
 </html>
