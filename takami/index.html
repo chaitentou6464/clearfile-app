@@ -399,7 +399,6 @@ function prevHTML(){
 function inView(){
   const k=view.day,cat=catBy(IN.cat),C=CUR();
   let h=`<div class="dayrow"><button class="mini" data-a="dprev" aria-label="前の日">‹</button><div class="dt">${dayLabel(k)}</div><button class="mini" data-a="dnext" aria-label="次の日">›</button>${k!==todayKey?'<button class="mini" data-a="dtoday">今日</button>':''}</div>`;
-  h+=`<div class="card" style="padding:10px 12px"><div class="sub" style="margin-bottom:6px">この日（出勤は選ばなくてOK）</div>${dayChips(k)}</div>`;
   h+=`<div class="cats">${MAP.map(c=>`<button data-a="cat" data-v="${esc(c.n)}" class="${c.n===IN.cat?'on':''}" style="--c:${c.color==='blue'?'#1d4ed8':'var(--sb)'}">${touched(c)?(draft(c).ok?'✓ ':'… '):''}${esc(c.n)}</button>`).join('')}</div>`;
   h+=`<div class="card"><div class="between"><div class="ttl">${esc(cat.n)}を入力</div>${touched(cat)?'<button class="mini" data-a="clr">選び直す</button>':''}</div>`;
   if(cat.type==='path'){let list=cat.c,lv=0;
