@@ -78,6 +78,14 @@ nav button.on{color:var(--acc)}nav svg{width:24px;height:24px}
 .toast{position:fixed;left:50%;bottom:96px;transform:translateX(-50%);background:var(--ink);color:#fff;padding:10px 16px;border-radius:12px;font-size:14px;z-index:20;opacity:0;transition:opacity .2s;pointer-events:none}.toast.show{opacity:1}
 .note{background:#fff7ed;border:1px solid #fed7aa;color:#9a3412;border-radius:12px;padding:10px 12px;font-size:13.5px;line-height:1.6}
 .lnk{display:flex;gap:6px;align-items:center;margin-top:6px}.lnk select{flex:3;height:40px;border:1px solid var(--line);border-radius:10px;padding:0 6px;background:#fff;min-width:0}.lnk input{flex:1;height:40px;border:1px solid var(--line);border-radius:10px;padding:0 6px;min-width:0;width:56px}
+.cats{display:grid;grid-template-columns:repeat(3,1fr);gap:6px;margin-bottom:12px}
+.cats button{height:44px;border:1.5px solid var(--line);border-radius:12px;background:#fff;font-size:13.5px;font-weight:800;color:var(--ink);padding:0 4px;line-height:1.2}
+.cats button.on{background:var(--c,var(--acc));border-color:var(--c,var(--acc));color:#fff}
+.lvl{margin-top:12px}.lvl .lt{font-size:12.5px;font-weight:800;color:var(--sub);margin-bottom:6px}
+.chip.px{border-color:#fed7aa}.chip .f{color:var(--px)}.chip .s{color:var(--sb)}
+.tree{font-size:14px;line-height:1.5}.tree .nd{padding:5px 0;border-top:1px dashed var(--line);display:flex;justify-content:space-between;gap:8px;align-items:center}.tree .nd:first-child{border-top:0}
+.tree button.nd{width:100%;background:none;border-left:0;border-right:0;border-bottom:0;text-align:left;font-size:14px;color:var(--ink)}
+.opt{padding:10px 0;border-top:1px solid var(--line)}.opt:first-child{border-top:0}.opt .on{font-weight:800}
 </style>
 </head>
 <body>
@@ -89,7 +97,7 @@ nav button.on{color:var(--acc)}nav svg{width:24px;height:24px}
 <script>
 'use strict';
 // ===================== 基本 =====================
-const LS='takami_v2';
+const LS='takami_v3',OLD_LS='takami_v2';
 const WD='日月火水木金土';
 const pad=n=>String(n).padStart(2,'0');
 const dkey=d=>`${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`;
@@ -109,77 +117,214 @@ const dayLabel=k=>`${+k.slice(5,7)}月${+k.slice(8,10)}日（${WD[dOf(k).getDay(
 const ymLabel=ym=>`${ym.slice(0,4)}年${+ym.slice(5,7)}月`;
 const norm=s=>String(s||'').normalize('NFKC').replace(/\s+/g,'').toLowerCase();
 
+
+// ===================== マインドマップ（ここを書き換えると入力が変わる） =====================
+// 書き方：マインドマップの文字をそのまま、字下げ（スペース2つ）で階層にする。
+//   (F 名前 ◯pt) … フェニックスの項目とポイント（名前がなければ、その行の名前）
+//   (S 名前) / (S 名前 ◯pt) … ソフトバンクの項目（ポイントは分かったら書き足す）
+//   「# 大分類 | 形 | g=…」 形：path＝順に選ぶ／multi＝複数選択／model＝機種名入力／one＝ボタン1つ／yen＝金額入力
+//   g=cat … フェニックスの項目を大分類ごとにまとめる　g=1 … 大分類のすぐ下の名前ごとにまとめる
+//   「=名前」で同じリストを定義して「@名前」で使い回す
+const MAP_VER='2026-11-26';
+const MAP_TEXT=`
+# 回線 | path | g=cat | blue
+SB
+  新規
+    端末あり
+      @SBプラン
+    SIM
+      @SBプラン
+  MNP
+    端末あり(F 他社MNP 10pt)
+      @SBプラン
+    SIM(F 他社MNP 6pt)
+      @SBプラン
+  機種変更
+    端末あり(F 機種変更 2pt)
+      @SBプラン
+    持ち込み
+      @SBプラン
+  番号移行
+    端末あり(F 機種変更(up) 2pt)
+      @SBプラン
+    SIM
+      @SBプラン
+YM
+  新規
+    端末あり
+      @YMプラン
+    SIM
+      @YMプラン
+  MNP
+    端末あり(F 他社MNP 6pt)
+      @YMプラン
+    SIM(F 他社MNP 4pt)
+      @YMプラン
+  機種変更
+    端末あり(F 機種変更 2pt)
+      @YMプラン
+    持ち込み
+      @YMプラン
+  番号移行
+    端末あり
+      @YMプラン
+    SIM
+      @YMプラン
+=SBプラン
+ペイトク(S 大容量)
+テイガク(S 大容量)
+ミニフィット(S その他)
+デビュー(S その他)
+=YMプラン
+S(S その他)
+M(S 大容量)
+L(S 大容量)
+# オプション | multi | g=1
+通話オプション
+あんしん保証パック
+セキュリティパック
+店頭スマホサポート
+  フルプラン(F フルプラン 5pt)
+  ライトプラン(F ライトプラン 2pt)
+  単品
+PayPayカード
+  ノーマル(F ノーマル 5pt)
+  2枚目(F 追加 5pt)
+  ゴールド(F ゴールド 12pt)
+YTPL(F YTPL 1pt)
+# 固定・電気・他 | path | g=1
+SB光
+  新規(F 新規 12pt)
+  air新規(F 新規 12pt)
+  air機変(F air機変 8pt)
+  光転用(F 転用 8pt)
+でんき
+  でんき(F でんき 5pt)
+  でんわ(F でんわ 4pt)
+iPad/タブレット
+  新規(F 新規 10pt)
+  機変(F 機種変更 5pt)
+watch
+  aw(F watch 4pt)
+  pw(F watch 4pt)
+  gw(F watch 4pt)
+# 端末 | model | g=cat
+pixel10a 128(F 3pt)
+pixel10a 256(F 5pt)
+pixel11(F 6pt)
+# SBswipe(F IP+pixel 5pt) | one | g=cat
+# アクセサリー | yen | g=cat
+`;
+
+// ---------- マインドマップを読む ----------
+function splitTags(s){ // 「名前(F …)(S …)」→ 名前とカッコの中身（カッコの入れ子OK）
+  let name='',tags=[],dep=0,cur='';
+  for(const ch of s){
+    if(ch==='('||ch==='（'){if(dep>0)cur+='(';dep++;continue;}
+    if((ch===')'||ch==='）')&&dep>0){dep--;if(dep===0){tags.push(cur.trim());cur='';}else cur+=')';continue;}
+    if(dep>0)cur+=ch;else name+=ch;}
+  return{name:name.trim(),tags};
+}
+function parseTags(nd,tags){
+  for(const t of tags){
+    let m=t.match(/^F\s*(.*?)\s*([\d.]+)\s*pt$/i);
+    if(m){nd.F={name:m[1].trim()||nd.n,pt:Number(m[2])};continue;}
+    m=t.match(/^S\s*(.*?)(?:\s+([\d.]+)\s*pt)?$/i);
+    if(m&&m[1].trim()){nd.S={name:m[1].trim(),pt:m[2]!=null?Number(m[2]):null};}
+  }
+}
+function parseMap(text){
+  const cats=[],macros={};let target=null,stack=[];
+  for(const raw of text.split('\n')){
+    if(!raw.trim())continue;
+    if(raw.startsWith('#')){
+      const parts=raw.slice(1).split('|').map(x=>x.trim());
+      const{name,tags}=splitTags(parts[0]);
+      const c={n:name,type:parts[1]||'path',g:'1',color:'red',c:[]};
+      parts.slice(2).forEach(p=>{if(p.startsWith('g='))c.g=p.slice(2);else if(p)c.color=p;});
+      parseTags(c,tags);cats.push(c);target=c;stack=[{d:-1,nd:c}];continue;}
+    if(raw.startsWith('=')){const m={n:raw.slice(1).trim(),c:[]};macros[m.n]=m;target=m;stack=[{d:-1,nd:m}];continue;}
+    if(!target)continue;
+    const d=Math.floor((raw.match(/^ */)[0].length)/2),line=raw.trim();
+    while(stack.length>1&&stack[stack.length-1].d>=d)stack.pop();
+    const parent=stack[stack.length-1].nd;
+    let nd;
+    if(line.startsWith('@'))nd={macro:line.slice(1).trim()};
+    else{const{name,tags}=splitTags(line);nd={n:name,c:[]};parseTags(nd,tags);}
+    parent.c.push(nd);stack.push({d,nd});
+  }
+  const expand=list=>{const out=[];for(const nd of list){if(nd.macro){const m=macros[nd.macro];if(m)out.push(...expand(m.c));}else{nd.c=expand(nd.c||[]);out.push(nd);}}return out;};
+  cats.forEach(c=>{c.c=expand(c.c);});
+  return cats;
+}
+const MAP=parseMap(MAP_TEXT);
+const catBy=n=>MAP.find(c=>c.n===n);
+// フェニックスの項目の「まとめ名」
+function fGroup(cat,path){if(cat.g==='cat'||!path.length)return cat.n;return path[0].n;}
+const fKey=(g,name)=>g+'｜'+name;
+const fLabel=k=>{const[g,n]=String(k).split('｜');return n===undefined?g:g===n?n:g+'・'+n;};
+// 一覧（実績確認・設定で並べる順）
+const F_LIST=[],S_LIST=[],S_PT={};
+(function walk(){
+  const addF=k=>{if(!F_LIST.includes(k))F_LIST.push(k);};
+  MAP.forEach(cat=>{
+    if(cat.F)addF(fKey(fGroup(cat,[]),cat.F.name));
+    const rec=(nd,path)=>{nd.c.forEach(ch=>{const p=path.concat(ch);if(ch.F)addF(fKey(fGroup(cat,p),ch.F.name));if(ch.S){if(!S_LIST.includes(ch.S.name))S_LIST.push(ch.S.name);if(ch.S.pt!=null)S_PT[ch.S.name]=ch.S.pt;}rec(ch,p);});};
+    rec(cat,[]);});
+})();
+const ACC_KEY='アクセサリー（金額）';
+
 // ===================== データ =====================
-function blank(){return{v:2,sb:[],px:[],ptCut:'',inp:[],months:{},logs:{},notes:{},off:[]};}
+const BAD_K=k=>k==='__proto__'||k==='constructor'||k==='prototype';
+function blank(){return{v:3,ptCut:'',cfg:{},months:{},logs:{},notes:{},off:[]};}
 function sanitize(D){
   if(!D||typeof D!=='object'||Array.isArray(D))D={};
   const o=blank(),A=a=>Array.isArray(a)?a:[];
   const tg=g=>({fixed:!!(g&&g.fixed),value:numB(g&&g.value)});
-  o.sb=A(D.sb).filter(x=>x&&typeof x==='object').slice(0,80).map(x=>({id:cid(x.id),name:str(x.name),kind:x.kind==='rate'?'rate':'cnt',den:ID_RE.test(String(x.den||''))?String(x.den):'',
-    hai:numB(x.hai),note:str(x.note,300),tiers:A(x.tiers).filter(t=>t&&typeof t==='object').slice(0,20).map(t=>({id:cid(t.id),p:numB(t.p),pt:numB(t.pt)})),goal:tg(x.goal)}));
-  o.px=A(D.px).filter(x=>x&&typeof x==='object').slice(0,80).map(x=>({id:cid(x.id),name:str(x.name),grp:str(x.grp,30),sbl:ID_RE.test(String(x.sbl||''))?String(x.sbl):'',unit:str(x.unit,10),pt:numB(x.pt),mode:x.mode==='yen'?'yen':'cnt',
-    subs:A(x.subs).filter(s=>s&&typeof s==='object').slice(0,30).map(s=>({id:cid(s.id),name:str(s.name),pt:numB(s.pt),cut:!!s.cut})),cut:tg(x.cut),goal:tg(x.goal)}));
   o.ptCut=numB(D.ptCut);
-  o.inp=A(D.inp).filter(x=>x&&typeof x==='object').slice(0,150).map(x=>({id:cid(x.id),name:str(x.name),grp:str(x.grp,30),cat:x.cat==='sb'||x.cat==='px'?x.cat:'',link:x.link==='none'||ID_RE.test(String(x.link||''))?String(x.link||''):'',
-    sb:A(x.sb).filter(l=>l&&ID_RE.test(String(l.i))).slice(0,10).map(l=>({i:String(l.i),q:numB(l.q)===''?1:num(l.q)})),
-    px:A(x.px).filter(l=>l&&ID_RE.test(String(l.i))).slice(0,10).map(l=>{const r={i:String(l.i),q:numB(l.q)===''?1:num(l.q)};if(l.s&&ID_RE.test(String(l.s)))r.s=String(l.s);return r;})}));
+  const C=D.cfg&&typeof D.cfg==='object'?D.cfg:{};
+  for(const k in C){if(BAD_K(k)||k.length>80)continue;const v=C[k]||{};o.cfg[k]={cut:tg(v.cut),goal:tg(v.goal)};}
   const M=D.months&&typeof D.months==='object'?D.months:{};
-  for(const ym in M){if(!YM_RE.test(ym))continue;const t=(M[ym]||{}).t||{},ot={};for(const i in t){if(!ID_RE.test(i))continue;const v=t[i]||{},r={};if('cut' in v)r.cut=numB(v.cut);if('goal' in v)r.goal=numB(v.goal);ot[i]=r;}o.months[ym]={t:ot};}
+  for(const ym in M){if(!YM_RE.test(ym))continue;const t=(M[ym]||{}).t||{},ot={};for(const i in t){if(BAD_K(i)||i.length>80)continue;const v=t[i]||{},r={};if('cut' in v)r.cut=numB(v.cut);if('goal' in v)r.goal=numB(v.goal);ot[i]=r;}o.months[ym]={t:ot};}
   const L=D.logs&&typeof D.logs==='object'?D.logs:{};
-  for(const k in L){if(!DAY_RE.test(k)||!Array.isArray(L[k]))continue;const a=L[k].filter(r=>r&&typeof r==='object'&&Array.isArray(r.x)).slice(0,300).map(r=>{const y={};for(const i in (r.y||{}))if(ID_RE.test(i))y[i]=Math.max(0,num(r.y[i]));
-    return{id:cid(r.id),ts:num(r.ts),n:Math.max(1,Math.min(99,Math.round(num(r.n)||1))),x:r.x.filter(i=>ID_RE.test(String(i))).map(String).slice(0,40),y};}).filter(r=>r.x.length);if(a.length)o.logs[k]=a;}
+  for(const k in L){if(!DAY_RE.test(k)||!Array.isArray(L[k]))continue;
+    const a=L[k].filter(r=>r&&typeof r==='object').slice(0,300).map(r=>({id:cid(r.id),ts:num(r.ts),n:Math.max(1,Math.min(99,Math.round(num(r.n)||1))),cat:str(r.cat,40),label:str(r.label,300),
+      f:A(r.f).filter(x=>Array.isArray(x)&&!BAD_K(String(x[0]))).slice(0,30).map(x=>[str(x[0],80),num(x[1])]),
+      s:A(r.s).map(x=>str(x,40)).filter(x=>x&&!BAD_K(x)).slice(0,30),yen:Math.max(0,num(r.yen))})).filter(r=>r.cat);
+    if(a.length)o.logs[k]=a;}
   const N=D.notes&&typeof D.notes==='object'?D.notes:{};
   for(const k in N){if(!DAY_RE.test(k))continue;const v=N[k]||{},r={memo:str(v.memo,3000),mgr:str(v.mgr,3000),bu:str(v.bu,3000)};if(r.memo||r.mgr||r.bu)o.notes[k]=r;}
   o.off=A(D.off).filter(k=>typeof k==='string'&&DAY_RE.test(k));
   return o;
 }
 let S;try{S=sanitize(JSON.parse(localStorage.getItem(LS)||'null'));}catch(e){S=blank();}
-let saveFail=false;
-function save(){try{localStorage.setItem(LS,JSON.stringify(S));saveFail=false;}catch(e){saveFail=true;toast('保存できませんでした（容量がいっぱいかもしれません）');}}
+function save(){try{localStorage.setItem(LS,JSON.stringify(S));}catch(e){toast('保存できませんでした（容量がいっぱいかもしれません）');}}
 try{if(navigator.storage&&navigator.storage.persist)navigator.storage.persist();}catch(e){}
 function toast(t){const el=document.getElementById('toast');el.textContent=t;el.classList.add('show');clearTimeout(toast.t);toast.t=setTimeout(()=>el.classList.remove('show'),1800);}
-
-const sbById=id=>S.sb.find(x=>x.id===id),pxById=id=>S.px.find(x=>x.id===id),inpById=id=>S.inp.find(x=>x.id===id);
-const subOf=(it,s)=>it&&s?(it.subs||[]).find(x=>x.id===s):null;
-const pxPt=(it,s)=>{const x=subOf(it,s);return num(x?x.pt:it.pt);};
-const pxLabel=(it,s)=>{const x=subOf(it,s);return (it.name||'名前なし')+(x?'（'+(x.name||'種類')+'）':'');};
-function tval(ym,it,k){const g=it[k];if(!g)return '';if(g.fixed)return g.value;const t=((S.months[ym]||{}).t||{})[it.id]||{};return t[k]??'';}
-function setT(ym,it,k,v){if(it[k].fixed){it[k].value=v;return;}const m=S.months[ym]=S.months[ym]||{t:{}};(m.t[it.id]=m.t[it.id]||{})[k]=v;}
-function inpPt(inp){return (inp.px||[]).reduce((a,l)=>{const it=pxById(l.i);return a+(it?pxPt(it,l.s)*num(l.q):0);},0);}
+const cfgOf=k=>S.cfg[k]||(S.cfg[k]={cut:{fixed:true,value:''},goal:{fixed:false,value:''}});
+function tval(ym,k,w){const g=(S.cfg[k]||{})[w];if(!g)return '';if(g.fixed)return g.value;const t=((S.months[ym]||{}).t||{})[k]||{};return t[w]??'';}
+function setT(ym,k,w,v){const g=cfgOf(k)[w];if(g.fixed){g.value=v;return;}const m=S.months[ym]=S.months[ym]||{t:{}};(m.t[k]=m.t[k]||{})[w]=v;}
 
 // ===================== 集計 =====================
+const recPt=r=>r.n*r.f.reduce((a,x)=>a+num(x[1]),0);
+const recSPt=r=>r.n*r.s.reduce((a,x)=>a+num(S_PT[x]),0);
 function agg(from,to){
-  const r={sb:{},px:{},pxSub:{},pxCut:{},yen:{},pts:0,recs:0};
-  for(const k in S.logs){if(k<from||k>to)continue;for(const rec of S.logs[k]){r.recs++;
-    for(const iid of rec.x){const inp=inpById(iid);if(!inp)continue;
-      for(const l of inp.sb){r.sb[l.i]=(r.sb[l.i]||0)+rec.n*num(l.q);}
-      for(const l of inp.px){const it=pxById(l.i);if(!it)continue;const q=rec.n*num(l.q);r.px[l.i]=(r.px[l.i]||0)+q;
-        if(l.s){const key=l.i+'|'+l.s;r.pxSub[key]=(r.pxSub[key]||0)+q;}
-        const cs=(it.subs||[]).filter(x=>x.cut).map(x=>x.id);if(!cs.length||cs.includes(l.s))r.pxCut[l.i]=(r.pxCut[l.i]||0)+q;
-        if(it.mode==='yen')r.yen[l.i]=(r.yen[l.i]||0)+num(rec.y[iid]);
-        r.pts+=q*pxPt(it,l.s);}}}}
+  const r={f:{},fpt:{},s:{},pts:0,spts:0,yen:0,recs:0,cats:{}};
+  for(const k in S.logs){if(k<from||k>to)continue;for(const rec of S.logs[k]){r.recs++;r.cats[rec.cat]=(r.cats[rec.cat]||0)+rec.n;
+    rec.f.forEach(([key,pt])=>{r.f[key]=(r.f[key]||0)+rec.n;r.fpt[key]=(r.fpt[key]||0)+rec.n*num(pt);r.pts+=rec.n*num(pt);});
+    rec.s.forEach(x=>{r.s[x]=(r.s[x]||0)+rec.n;r.spts+=rec.n*num(S_PT[x]);});
+    r.yen+=rec.yen*rec.n;}}
   return r;
-}
-function recPt(rec){let t=0;for(const iid of rec.x){const inp=inpById(iid);if(inp)t+=rec.n*inpPt(inp);}return t;}
-function tierOf(it,pct){const T=(it.tiers||[]).filter(t=>t.p!==''&&t.p!=null).map(t=>({p:num(t.p),pt:num(t.pt)})).sort((a,b)=>a.p-b.p);
-  let cur=null;if(pct!=null)for(const t of T)if(pct>=t.p-1e-9)cur=t;const nx=pct==null?T[0]||null:T.find(t=>t.p>pct+1e-9)||null;return{T,cur,nx};}
-function sbStat(it,A,ym){
-  const n=A.sb[it.id]||0;
-  if(it.kind==='rate'){const den=A.sb[it.den]||0,pct=den?n/den*100:null,tr=tierOf(it,pct);let need=null;
-    if(tr.nx){const q=tr.nx.p/100;need=q>=1?null:Math.max(0,Math.ceil((q*den-n)/(1-q)-1e-9));}
-    return{n,den,pct,tr,need};}
-  const g=ym?num(tval(ym,it,'goal')):0,pct=g?n/g*100:null,tr=tierOf(it,pct);let need=null;if(tr.nx&&g)need=Math.max(0,Math.ceil(tr.nx.p/100*g-n-1e-9));
-  return{n,goal:g,pct,tr,need};
 }
 function monthWork(ym){const n=daysIn(ym),out=[];for(let d=1;d<=n;d++){const k=ym+'-'+pad(d);if(!S.off.includes(k))out.push(k);}return out;}
 function remWork(ym){const w=monthWork(ym);if(ym<curYM)return 0;if(ym>curYM)return w.length;return w.filter(k=>k>=todayKey).length;}
 function elWork(ym){const w=monthWork(ym);if(ym<curYM)return w.length;if(ym>curYM)return 0;return w.filter(k=>k<=todayKey).length;}
 
 // ===================== 画面の状態 =====================
-const view={newG:null,newS:null,tab:'in',day:todayKey,ym:curYM,org:'sb',range:'month',from:curYM+'-01',to:todayKey,cday:todayKey,open:null,del:null};
-let sel={},selN=1,selY={},selA={};
+const view={tab:'in',day:todayKey,ym:curYM,org:'px',range:'month',from:curYM+'-01',to:todayKey,cday:todayKey,open:null,del:null};
+let IN={cat:MAP[0].n,path:[],multi:{},model:'',yen:'',n:1};
+const resetIn=()=>{IN={cat:IN.cat,path:[],multi:{},model:'',yen:'',n:1};};
 
-// ===================== アイコン =====================
 const IC={
  in:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>',
  res:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M5 20V10M12 20V4M19 20v-7"/></svg>',
@@ -192,60 +337,70 @@ function render(){
   const T=view.tab,showOrg=T==='res'||T==='pts',showMonth=(T==='res'&&view.range==='month')||T==='cal';
   const org=view.org==='px'?'<button class="org" style="background:var(--px)" data-a="org">フェニックス ⇄</button>':'<button class="org" style="background:var(--sb)" data-a="org">ソフトバンク ⇄</button>';
   document.getElementById('hd').innerHTML=`<div class="hrow">${showOrg?org:'<span></span>'}
-    ${showMonth?`<div class="mg"><button class="hb" data-a="mprev" aria-label="前の月">‹</button><div class="mt">${ymLabel(view.ym)}</div><button class="hb" data-a="mnext" aria-label="次の月">›</button></div>`:`<div class="mt">${T==='set'?'項目設定':'takami'}</div>`}
-    <button class="gear" data-a="${T==='set'?'back':'gear'}" aria-label="項目設定">${T==='set'?'<span style="font-size:15px;font-weight:700;white-space:nowrap;padding:0 4px">閉じる</span>':IC.gear}</button></div>`;
+    ${showMonth?`<div class="mg"><button class="hb" data-a="mprev" aria-label="前の月">‹</button><div class="mt">${ymLabel(view.ym)}</div><button class="hb" data-a="mnext" aria-label="次の月">›</button></div>`:`<div class="mt">${T==='set'?'設定':'takami'}</div>`}
+    <button class="gear" data-a="${T==='set'?'back':'gear'}" aria-label="設定">${T==='set'?'<span style="font-size:15px;font-weight:700;white-space:nowrap;padding:0 4px">閉じる</span>':IC.gear}</button></div>`;
   let h='';
   if(T==='in')h=inView();else if(T==='res')h=resView();else if(T==='pts')h=ptsView();else if(T==='cal')h=calView();else h=setView();
   document.getElementById('app').innerHTML=h;
   document.getElementById('nv').innerHTML=[['in','入力'],['res','実績確認'],['pts','ポイント'],['cal','カレンダー']].map(([k,l])=>`<button data-tab="${k}" class="${T===k?'on':''}">${IC[k]}${l}</button>`).join('');
 }
-const noSetup=()=>`<div class="card empty">まだ入力ボタンがありません。<br>右上の⚙「項目設定」で設定ファイルを読み込むと、ここに並びます。<button class="btn" data-a="gear">項目設定を開く</button></div>`;
+const tagF=(k,pt)=>`<span class="tag px">${esc(fLabel(k))} ${fmt(pt)}pt</span>`;
+const tagS=x=>`<span class="tag sb">${esc(x)}${S_PT[x]!=null?' '+fmt(S_PT[x])+'pt':''}</span>`;
+const chipSmall=nd=>nd.F||nd.S?`<small>${nd.F?`<span class="f">${fmt(nd.F.pt)}pt</span>`:''}${nd.S?`<span class="s">${nd.F?' ':''}${esc(nd.S.name)}</span>`:''}</small>`:'';
 
-const catOf=x=>x.cat==='sb'||x.cat==='px'?x.cat:(x.grp==='フェニックス'||(!x.sb.length&&x.px.length))?'px':'sb';
-const sbGroups=()=>[...new Set(S.inp.filter(x=>catOf(x)==='sb').map(x=>x.grp||'その他'))];
-const grpName=x=>{if(catOf(x)!=='px')return x.grp||'その他';{const L=x.link&&x.link!=='none'?x.link:pxSbl(x),z=L&&inpById(L);if(z)return z.grp||'その他';}if(x.grp&&x.grp!=='フェニックス'&&x.grp!=='その他')return x.grp;for(const l of x.px){const it=pxById(l.i);if(it&&it.grp)return it.grp;}return x.grp||'フェニックス';};
-const nm=v=>String(v||'').replace(/[\s　]/g,'').toLowerCase();
-const covered=(x,y)=>y.px.length&&y.px.every(l=>x.px.some(m=>m.i===l.i&&(m.s||'')===(l.s||'')));
-// SBのボタンxに連動するフェニックスのボタン（設定で指定、なければ同じ名前）
-// フェニックスのボタンがつながるソフトバンクのボタン：ボタンの設定 → 項目の「大項目・小項目」 → 同じ名前
-const pxSbl=y=>{for(const l of y.px){const it=pxById(l.i);if(it&&it.sbl&&inpById(it.sbl))return it.sbl;}return '';};
-const linkedOf=x=>catOf(x)!=='sb'?[]:S.inp.filter(y=>{if(y===x||catOf(y)!=='px'||y.link==='none')return false;const L=y.link||pxSbl(y);return L?L===x.id:nm(y.name)&&nm(y.name)===nm(x.name);});
-function incMap(){const m={};S.inp.forEach(x=>{if(sel[x.id])linkedOf(x).forEach(y=>{if(covered(x,y)&&!sel[y.id])m[y.id]=x.id;});});return m;}
-function toggleSel(id){const x=inpById(id);if(!x)return;
-  if(sel[id]){delete sel[id];delete selA[id];Object.keys(selA).forEach(k=>{if(selA[k]===id){delete sel[k];delete selA[k];}});return;}
-  sel[id]=1;
-  if(catOf(x)==='sb')linkedOf(x).forEach(y=>{if(!covered(x,y)&&!sel[y.id]){sel[y.id]=1;selA[y.id]=id;}});
-  else S.inp.filter(z=>linkedOf(z).includes(x)).forEach(z=>{ // フェニックスで選んだらソフトバンクにも反映
-    if(!sel[z.id]){sel[z.id]=1;selA[z.id]=id;}
-    if(covered(z,x)){delete sel[id];if(selA[z.id]===id)delete selA[z.id];}});}
+// ---------- 今の選び方 → 登録する内容 ----------
+function draft(){
+  const cat=catBy(IN.cat);if(!cat)return null;
+  const f=[],s=[],names=[];let ok=false,yen=0;
+  const take=(nd,path)=>{if(nd.F)f.push([fKey(fGroup(cat,path),nd.F.name),nd.F.pt]);if(nd.S)s.push(nd.S.name);};
+  if(cat.F||cat.S)take(cat,[]);
+  if(cat.type==='path'){let list=cat.c,path=[];
+    for(const i of IN.path){const nd=list[i];if(!nd)break;path.push(nd);take(nd,path);names.push(nd.n);list=nd.c;}
+    ok=path.length>0&&path[path.length-1].c.length===0;}
+  else if(cat.type==='multi'){cat.c.forEach((nd,i)=>{if(!(i in IN.multi))return;const j=IN.multi[i];
+      if(nd.c.length){const ch=nd.c[j];if(!ch)return;take(nd,[nd]);take(ch,[nd,ch]);names.push(nd.n+'（'+ch.n+'）');}
+      else{take(nd,[nd]);names.push(nd.n);}});
+    ok=names.length>0;}
+  else if(cat.type==='model'){const m=IN.model.trim();if(m){const nd=cat.c.find(x=>norm(x.n)===norm(m));if(nd){take(nd,[nd]);names.push(nd.n);}else names.push(m.slice(0,60));ok=true;}}
+  else if(cat.type==='yen'){yen=Math.max(0,num(IN.yen));ok=yen>0;if(ok)names.push(fmt(yen)+'円');}
+  else ok=true;
+  return{cat,f,s,yen,ok,label:names.join('／')};
+}
+
+function prevHTML(D,cat){
+  return `<div class="prev">${D.ok?`<div><b>${esc(D.label||cat.n)}</b></div>
+      <div><b>フェニックス</b>　${D.f.map(([k,p])=>tagF(k,p)).join('')||'<span class="sub">ポイントなし</span>'}${D.f.length?`　<b style="color:var(--px)">${fmt(IN.n*D.f.reduce((a,x)=>a+x[1],0))}pt</b>`:''}</div>
+      <div><b>ソフトバンク</b>　${D.s.map(tagS).join('')||'<span class="sub">数える項目なし</span>'}</div>`
+    :'<span class="sub">上から順に選んでください</span>'}</div>
+    <div class="flex" style="margin-top:10px"><span class="sub" style="white-space:nowrap">同じ内容を</span><select id="selN" class="inp" style="width:90px">${Array.from({length:10},(_,i)=>`<option value="${i+1}" ${IN.n===i+1?'selected':''}>${i+1}件</option>`).join('')}</select>
+      <button class="btn" data-a="reg" style="margin-top:0;flex:1" ${D.ok?'':'disabled'}>登録</button></div>`;
+}
 // ---------- タブ1：入力 ----------
 function inView(){
-  const k=view.day;
+  const k=view.day,cat=catBy(IN.cat);
   let h=`<div class="dayrow"><button class="mini" data-a="dprev" aria-label="前の日">‹</button><div class="dt">${dayLabel(k)}</div><button class="mini" data-a="dnext" aria-label="次の日">›</button>${k!==todayKey?'<button class="mini" data-a="dtoday">今日</button>':''}</div>`;
-  if(!S.inp.length)return h+noSetup();
-  const cats=[['sb','ソフトバンク'],['px','フェニックス']].filter(([c])=>S.inp.some(x=>catOf(x)===c));
-  const grpOf=c=>{const G=[];S.inp.filter(x=>catOf(x)===c).forEach(x=>{const g=grpName(x);let v=G.find(w=>w[0]===g);if(!v)G.push(v=[g,[]]);v[1].push(x);});if(c==='px'){const o=sbGroups(),r=g=>{const i=o.indexOf(g);return i<0?999:i;};G.sort((a,b)=>r(a[0])-r(b[0]));}return G;};
-  const inc=incMap();
-  const chosen=S.inp.filter(x=>sel[x.id]);
-  let pt=0;const sbc={},pxs=[];chosen.forEach(x=>{pt+=selN*inpPt(x);x.sb.forEach(l=>{sbc[l.i]=(sbc[l.i]||0)+selN*num(l.q);});x.px.forEach(l=>{const it=pxById(l.i);if(it)pxs.push(pxLabel(it,l.s));});});
-  const yenSel=chosen.filter(x=>x.px.some(l=>{const it=pxById(l.i);return it&&it.mode==='yen';}));
-  h+=`<div class="card"><div class="between"><div class="ttl">1件の獲得を入力</div>${chosen.length?'<button class="mini" data-a="clr">選び直す</button>':''}</div>
-    <div class="sub">上から順に選んで、最後に「登録」を1回押します。ソフトバンクとかぶるフェニックスの項目は自動で入ります。</div>
-    ${cats.map(([cc,lab])=>{const groups=grpOf(cc);return `<div class="csec ${cc}">【${lab}】</div>${cc==='px'?groups.map(([g,cur])=>`${groups.length>1?`<div class="grp">（${esc(g)}）</div>`:'<div style="height:10px"></div>'}<div class="chips">${cur.map(x=>{const p=inpPt(x);return inc[x.id]?`<span class="chip on auto">${esc(x.name)}<small>ソフトバンクで入力済</small></span>`:`<button class="chip ${sel[x.id]?'on':''}" data-a="chip" data-id="${x.id}">${sel[x.id]?'✓ ':''}${esc(x.name||'名前なし')}${selA[x.id]?'<small>自動</small>':p?`<small>${fmt(p)}pt</small>`:''}</button>`;}).join('')}</div>`).join(''):groups.map(([g,cur])=>{const on=cur.filter(x=>sel[x.id]||inc[x.id]);return `<div class="pick"><div class="pl">（${esc(g)}）</div><select data-a="pick"><option value="">${on.length?'＋ 追加／外す':'選んでください'}</option>${cur.map(x=>{const p=inpPt(x);return `<option value="${x.id}" ${inc[x.id]?'disabled':''}>${sel[x.id]||inc[x.id]?'✓ ':''}${esc(x.name||'名前なし')}${p?`（${fmt(p)}pt）`:''}</option>`;}).join('')}</select></div>
-      ${on.length?`<div class="chips" style="margin:6px 0 2px">${on.map(x=>inc[x.id]?`<span class="chip on auto">${esc(x.name)}<small>ソフトバンクで入力済</small></span>`:`<button class="chip on" data-a="chip" data-id="${x.id}">${esc(x.name||'名前なし')}${selA[x.id]?'<small>自動</small>':''} ✕</button>`).join('')}</div>`:''}`;}).join('')}`;}).join('')}
-    ${yenSel.map(x=>`<div class="field"><label>${esc(x.name)}の金額（円）</label><input type="number" inputmode="numeric" data-a="yen" data-id="${x.id}" value="${selY[x.id]??''}" placeholder="例：3000"></div>`).join('')}
-    <div class="prev">${chosen.length?`<div><b>ソフトバンク</b>　${Object.keys(sbc).map(i=>{const it=sbById(i);return it?`<span class="tag sb">${esc(it.name)} +${fmt(sbc[i])}</span>`:'';}).join('')||'<span class="sub">数える項目なし</span>'}</div>
-      <div><b>フェニックス</b>　${pxs.map(n=>`<span class="tag px">${esc(n)}</span>`).join('')||'<span class="sub">項目なし</span>'}　<b style="color:var(--px)">${fmt(pt)}pt</b></div>`:'<span class="sub">上のボタンから選んでください</span>'}</div>
-    <div class="flex" style="margin-top:10px"><span class="sub" style="white-space:nowrap">同じ内容を</span><select id="selN" class="inp" style="width:90px">${Array.from({length:10},(_,i)=>`<option value="${i+1}" ${selN===i+1?'selected':''}>${i+1}件</option>`).join('')}</select>
-      <button class="btn" data-a="reg" style="margin-top:0;flex:1" ${chosen.length?'':'disabled'}>登録</button></div></div>`;
-  const L=S.logs[k]||[];let dayPt=0;const dsb={};
-  const rows=L.map(r=>{const p=recPt(r);dayPt+=p;r.x.forEach(i=>{const inp=inpById(i);if(inp)inp.sb.forEach(l=>{dsb[l.i]=(dsb[l.i]||0)+r.n*num(l.q);});});
-    const names=r.x.map(i=>{const inp=inpById(i);return inp?esc(inp.name)+(r.y[i]?`（${fmt(r.y[i])}円）`:''):'（削除した項目）';}).join('・');
-    const t=r.ts?new Date(r.ts):null;
-    return `<div class="row"><div style="min-width:0"><div><b>${names}</b>${r.n>1?` ×${r.n}`:''}</div><div class="sub">${t?pad(t.getHours())+':'+pad(t.getMinutes()):''}</div></div>
+  h+=`<div class="cats">${MAP.map(c=>`<button data-a="cat" data-v="${esc(c.n)}" class="${c.n===IN.cat?'on':''}" style="--c:${c.color==='blue'?'#1d4ed8':'var(--sb)'}">${esc(c.n)}</button>`).join('')}</div>`;
+  const D=draft();
+  h+=`<div class="card"><div class="between"><div class="ttl">${esc(cat.n)}を入力</div>${IN.path.length||Object.keys(IN.multi).length||IN.model||IN.yen?'<button class="mini" data-a="clr">選び直す</button>':''}</div>`;
+  if(cat.type==='path'){let list=cat.c,lv=0;
+    while(list.length){const cur=IN.path[lv];
+      h+=`<div class="lvl"><div class="chips">${list.map((nd,i)=>`<button class="chip ${cur===i?'on':''}" data-a="step" data-l="${lv}" data-i="${i}">${cur===i?'✓ ':''}${esc(nd.n)}${chipSmall(nd)}</button>`).join('')}</div></div>`;
+      if(cur==null||!list[cur])break;list=list[cur].c;lv++;}}
+  else if(cat.type==='multi'){h+=`<div class="sub" style="margin-top:4px">いくつでも選べます</div><div style="margin-top:6px">`+cat.c.map((nd,i)=>{const on=i in IN.multi;
+      if(!nd.c.length)return `<div class="opt"><button class="chip ${on?'on':''}" data-a="mtog" data-i="${i}">${on?'✓ ':''}${esc(nd.n)}${chipSmall(nd)}</button></div>`;
+      return `<div class="opt"><div class="${on?'on':''}" style="margin-bottom:6px">${esc(nd.n)}</div><div class="chips">${nd.c.map((ch,j)=>{const o=on&&IN.multi[i]===j;return `<button class="chip ${o?'on':''}" data-a="msub" data-i="${i}" data-j="${j}">${o?'✓ ':''}${esc(ch.n)}${chipSmall(ch)}</button>`;}).join('')}</div></div>`;}).join('')+'</div>';}
+  else if(cat.type==='model'){h+=`<div class="field"><label>機種名</label><input id="model" class="inp" list="models" value="${esc(IN.model)}" data-a="model" placeholder="例：iPhone 17" autocomplete="off"><datalist id="models">${cat.c.map(x=>`<option value="${esc(x.n)}">`).join('')}</datalist></div>
+      <div class="chips" style="margin-top:8px">${cat.c.map(x=>{const o=norm(IN.model)===norm(x.n);return `<button class="chip ${o?'on':''}" data-a="mpick" data-v="${esc(x.n)}">${o?'✓ ':''}${esc(x.n)}${chipSmall(x)}</button>`;}).join('')}</div>
+      <div class="sub" style="margin-top:6px">一覧にない機種も入力できます（ポイントなしで記録）</div>`;}
+  else if(cat.type==='yen'){h+=`<div class="field"><label>金額（円）</label><input id="yen" class="inp" type="number" inputmode="numeric" value="${esc(IN.yen)}" data-a="yen" placeholder="例：3000"></div>`;}
+  else h+=`<div class="sub" style="margin-top:6px">このまま「登録」を押してください</div>`;
+  h+=`<div id="prevbox">${prevHTML(D,cat)}</div></div>`;
+  const L=S.logs[k]||[];let dayPt=0;const ds={};
+  const rows=L.slice().reverse().map(r=>{const p=recPt(r);dayPt+=p;r.s.forEach(x=>{ds[x]=(ds[x]||0)+r.n;});const t=r.ts?new Date(r.ts):null;
+    return `<div class="row"><div style="min-width:0"><div><span class="tag">${esc(r.cat)}</span><b>${esc(r.label||r.cat)}</b>${r.n>1?` ×${r.n}`:''}</div><div class="sub">${t?pad(t.getHours())+':'+pad(t.getMinutes()):''}${r.s.length?'　'+r.s.map(esc).join('・'):''}</div></div>
       <div class="flex" style="flex:none"><b style="color:var(--px)">${fmt(p)}pt</b><button class="mini" data-a="rdel" data-id="${r.id}" style="color:var(--bad)">${view.del===r.id?'削除':'✕'}</button></div></div>`;}).join('');
   h+=`<div class="card"><div class="between"><div class="ttl">この日の入力</div><div class="big" style="color:var(--px)">${fmt(dayPt)}<small>pt</small></div></div>
-    ${Object.keys(dsb).length?`<div style="margin:4px 0 6px">${Object.keys(dsb).map(i=>{const it=sbById(i);return it?`<span class="tag sb">${esc(it.name)} ${fmt(dsb[i])}</span>`:'';}).join('')}</div>`:''}
+    ${Object.keys(ds).length?`<div style="margin:4px 0 6px">${Object.keys(ds).map(x=>`<span class="tag sb">${esc(x)} ${fmt(ds[x])}</span>`).join('')}</div>`:''}
     ${rows||'<div class="sub" style="padding:8px 0">まだ入力がありません</div>'}</div>`;
   return h;
 }
@@ -258,58 +413,61 @@ function resView(){
   let h=`<div class="seg"><button data-a="rng" data-v="month" class="${view.range==='month'?'on':''}">月間</button><button data-a="rng" data-v="span" class="${view.range==='span'?'on':''}">期間指定</button></div>`;
   if(!ym)h+=`<div class="card"><div class="r2"><div class="field" style="margin-top:0"><label>はじめ</label><input type="date" data-a="from" value="${f}"></div><div class="field" style="margin-top:0"><label>おわり</label><input type="date" data-a="to" value="${t}"></div></div>
     <div class="flex wrap" style="margin-top:8px">${[['今週',0],['先週',-7],['直近30日',30]].map(([l,v])=>`<button class="mini" data-a="quick" data-v="${v}">${l}</button>`).join('')}</div></div>`;
-  const span=ym?`${ymLabel(ym)}`:`${dayLabel(f)}〜${dayLabel(t)}`;
-  if(view.org==='px')return h+pxRes(A,ym,span);
-  return h+sbRes(A,ym,span);
+  const span=ym?ymLabel(ym):`${dayLabel(f)}〜${dayLabel(t)}`;
+  return h+(view.org==='px'?pxRes(A,ym,span):sbRes(A,ym,span));
 }
-function sbRes(A,ym,span){
-  if(!S.sb.length)return `<div class="sect" style="--sc:var(--sb)">ソフトバンク</div>`+noSetup();
-  let tot=0,hai=0;const rows=S.sb.map(it=>{const s=sbStat(it,A,ym);if(s.tr.cur)tot+=s.tr.cur.pt;hai+=num(it.hai);
-    const pctTxt=s.pct==null?'—':fmt(Math.floor(s.pct*10)/10)+'%';
-    const main=it.kind==='rate'?`${fmt(s.n)}／${fmt(s.den)}件`:`${fmt(s.n)}件${s.goal?`／計画 ${fmt(s.goal)}`:''}`;
-    const den=it.kind==='rate'?sbById(it.den):null;
-    return `<div class="row" style="display:block"><div class="between"><div><b>${esc(it.name)}</b>${it.hai!==''?`<span class="sub">　配点${fmt(it.hai)}</span>`:''}</div><b>${it.kind==='rate'||s.goal?pctTxt:fmt(s.n)+'件'}</b></div>
-      ${it.kind==='rate'||s.goal?bar(s.pct):''}
-      <div class="between sub"><span>${main}${den?`（÷${esc(den.name)}）`:''}</span><span>${s.tr.T.length?`${s.tr.cur?`<b style="color:var(--sb)">${fmt(s.tr.cur.pt)}点</b>`:'0点'}${s.tr.nx?`・あと${s.need==null?'—':s.need}件で${fmt(s.tr.nx.pt)}点`:''}`:''}</span></div></div>`;}).join('');
-  return `<div class="sect" style="--sc:var(--sb)">ソフトバンク</div>
-    <div class="card"><div class="sub">${span}</div><div class="between" style="margin-top:4px"><span class="sub">段階を入れた項目の点数</span><div class="big" style="color:var(--sb)">${fmt(tot)}<small>点${hai?` ／ 配点 ${fmt(hai)}`:''}</small></div></div>
-    <div class="sub" style="margin-top:4px">率の項目は「獲得した日」で数えています。実際の評価はN+2月1日時点の歩留りなどで決まるので、目安として見てください。</div></div>
-    <div class="card">${rows}</div>`;
+function goalBlock(ym,key,n,unit,rem,el,work){
+  const cut=ym?num(tval(ym,key,'cut')):0,goal=ym?num(tval(ym,key,'goal')):0;if(!(cut||goal))return '';
+  const need=goal>n?goal-n:cut>n?cut-n:0,land=el?n/el*work:null;
+  return `${bar(goal?n/goal*100:n/cut*100,goal&&cut?cut/goal*100:null)}
+    <div class="kv">${cut?`<div><span>足切り ${fmt(cut)}${unit}</span><b style="color:${n>=cut?'var(--ok)':'var(--bad)'}">${n>=cut?'クリア':'あと'+fmt(cut-n)}</b></div>`:''}
+    ${goal?`<div><span>目標 ${fmt(goal)}${unit}</span><b>${n>=goal?'<span style="color:var(--ok)">達成</span>':'あと'+fmt(goal-n)}</b></div>`:''}
+    ${rem&&need>0?`<div><span>1日あたり</span><b>${fmt(Math.ceil(need/rem))}${unit}</b></div>`:land!=null?`<div><span>着地予測</span><b>${fmt(land)}</b></div>`:''}</div>`;
 }
 function pxRes(A,ym,span){
-  if(!S.px.length)return `<div class="sect" style="--sc:var(--px)">フェニックス</div><div class="card empty">フェニックスの項目がありません。<br>⚙の「前のアプリから読み込む」で入れられます。<button class="btn" data-a="gear">項目設定を開く</button></div>`;
   const rem=ym?remWork(ym):0,el=ym?elWork(ym):0,work=ym?monthWork(ym).length:0,pc=num(S.ptCut);
   let h=`<div class="sect" style="--sc:var(--px)">フェニックス</div><div class="card"><div class="sub">${span}・入力 ${A.recs}件</div><div class="between" style="margin-top:4px"><span class="sub">合計ポイント</span><div class="big" style="color:var(--px)">${fmt(A.pts)}<small>pt</small></div></div>
     ${ym&&pc?`${bar(A.pts/pc*100)}<div class="between sub"><span>ポイント足切り ${fmt(pc)}pt</span><span>${A.pts>=pc?'<b style="color:var(--ok)">クリア</b>':`あと${fmt(pc-A.pts)}pt${rem?`・1日 ${fmt(Math.ceil((pc-A.pts)/rem))}pt`:''}`}</span></div>`:''}</div>`;
-  h+=S.px.map(it=>{const n=A.px[it.id]||0,cutV=it.mode==='yen'?(A.yen[it.id]||0):(A.pxCut[it.id]||0),u=it.mode==='yen'?'件':(it.unit||'件');
-    const cut=ym?num(tval(ym,it,'cut')):0,goal=ym?num(tval(ym,it,'goal')):0,cu=it.mode==='yen'?'円':u;
-    const subs=(it.subs||[]).map(s=>`<span class="tag">${esc(s.name||'種類')} ${fmt(A.pxSub[it.id+'|'+s.id]||0)}</span>`).join('');
-    const pts=(()=>{let p=0;if((it.subs||[]).length)it.subs.forEach(s=>{p+=(A.pxSub[it.id+'|'+s.id]||0)*num(s.pt);});const noSub=n-(it.subs||[]).reduce((a,s)=>a+(A.pxSub[it.id+'|'+s.id]||0),0);p+=noSub*num(it.pt);return p;})();
-    const land=ym&&el?n/el*work:null;
-    return `<div class="card"><div class="between"><b style="font-size:16px">${esc(it.name||'名前なし')}</b><span><b style="font-size:22px">${fmt(n)}</b><span class="sub">${esc(u)}・${fmt(pts)}pt</span></span></div>
-      ${subs||it.mode==='yen'?`<div style="margin-top:4px">${it.mode==='yen'?`<span class="tag">合計 ${fmt(cutV)}円</span>`:''}${subs}</div>`:''}
-      ${ym&&(cut||goal)?`${bar(goal?n/goal*100:cutV/cut*100,goal&&cut&&it.mode!=='yen'?cut/goal*100:null)}
-        <div class="kv">${cut?`<div><span>足切り ${fmt(cut)}${esc(cu)}</span><b style="color:${cutV>=cut?'var(--ok)':'var(--bad)'}">${cutV>=cut?'クリア':'あと'+fmt(cut-cutV)}</b></div>`:''}
-        ${goal?`<div><span>目標 ${fmt(goal)}${esc(u)}</span><b>${n>=goal?'<span style="color:var(--ok)">達成</span>':'あと'+fmt(goal-n)}</b></div>`:''}
-        ${(()=>{const need=goal>n?goal-n:cut>cutV?cut-cutV:0,nu=goal>n?u:cu;return rem&&need>0?`<div><span>1日あたり</span><b>${fmt(Math.ceil(need/rem))}${esc(nu)}</b></div>`:land!=null?`<div><span>着地予測</span><b>${fmt(land)}</b></div>`:'';})()}</div>`:''}</div>`;}).join('');
+  const keys=F_LIST.concat(Object.keys(A.f).filter(k=>!F_LIST.includes(k)));
+  h+='<div class="card">'+keys.map(k=>{const n=A.f[k]||0;
+    return `<div class="row" style="display:block"><div class="between"><b>${esc(fLabel(k))}</b><span><b style="font-size:18px">${fmt(n)}</b><span class="sub">件・${fmt(A.fpt[k]||0)}pt</span></span></div>${goalBlock(ym,k,n,'件',rem,el,work)}</div>`;}).join('')+'</div>';
+  h+=`<div class="card"><div class="between"><b>アクセサリー</b><span><b style="font-size:18px">${fmt(A.yen)}</b><span class="sub">円</span></span></div>${goalBlock(ym,ACC_KEY,A.yen,'円',rem,el,work)}</div>`;
+  return h;
+}
+function sbRes(A,ym,span){
+  const rem=ym?remWork(ym):0,el=ym?elWork(ym):0,work=ym?monthWork(ym).length:0,hasPt=Object.keys(S_PT).length>0;
+  let h=`<div class="sect" style="--sc:var(--sb)">ソフトバンク</div><div class="card"><div class="sub">${span}</div><div class="between" style="margin-top:4px"><span class="sub">合計ポイント</span><div class="big" style="color:var(--sb)">${hasPt?fmt(A.spts):'—'}<small>${hasPt?'pt':'（ポイント未設定）'}</small></div></div></div>`;
+  const keys=S_LIST.concat(Object.keys(A.s).filter(k=>!S_LIST.includes(k)));
+  h+='<div class="card">'+keys.map(k=>{const n=A.s[k]||0;
+    return `<div class="row" style="display:block"><div class="between"><b>${esc(k)}</b><span><b style="font-size:18px">${fmt(n)}</b><span class="sub">件${S_PT[k]!=null?'・'+fmt(n*S_PT[k])+'pt':''}</span></span></div>${goalBlock(ym,'S｜'+k,n,'件',rem,el,work)}</div>`;}).join('')+'</div>';
+  const cs=Object.keys(A.cats);
+  if(cs.length)h+=`<div class="card"><div class="ttl" style="margin-bottom:6px">大分類ごとの件数</div>${cs.map(c=>`<span class="tag">${esc(c)} ${fmt(A.cats[c])}</span>`).join('')}</div>`;
   return h;
 }
 
 // ---------- タブ3：ポイント ----------
+function hasF(nd){return !!nd.F||nd.c.some(hasF);}
+function hasS(nd){return !!nd.S||nd.c.some(hasS);}
 function ptsView(){
-  if(!S.inp.length)return noSetup();
-  if(view.org==='px'){
-    const L=S.inp.map(x=>({x,p:inpPt(x)})).sort((a,b)=>b.p-a.p);const max=L.length?Math.max(1,L[0].p):1;
-    return `<div class="sect" style="--sc:var(--px)">フェニックス</div><div class="card"><div class="ttl">手続きごとの目安ポイント</div><div class="sub" style="margin-bottom:6px">1件あたりのポイントが高い順です。タップすると入力タブでその項目を選んだ状態になります。</div>
-      ${L.map(({x,p})=>`<button class="ihead" data-a="ptgo" data-id="${x.id}"><span style="flex:1;min-width:0"><b>${esc(x.name)}</b>
-        <span class="bar" style="display:block;margin:5px 0 3px"><i style="width:${Math.max(2,p/max*100)}%;background:var(--px)"></i></span>
-        <span class="sub">${x.sb.map(l=>{const it=sbById(l.i);return it?`<span class="tag sb">${esc(it.name)}</span>`:'';}).join('')}</span></span><b style="color:var(--px);font-size:18px">${fmt(p)}<small class="sub">pt</small></b></button>`).join('')}</div>`;
-  }
-  return `<div class="sect" style="--sc:var(--sb)">ソフトバンク</div>`+S.sb.map(it=>{const tr=tierOf(it,null),by=S.inp.filter(x=>x.sb.some(l=>l.i===it.id)),den=it.kind==='rate'?sbById(it.den):null;
-    return `<div class="card"><div class="between"><b style="font-size:16px">${esc(it.name)}</b>${it.hai!==''?`<b style="color:var(--sb)">配点 ${fmt(it.hai)}</b>`:''}</div>
-      <div class="sub">${it.kind==='rate'?`率：入力した件数 ÷ ${esc(den?den.name:'（分母が未設定）')}`:'計画値に対する達成率'}${it.note?'・'+esc(it.note):''}</div>
-      ${tr.T.length?`<div class="flex wrap" style="margin-top:6px">${tr.T.map(t=>`<span class="tag">${fmt(t.p)}%以上 ${fmt(t.pt)}点</span>`).join('')}</div>`:''}
-      <div style="margin-top:6px">${by.length?by.map(x=>`<span class="tag sb">${esc(x.name)}</span>`).join(''):'<span class="sub">数える入力ボタンがありません</span>'}</div></div>`;}).join('');
+  const px=view.org==='px';
+  let h=`<div class="sect" style="--sc:var(--${px?'px':'sb'})">${px?'フェニックス':'ソフトバンク'}</div>`;
+  if(!px&&!Object.keys(S_PT).length)h+=`<div class="note" style="margin-bottom:12px">ソフトバンクのポイントはまだ入っていません。マインドマップに書き足して送ってもらえれば反映します。</div>`;
+  if(!px){const G={};
+    MAP.forEach(cat=>{const rec=(nd,path)=>{nd.c.forEach(ch=>{const p=path.concat(ch);if(ch.S){const lab=(p.length>1?p[0].n+' ':'')+ch.n;const g=G[ch.S.name]=G[ch.S.name]||{pt:ch.S.pt,cats:{}};const L=g.cats[cat.n]=g.cats[cat.n]||[];if(!L.includes(lab))L.push(lab);}rec(ch,p);});};rec(cat,[]);});
+    h+=Object.keys(G).map(k=>`<div class="card"><div class="between"><div class="ttl" style="color:var(--sb)">${esc(k)}</div><b>${G[k].pt!=null?fmt(G[k].pt)+'pt':'<span class="sub">ポイント未設定</span>'}</b></div>
+      ${Object.keys(G[k].cats).map(c=>`<div class="sub" style="margin-top:6px">${esc(c)}（手続き・端末の有無に関係なく）</div><div>${G[k].cats[c].map(x=>`<span class="tag sb">${esc(x)}</span>`).join('')}</div>`).join('')}</div>`).join('');
+    return h;}
+  h+=MAP.map((cat,ci)=>{
+    const keep=px?hasF:hasS;if(!keep(cat))return '';
+    const line=(nd,dep,path)=>{const ok=keep(nd);if(!ok)return '';const leaf=!nd.c.some(keep);
+      const tag=px?(nd.F?`<b style="color:var(--px);white-space:nowrap">${fmt(nd.F.pt)}pt</b>`:''):(nd.S?`<span class="tag sb">${esc(nd.S.name)}${nd.S.pt!=null?' '+fmt(nd.S.pt)+'pt':''}</span>`:'');
+      const inner=`<span style="padding-left:${dep*14}px">${dep?'└ ':''}${esc(nd.n)}${px&&nd.F&&nd.F.name!==nd.n?`<span class="sub">（${esc(nd.F.name)}）</span>`:''}</span>${tag}`;
+      const self=(cat.type==='path'||cat.type==='multi'||cat.type==='model')?`<button class="nd" data-a="ptgo" data-c="${ci}" data-p="${path.join(',')}">${inner}</button>`:`<div class="nd">${inner}</div>`;
+      return self+(leaf?'':nd.c.map((ch,i)=>line(ch,dep+1,path.concat(i))).join(''));};
+    const top=cat.F?`<div class="nd"><span>${esc(cat.n)}</span>${px?`<b style="color:var(--px)">${fmt(cat.F.pt)}pt</b>`:''}</div>`:'';
+    return `<div class="card"><div class="ttl" style="margin-bottom:4px">${esc(cat.n)}</div><div class="tree">${top}${cat.c.map((nd,i)=>line(nd,0,[i])).join('')}</div></div>`;}).join('');
+  h+=`<div class="sub" style="text-align:center">タップすると入力タブでその内容を選んだ状態になります</div>`;
+  return h;
 }
 
 // ---------- タブ4：カレンダー・報告 ----------
@@ -325,7 +483,7 @@ function calView(){
   const L=S.logs[k]||[],A=agg(k,k),nt=S.notes[k]||{},off=S.off.includes(k);
   h+=`<div class="card"><div class="between"><div class="ttl">${dayLabel(k)}</div><button class="mini ${off?'on':''}" data-a="offt" data-k="${k}">${off?'休みを外す':'休みにする'}</button></div>
     <div class="sub" style="margin-top:4px">入力 ${L.length}件・フェニックス <b style="color:var(--px)">${fmt(A.pts)}pt</b></div>
-    <div style="margin-top:4px">${Object.keys(A.sb).map(i=>{const it=sbById(i);return it?`<span class="tag sb">${esc(it.name)} ${fmt(A.sb[i])}</span>`:'';}).join('')}</div>
+    <div style="margin-top:4px">${Object.keys(A.s).map(x=>`<span class="tag sb">${esc(x)} ${fmt(A.s[x])}</span>`).join('')}</div>
     <button class="mini" data-a="goin" data-k="${k}" style="margin-top:8px">この日の入力を開く</button>
     <div class="field"><label>フリー入力欄（自分用メモ）</label><textarea rows="3" data-a="note" data-f="memo" data-k="${k}" placeholder="気づいたこと、明日やることなど">${esc(nt.memo)}</textarea></div>
     <div class="field"><label>店長に報告</label><textarea rows="3" data-a="note" data-f="mgr" data-k="${k}" placeholder="店長への報告">${esc(nt.mgr)}</textarea>
@@ -337,221 +495,97 @@ function calView(){
 }
 function reportText(k,f){
   const A=agg(k,k),nt=S.notes[k]||{},ym=k.slice(0,7),M=agg(ym+'-01',k);
-  const sb=Object.keys(A.sb).map(i=>{const it=sbById(i);return it?`${it.name} ${fmt(A.sb[i])}`:'';}).filter(Boolean).join('、')||'なし';
-  return `【${dayLabel(k)}の報告】\n■ソフトバンク：${sb}\n■フェニックス：${fmt(A.pts)}pt（${+ym.slice(5)}月の累計 ${fmt(M.pts)}pt）\n\n${nt[f]||''}`.trim();
+  const cats=Object.keys(A.cats).map(c=>`${c} ${fmt(A.cats[c])}`).join('、')||'なし';
+  const sb=Object.keys(A.s).map(x=>`${x} ${fmt(A.s[x])}`).join('、')||'なし';
+  return `【${dayLabel(k)}の報告】\n■獲得：${cats}\n■ソフトバンク：${sb}\n■フェニックス：${fmt(A.pts)}pt（${+ym.slice(5)}月の累計 ${fmt(M.pts)}pt）${A.yen?`\n■アクセサリー：${fmt(A.yen)}円`:''}\n\n${nt[f]||''}`.trim();
 }
 async function copyText(t){try{await navigator.clipboard.writeText(t);return true;}catch(e){const ta=document.createElement('textarea');ta.value=t;document.body.appendChild(ta);ta.select();let ok=false;try{ok=document.execCommand('copy');}catch(e2){}ta.remove();return ok;}}
 
-// ---------- ⚙ 項目設定 ----------
-function tgtField(it,k,label,ym,kind,unit){const g=it[k],v=tval(ym,it,k),mo=+ym.slice(5);
-  return `<div class="field"><label>${label}　<span class="seg" style="display:inline-flex;margin:0;vertical-align:middle;padding:2px"><button style="height:26px;padding:0 8px;font-size:12px" class="${g.fixed?'on':''}" data-a="tfix" data-kind="${kind}" data-id="${it.id}" data-k="${k}" data-v="1">毎月同じ</button><button style="height:26px;padding:0 8px;font-size:12px" class="${g.fixed?'':'on'}" data-a="tfix" data-kind="${kind}" data-id="${it.id}" data-k="${k}" data-v="0">月ごと</button></span></label>
-    <div class="flex"><input class="inp" type="number" inputmode="decimal" value="${v??''}" data-a="tval" data-kind="${kind}" data-id="${it.id}" data-k="${k}" placeholder="${g.fixed?'未設定なら空欄':mo+'月の値'}"><span class="sub" style="white-space:nowrap">${esc(unit)}・${g.fixed?'全月':mo+'月分'}</span></div></div>`;}
+// ---------- ⚙ 設定 ----------
+function tgtField(k,w,label,ym,unit){const g=cfgOf(k)[w],v=tval(ym,k,w),mo=+ym.slice(5);
+  return `<div class="field"><label>${label}　<span class="seg" style="display:inline-flex;margin:0;vertical-align:middle;padding:2px"><button style="height:26px;padding:0 8px;font-size:12px" class="${g.fixed?'on':''}" data-a="tfix" data-id="${esc(k)}" data-k="${w}" data-v="1">毎月同じ</button><button style="height:26px;padding:0 8px;font-size:12px" class="${g.fixed?'':'on'}" data-a="tfix" data-id="${esc(k)}" data-k="${w}" data-v="0">月ごと</button></span></label>
+    <div class="flex"><input class="inp" type="number" inputmode="decimal" value="${v??''}" data-a="tval" data-id="${esc(k)}" data-k="${w}" placeholder="${g.fixed?'なしなら空欄':mo+'月の値'}"><span class="sub" style="white-space:nowrap">${unit}・${g.fixed?'全月':mo+'月分'}</span></div></div>`;}
+function tgtRow(k,label,ym,unit){const o=view.open===k,c=num(tval(ym,k,'cut')),g=num(tval(ym,k,'goal'));
+  return `<button class="ihead" data-a="open" data-id="${esc(k)}"><span><b>${esc(label)}</b><span class="sub">${c?'　足切り'+fmt(c):''}${g?'　目標'+fmt(g):''}</span></span><span class="chev">${o?'閉じる ▲':'設定 ▼'}</span></button>`+
+    (o?`<div class="ibody">${tgtField(k,'cut','足切り',ym,unit)}${tgtField(k,'goal','目標',ym,unit)}</div>`:'');}
 function setView(){
-  const ym=view.ym,o=view.open;
-  let h=`<div class="card"><div class="ttl">読み込み</div>
-    <div class="sub">ソフトバンクの評価項目と入力ボタンは「設定ファイル」から入れます（アプリ本体には書いていません）。</div>
-    <button class="btn" data-a="loadfile">設定ファイル（.json）を読み込む</button>
-    <button class="btn ghost" data-a="oldapp">前のアプリからフェニックスの項目を読み込む</button>
-    <div class="field"><label>または、前のアプリの「設定の共有リンク」を貼る</label><textarea class="inp" id="cfglink" rows="2" placeholder="https://…#cfg=…"></textarea><button class="mini" data-a="cfglink" style="margin-top:6px">リンクから読み込む</button></div></div>`;
-  // ソフトバンク
-  h+=`<div class="card"><div class="ttl" style="color:var(--sb)">ソフトバンクの評価項目</div><div class="sub" style="margin-bottom:4px">${ymLabel(ym)}の計画値を表示しています（上の‹ ›は実績確認・カレンダーで切り替え）</div>`;
-  S.sb.forEach((it,i)=>{const den=sbById(it.den);
-    h+=`<button class="ihead" data-a="open" data-id="${it.id}"><span><b>${esc(it.name||'名前なし')}</b><span class="sub">　${it.kind==='rate'?'率（÷'+esc(den?den.name:'未設定')+'）':'件数'}${it.hai!==''?'・配点'+fmt(it.hai):''}</span></span><span class="chev">${o===it.id?'閉じる ▲':'設定 ▼'}</span></button>`;
-    if(o!==it.id)return;
-    h+=`<div class="ibody"><div class="field"><label>項目名</label><input value="${esc(it.name)}" data-a="f" data-kind="sb" data-id="${it.id}" data-f="name"></div>
-      <div class="r2"><div class="field"><label>数え方</label><select data-a="f" data-kind="sb" data-id="${it.id}" data-f="kind"><option value="cnt" ${it.kind==='cnt'?'selected':''}>件数（計画値に対して）</option><option value="rate" ${it.kind==='rate'?'selected':''}>率（ほかの項目で割る）</option></select></div>
-        <div class="field"><label>配点</label><input type="number" inputmode="decimal" value="${it.hai??''}" data-a="f" data-kind="sb" data-id="${it.id}" data-f="hai"></div></div>
-      ${it.kind==='rate'?`<div class="field"><label>何で割るか（分母）</label><select data-a="f" data-kind="sb" data-id="${it.id}" data-f="den"><option value="">選んでください</option>${S.sb.filter(x=>x.id!==it.id).map(x=>`<option value="${x.id}" ${x.id===it.den?'selected':''}>${esc(x.name)}</option>`).join('')}</select></div>`:tgtField(it,'goal','計画値',ym,'sb','件')}
-      <div class="field"><label>段階（${it.kind==='rate'?'率':'達成率'}が◯%以上で◯点）</label>${it.tiers.map(t=>`<div class="lnk"><input type="number" inputmode="decimal" value="${t.p??''}" data-a="tier" data-id="${it.id}" data-t="${t.id}" data-f="p" placeholder="%"><span class="sub">%以上で</span><input type="number" inputmode="decimal" value="${t.pt??''}" data-a="tier" data-id="${it.id}" data-t="${t.id}" data-f="pt" placeholder="点"><span class="sub">点</span><button class="mini" data-a="tdel" data-id="${it.id}" data-t="${t.id}" style="color:var(--bad)">✕</button></div>`).join('')}
-        <button class="mini" data-a="tadd" data-id="${it.id}" style="margin-top:6px;color:var(--acc);font-weight:700">＋ 段階</button></div>
-      <div class="field"><label>メモ</label><input value="${esc(it.note)}" data-a="f" data-kind="sb" data-id="${it.id}" data-f="note"></div>
-      ${moveDel('sb',it.id,i,S.sb.length)}</div>`;});
-  h+=`<button class="btn ghost" data-a="add" data-kind="sb">＋ 評価項目を追加</button></div>`;
-  // フェニックス
-  h+=`<div class="card"><div class="ttl" style="color:var(--px)">フェニックスの項目</div>
-    <div class="field"><label>ポイントの足切り（月）</label><div class="flex"><input class="inp" type="number" inputmode="decimal" value="${S.ptCut??''}" data-a="ptcut" placeholder="なしなら空欄"><span class="sub">pt</span></div></div>`;
-  S.px.forEach((it,i)=>{
-    h+=`<button class="ihead" data-a="open" data-id="${it.id}"><span><b>${esc(it.name||'名前なし')}</b><span class="sub">　${it.grp?'（'+esc(it.grp)+(it.sbl&&inpById(it.sbl)?'→'+esc(inpById(it.sbl).name):'')+'）':''}${(it.subs||[]).length?it.subs.map(s=>esc(s.name)+' '+fmt(s.pt)+'pt').join('／'):fmt(it.pt)+'pt'}</span></span><span class="chev">${o===it.id?'閉じる ▲':'設定 ▼'}</span></button>`;
-    if(o!==it.id)return;
-    h+=`<div class="ibody"><div class="r2"><div class="field"><label>項目名</label><input value="${esc(it.name)}" data-a="f" data-kind="px" data-id="${it.id}" data-f="name"></div><div class="field"><label>単位</label><input value="${esc(it.unit)}" data-a="f" data-kind="px" data-id="${it.id}" data-f="unit"></div></div>
-      <div class="r2"><div class="field"><label>大項目（ソフトバンク）</label><select data-a="f" data-kind="px" data-id="${it.id}" data-f="grp"><option value="">（なし）</option>${[...new Set([...sbGroups(),...(it.grp?[it.grp]:[])])].map(g=>`<option value="${esc(g)}" ${g===it.grp?'selected':''}>${esc(g)}</option>`).join('')}<option value="__new">＋ 大項目を追加</option></select></div>
-        <div class="field"><label>小項目</label><select data-a="f" data-kind="px" data-id="${it.id}" data-f="sbl" ${it.grp?'':'disabled'}><option value="">（なし）</option>${S.inp.filter(v=>catOf(v)==='sb'&&(v.grp||'その他')===it.grp).map(v=>`<option value="${v.id}" ${v.id===it.sbl?'selected':''}>${esc(v.name||'名前なし')}</option>`).join('')}<option value="__new">＋ 小項目を追加</option></select></div></div>
-      ${view.newG===it.id?`<div class="lnk"><input id="newG" placeholder="新しい大項目（例：ワイモバイル）"><button class="mini" data-a="newg" data-id="${it.id}" style="color:var(--acc);font-weight:700">追加</button><button class="mini" data-a="newx">✕</button></div>`:''}
-      ${view.newS===it.id?`<div class="lnk"><input id="newS" placeholder="「${esc(it.grp)}」に追加する小項目（例：シンプル3 M）"><button class="mini" data-a="news" data-id="${it.id}" style="color:var(--acc);font-weight:700">追加</button><button class="mini" data-a="newx">✕</button></div>`:''}
-      ${(()=>{const z=it.sbl&&inpById(it.sbl);if(!z)return '';const cur=(z.sb[0]||{}).i||'';return `<div class="field"><label>「${esc(z.name)}」をソフトバンクで数える項目</label><select data-a="pxsbc" data-id="${it.id}"><option value="">（数えない）</option>${S.sb.map(v=>`<option value="${v.id}" ${v.id===cur?'selected':''}>${esc(v.name)}</option>`).join('')}</select></div>`;})()}
-      <div class="sub">小項目を選ぶと、入力タブでソフトバンクのそのボタンと連動します（例：他社MNP → 回線・MNP）。ボタン1つでソフトバンクとフェニックスの両方が計算されます。</div>
-      ${(it.subs||[]).length?'':`<div class="field"><label>1件あたりのポイント</label><input type="number" inputmode="decimal" value="${it.pt??''}" data-a="f" data-kind="px" data-id="${it.id}" data-f="pt"></div>`}
-      <div class="field"><label>種類（なくてもOK）</label>${(it.subs||[]).map(s=>`<div class="lnk"><input style="flex:3" value="${esc(s.name)}" data-a="sf" data-id="${it.id}" data-s="${s.id}" data-f="name"><input type="number" inputmode="decimal" value="${s.pt??''}" data-a="sf" data-id="${it.id}" data-s="${s.id}" data-f="pt" placeholder="pt"><span class="sub">pt</span><button class="mini" data-a="sdel" data-id="${it.id}" data-s="${s.id}" style="color:var(--bad)">✕</button></div>`).join('')}
-        <button class="mini" data-a="sadd" data-id="${it.id}" style="margin-top:6px;color:var(--acc);font-weight:700">＋ 種類</button></div>
-      <div class="field"><label>足切りの数え方</label><select data-a="f" data-kind="px" data-id="${it.id}" data-f="mode"><option value="cnt" ${it.mode!=='yen'?'selected':''}>件数</option><option value="yen" ${it.mode==='yen'?'selected':''}>金額（円）</option></select></div>
-      ${tgtField(it,'cut','足切り',ym,'px',it.mode==='yen'?'円':(it.unit||'件'))}${tgtField(it,'goal','目標',ym,'px',it.unit||'件')}
-      ${moveDel('px',it.id,i,S.px.length)}</div>`;});
-  h+=`<button class="btn ghost" data-a="add" data-kind="px">＋ フェニックスの項目を追加</button></div>`;
-  // 入力ボタン
-  const pxOpts=sel=>`<option value="">（なし）</option>`+S.px.map(it=>(it.subs||[]).length?it.subs.map(s=>{const v=it.id+'|'+s.id;return `<option value="${v}" ${v===sel?'selected':''}>${esc(pxLabel(it,s.id))}</option>`;}).join(''):`<option value="${it.id}|" ${it.id+'|'===sel?'selected':''}>${esc(it.name)}</option>`).join('');
-  const sbOpts=sel=>`<option value="">（なし）</option>`+S.sb.map(x=>`<option value="${x.id}" ${x.id===sel?'selected':''}>${esc(x.name)}</option>`).join('');
-  h+=`<div class="card"><div class="ttl">入力ボタン（1回の入力で両方に入る）</div><div class="sub" style="margin-bottom:4px">入力タブに並ぶボタンです。1つのボタンで、ソフトバンクの何に数えるか・フェニックスの何に入るかを決めます。</div>`;
-  S.inp.forEach((x,i)=>{
-    h+=`<button class="ihead" data-a="open" data-id="${x.id}"><span><b>${esc(x.name||'名前なし')}</b><span class="sub">　【${catOf(x)==='px'?'フェニックス':'ソフトバンク'}】${esc(x.grp)}${x.px.length?'・'+fmt(inpPt(x))+'pt':'・フェニックス未設定'}</span></span><span class="chev">${o===x.id?'閉じる ▲':'設定 ▼'}</span></button>`;
-    if(o!==x.id)return;
-    h+=`<div class="ibody"><div class="r2"><div class="field"><label>ボタンの名前</label><input value="${esc(x.name)}" data-a="f" data-kind="inp" data-id="${x.id}" data-f="name"></div><div class="field"><label>グループ（例：回線）</label><input value="${esc(x.grp)}" data-a="f" data-kind="inp" data-id="${x.id}" data-f="grp" list="grps"></div></div>
-      <div class="field"><label>大分類（入力タブの【 】）</label><select data-a="f" data-kind="inp" data-id="${x.id}" data-f="cat"><option value="sb" ${catOf(x)==='sb'?'selected':''}>ソフトバンク</option><option value="px" ${catOf(x)==='px'?'selected':''}>フェニックス</option></select></div>
-      ${catOf(x)==='px'?`<div class="field"><label>ソフトバンクと連動（選んだら自動で入る）</label><select data-a="f" data-kind="inp" data-id="${x.id}" data-f="link"><option value="" ${!x.link?'selected':''}>同じ名前のボタンと連動</option><option value="none" ${x.link==='none'?'selected':''}>連動しない</option>${S.inp.filter(v=>catOf(v)==='sb').map(v=>`<option value="${v.id}" ${x.link===v.id?'selected':''}>${esc(v.name||'名前なし')}</option>`).join('')}</select></div>`:''}
-      <datalist id="grps">${[...new Set(S.inp.map(v=>v.grp).filter(Boolean))].map(g=>`<option value="${esc(g)}">`).join('')}</datalist>
-      <div class="field"><label>ソフトバンクで数える項目</label>${x.sb.map((l,j)=>`<div class="lnk"><select data-a="lk" data-kind="sb" data-id="${x.id}" data-j="${j}">${sbOpts(l.i)}</select><input type="number" inputmode="decimal" value="${l.q}" data-a="lq" data-kind="sb" data-id="${x.id}" data-j="${j}"><button class="mini" data-a="ldel" data-kind="sb" data-id="${x.id}" data-j="${j}" style="color:var(--bad)">✕</button></div>`).join('')}
-        <button class="mini" data-a="ladd" data-kind="sb" data-id="${x.id}" style="margin-top:6px;color:var(--sb);font-weight:700">＋ ソフトバンク</button></div>
-      <div class="field"><label>フェニックスの項目</label>${x.px.map((l,j)=>`<div class="lnk"><select data-a="lk" data-kind="px" data-id="${x.id}" data-j="${j}">${pxOpts(l.i+'|'+(l.s||''))}</select><input type="number" inputmode="decimal" value="${l.q}" data-a="lq" data-kind="px" data-id="${x.id}" data-j="${j}"><button class="mini" data-a="ldel" data-kind="px" data-id="${x.id}" data-j="${j}" style="color:var(--bad)">✕</button></div>`).join('')}
-        <button class="mini" data-a="ladd" data-kind="px" data-id="${x.id}" style="margin-top:6px;color:var(--px);font-weight:700">＋ フェニックス</button></div>
-      <div class="sub" style="margin-top:6px">右の数字は「1回で何件分か」です（ふつうは1）。</div>
-      ${moveDel('inp',x.id,i,S.inp.length)}</div>`;});
-  h+=`<button class="btn ghost" data-a="add" data-kind="inp">＋ 入力ボタンを追加</button></div>`;
+  const ym=view.ym;
+  let h=`<div class="card"><div class="ttl">目標の設定</div><div class="sub">${ymLabel(ym)}の値を表示しています（月は実績確認・カレンダーの‹ ›で切り替え）</div></div>`;
+  h+=`<div class="card"><div class="ttl" style="color:var(--px)">フェニックス</div>
+    <div class="field"><label>ポイントの足切り（月）</label><div class="flex"><input class="inp" type="number" inputmode="decimal" value="${S.ptCut??''}" data-a="ptcut" placeholder="なしなら空欄"><span class="sub">pt</span></div></div>
+    <div style="margin-top:8px">${F_LIST.map(k=>tgtRow(k,fLabel(k),ym,'件')).join('')}${tgtRow(ACC_KEY,'アクセサリー（金額）',ym,'円')}</div></div>`;
+  h+=`<div class="card"><div class="ttl" style="color:var(--sb)">ソフトバンク</div><div style="margin-top:8px">${S_LIST.map(k=>tgtRow('S｜'+k,k,ym,'件')).join('')}</div></div>`;
+  h+=`<div class="card"><div class="ttl">入力の項目について</div><div class="sub" style="line-height:1.7">入力の項目とポイントはマインドマップ（${MAP_VER}版）から作っています。マインドマップに書き足したら、Claudeに送ってください。アプリに反映します。</div></div>`;
+  let old=false;try{old=!!localStorage.getItem(OLD_LS);}catch(e){}
   h+=`<div class="card"><div class="ttl">バックアップ</div><div class="sub">データはこのスマホの中だけに保存されています。ときどきファイルに保存してください。</div>
     <button class="btn ghost" data-a="bksave">ファイルに保存</button><button class="btn ghost" data-a="bkload">バックアップから戻す</button>
+    ${old?'<button class="btn ghost" data-a="oldsave">前の形のデータ（11月まで）をファイルに保存</button>':''}
     <button class="btn red" data-a="wipe">${view.del==='wipe'?'本当に全部消す':'全部消す'}</button></div>`;
   return h;
 }
-function moveDel(kind,id,i,n){return `<div class="flex" style="margin-top:10px;justify-content:flex-end"><button class="mini" data-a="mv" data-kind="${kind}" data-id="${id}" data-v="-1" ${i===0?'disabled':''}>↑</button><button class="mini" data-a="mv" data-kind="${kind}" data-id="${id}" data-v="1" ${i===n-1?'disabled':''}>↓</button><button class="mini" data-a="del" data-kind="${kind}" data-id="${id}" style="color:var(--bad)">${view.del===id?'本当に削除':'削除'}</button></div>`;}
 
-// ===================== 読み込み =====================
-function pxFromOld(items,ptCut,t){ // 前のアプリ（目標達成マネージャー）の項目をフェニックスへ
-  const cs=sanitize({px:(items||[]).map(x=>({...x,mode:x.cut&&x.cut.mode==='yen'?'yen':'cnt'}))}).px;
-  const byName={};S.px.forEach(p=>byName[norm(p.name)]=p);const idMap={};
-  S.px=cs.map((x,i)=>{const ex=byName[norm(x.name)];const oid=(items[i]||{}).id;if(ex){x.id=ex.id;x.subs=x.subs.map(s=>{const es=(ex.subs||[]).find(v=>norm(v.name)===norm(s.name));if(es)s.id=es.id;return s;});}idMap[String(oid)]=x.id;return x;});
-  if(ptCut!==undefined)S.ptCut=numB(ptCut);
-  for(const ym in (t||{})){if(!YM_RE.test(ym))continue;for(const oid in t[ym]){const id=idMap[oid];if(!id)continue;const m=S.months[ym]=S.months[ym]||{t:{}};m.t[id]=Object.assign(m.t[id]||{},{cut:numB(t[ym][oid].cut),goal:numB(t[ym][oid].goal)});}}
-  linkPx();
-}
-function linkPx(){ // フェニックスの項目を入力ボタンにつなぐ（同じ名前のボタンがあればそこへ、なければボタンを作る）
-  const has=new Set();S.inp.forEach(x=>x.px=x.px.filter(l=>{const it=pxById(l.i);return it&&(!l.s||subOf(it,l.s));}));
-  S.inp.forEach(x=>x.px.forEach(l=>has.add(l.i+'|'+(l.s||''))));
-  S.px.forEach(it=>{const targets=(it.subs||[]).length?it.subs.map(s=>[s.id,pxLabel(it,s.id),s.name]):[[null,it.name,it.name]];
-    targets.forEach(([s,label,sname])=>{const key=it.id+'|'+(s||'');if(has.has(key)||(s&&has.has(it.id+'|')))return;
-      const btn=S.inp.find(x=>norm(x.name)===norm(label))||(!s?null:null);
-      if(btn&&!btn.px.length){btn.px.push(s?{i:it.id,s,q:1}:{i:it.id,q:1});}
-      else S.inp.push({id:uid(),name:label,grp:'フェニックス',cat:'px',sb:[],px:[s?{i:it.id,s,q:1}:{i:it.id,q:1}]});
-      has.add(key);});});
-}
-function applyCfgFile(c){
-  const cs=sanitize({sb:c.sb,inp:c.inp,px:c.px||[]});
-  const oldInp={};S.inp.forEach(x=>oldInp[norm(x.name)]=x);
-  S.sb=cs.sb;
-  if(Array.isArray(c.px)&&c.px.length){const byName={};S.px.forEach(p=>byName[norm(p.name)]=p);S.px=cs.px.map(x=>{const ex=byName[norm(x.name)];if(ex)x.id=ex.id;return x;});}
-  // ソフトバンク側のつながりはファイルのもの、フェニックス側は今までのものを残す
-  const fileInp=cs.inp.map(x=>{const ex=oldInp[norm(x.name)];if(ex){x.id=ex.id;if(!x.px.length)x.px=ex.px;}return x;});
-  const fileNames=new Set(fileInp.map(x=>norm(x.name)));
-  S.inp=fileInp.concat(S.inp.filter(x=>!fileNames.has(norm(x.name))&&x.px.length));
-  if(c.months)for(const ym in c.months){if(!YM_RE.test(ym))continue;const t=(c.months[ym]||{}).t||{};for(const id in t){if(!sbById(id))continue;const m=S.months[ym]=S.months[ym]||{t:{}};m.t[id]=Object.assign(m.t[id]||{},{goal:numB(t[id].goal)});}}
-  linkPx();
-}
-async function decCode(code){
-  code=String(code).trim();const kind=code[0];let b=code.slice(1).replace(/-/g,'+').replace(/_/g,'/');while(b.length%4)b+='=';
-  const bin=atob(b),u8=new Uint8Array(bin.length);for(let i=0;i<bin.length;i++)u8[i]=bin.charCodeAt(i);
-  let txt;if(kind==='z'){const st=new Blob([u8]).stream().pipeThrough(new DecompressionStream('deflate-raw'));txt=await new Response(st).text();}else txt=new TextDecoder().decode(u8);
-  return JSON.parse(txt);
-}
-let fileMode='cfg';
+// ===================== 操作 =====================
+function dl(obj,name){const blob=new Blob([JSON.stringify(obj)],{type:'application/json'});const u=URL.createObjectURL(blob);const el=document.createElement('a');el.href=u;el.download=name;document.body.appendChild(el);el.click();el.remove();setTimeout(()=>URL.revokeObjectURL(u),3000);}
 document.getElementById('fileIn').addEventListener('change',async e=>{
   const f=e.target.files&&e.target.files[0];e.target.value='';if(!f)return;
   if(f.size>3e6){alert('ファイルが大きすぎます');return;}
   let c;try{c=JSON.parse(await f.text());}catch(err){alert('読み込めませんでした。ファイルが壊れているかもしれません。');return;}
-  if(fileMode==='bk'){if(!c||c.v!==2||!Array.isArray(c.inp)){alert('takamiのバックアップファイルではありません');return;}
-    if(!confirm('今のデータを、このバックアップの内容に置き換えます。よろしいですか？'))return;S=sanitize(c);save();render();toast('バックアップから戻しました');return;}
-  if(!c||c.kind!=='takami-cfg'||!Array.isArray(c.sb)||!Array.isArray(c.inp)){alert('takamiの設定ファイルではありません');return;}
-  if(!confirm(`設定を読み込みます。\n・ソフトバンクの評価項目 ${c.sb.length}個\n・入力ボタン ${c.inp.length}個${Array.isArray(c.px)&&c.px.length?`\n・フェニックスの項目 ${c.px.length}個`:''}\n\nソフトバンクの項目は置き換わります。入力済みの実績・メモはそのまま残ります。`))return;
-  applyCfgFile(c);save();render();toast('読み込みました');
+  if(!c||c.v!==3){alert('takami（新しい形）のバックアップファイルではありません');return;}
+  if(!confirm('今のデータを、このバックアップの内容に置き換えます。よろしいですか？'))return;S=sanitize(c);save();render();toast('バックアップから戻しました');
 });
-
-// ===================== 操作 =====================
-function listOf(kind){return kind==='sb'?S.sb:kind==='px'?S.px:S.inp;}
-function findK(kind,id){return listOf(kind).find(x=>x.id===id);}
 document.addEventListener('click',async e=>{
   const tb=e.target.closest('[data-tab]');if(tb){view.tab=tb.dataset.tab;view.del=null;render();window.scrollTo(0,0);return;}
   const t=e.target.closest('[data-a]');if(!t||t.disabled)return;const a=t.dataset.a,id=t.dataset.id;
   if(t.tagName==='INPUT'||t.tagName==='SELECT'||t.tagName==='TEXTAREA')return;
-  if(a!=='rdel'&&a!=='del'&&a!=='wipe')view.del=null;
+  if(a!=='rdel'&&a!=='wipe')view.del=null;
   if(a==='gear'){view.tab='set';view.open=null;render();window.scrollTo(0,0);return;}
   if(a==='back'){view.tab='in';render();return;}
   if(a==='org'){view.org=view.org==='px'?'sb':'px';render();return;}
   if(a==='mprev'||a==='mnext'){const d=new Date(+view.ym.slice(0,4),+view.ym.slice(5,7)-1+(a==='mnext'?1:-1),1);view.ym=d.getFullYear()+'-'+pad(d.getMonth()+1);render();return;}
   if(a==='dprev'||a==='dnext'){view.day=addDay(view.day,a==='dnext'?1:-1);view.ym=view.day.slice(0,7);render();return;}
   if(a==='dtoday'){view.day=todayKey;view.ym=curYM;render();return;}
-  if(a==='chip'){toggleSel(id);render();return;}
-  if(a==='clr'){sel={};selY={};selA={};selN=1;render();return;}
-  if(a==='reg'){const x=S.inp.filter(v=>sel[v.id]).map(v=>v.id);if(!x.length)return;const y={};x.forEach(i=>{if(selY[i])y[i]=num(selY[i]);});
-    (S.logs[view.day]=S.logs[view.day]||[]).push({id:uid(),ts:Date.now(),n:selN,x,y});save();sel={};selY={};selA={};selN=1;render();toast('登録しました');return;}
+  if(a==='cat'){if(catBy(t.dataset.v)){IN.cat=t.dataset.v;resetIn();}render();return;}
+  if(a==='step'){const l=+t.dataset.l,i=+t.dataset.i;if(IN.path[l]===i)IN.path=IN.path.slice(0,l);else{IN.path=IN.path.slice(0,l);IN.path[l]=i;}render();return;}
+  if(a==='mtog'){const i=+t.dataset.i;if(i in IN.multi)delete IN.multi[i];else IN.multi[i]=-1;render();return;}
+  if(a==='msub'){const i=+t.dataset.i,j=+t.dataset.j;if(IN.multi[i]===j)delete IN.multi[i];else IN.multi[i]=j;render();return;}
+  if(a==='mpick'){IN.model=norm(IN.model)===norm(t.dataset.v)?'':t.dataset.v;render();return;}
+  if(a==='clr'){resetIn();render();return;}
+  if(a==='reg'){const D=draft();if(!D||!D.ok)return;
+    (S.logs[view.day]=S.logs[view.day]||[]).push({id:uid(),ts:Date.now(),n:IN.n,cat:D.cat.n,label:D.label,f:D.f,s:D.s,yen:D.yen});
+    save();resetIn();render();toast('登録しました');return;}
   if(a==='rdel'){if(view.del!==id){view.del=id;render();return;}const L=S.logs[view.day]||[];const i=L.findIndex(r=>r.id===id);if(i>=0)L.splice(i,1);if(!L.length)delete S.logs[view.day];view.del=null;save();render();return;}
   if(a==='rng'){view.range=t.dataset.v;render();return;}
   if(a==='quick'){const v=+t.dataset.v;if(v===30){view.from=addDay(todayKey,-29);view.to=todayKey;}else{const d=dOf(todayKey),mon=addDay(todayKey,-((d.getDay()+6)%7));view.from=addDay(mon,v);view.to=v?addDay(mon,-1):todayKey;}render();return;}
-  if(a==='ptgo'){sel={};selA={};toggleSel(id);selN=1;view.tab='in';view.day=todayKey;render();window.scrollTo(0,0);return;}
+  if(a==='ptgo'){const cat=MAP[+t.dataset.c];if(!cat)return;const p=String(t.dataset.p).split(',').filter(x=>x!=='').map(Number);
+    IN.cat=cat.n;resetIn();
+    if(cat.type==='path')IN.path=p;
+    else if(cat.type==='multi'){if(p.length===1&&!cat.c[p[0]].c.length)IN.multi[p[0]]=-1;else if(p.length===2)IN.multi[p[0]]=p[1];}
+    else if(cat.type==='model'&&cat.c[p[0]])IN.model=cat.c[p[0]].n;
+    view.tab='in';view.day=todayKey;render();window.scrollTo(0,0);return;}
   if(a==='cday'){view.cday=t.dataset.k;render();return;}
   if(a==='offt'){const k=t.dataset.k,i=S.off.indexOf(k);if(i>=0)S.off.splice(i,1);else S.off.push(k);save();render();return;}
   if(a==='goin'){view.day=t.dataset.k;view.tab='in';render();window.scrollTo(0,0);return;}
   if(a==='send'||a==='copy'){const txt=reportText(t.dataset.k,t.dataset.f);
     if(a==='send'&&navigator.share){try{await navigator.share({text:txt});return;}catch(err){if(err&&err.name==='AbortError')return;}}
     toast(await copyText(txt)?'コピーしました。LINEなどに貼ってください':'コピーできませんでした');return;}
-  // 設定
   if(a==='open'){view.open=view.open===id?null:id;render();return;}
-  if(a==='loadfile'){fileMode='cfg';document.getElementById('fileIn').click();return;}
-  if(a==='bkload'){fileMode='bk';document.getElementById('fileIn').click();return;}
-  if(a==='bksave'){const blob=new Blob([JSON.stringify(S)],{type:'application/json'});const u=URL.createObjectURL(blob);const el=document.createElement('a');el.href=u;el.download=`takami-backup-${todayKey}.json`;document.body.appendChild(el);el.click();el.remove();setTimeout(()=>URL.revokeObjectURL(u),3000);return;}
-  if(a==='oldapp'){let D=null;try{D=JSON.parse(localStorage.getItem('target_v1')||'null');}catch(err){}
-    if(!D||!Array.isArray(D.items)||!D.items.length){try{const T=JSON.parse(localStorage.getItem('takami_v1')||'null');if(T&&Array.isArray(T.items)&&T.items.length)D=T;}catch(err){}}
-    if(!D||!Array.isArray(D.items)||!D.items.length){alert('このスマホのこのブラウザでは、前のアプリの項目が見つかりませんでした。\n前のアプリの⚙で「設定の共有リンク」を作って、下の欄に貼ってください。');return;}
-    if(!confirm(`前のアプリの項目を読み込みます。\n${D.items.map(x=>'・'+(x.name||'名前なし')).join('\n')}\n\nフェニックスの項目が置き換わります。`))return;
-    const t={};for(const ym in (D.months||{})){if(ym>=curYM&&(D.months[ym]||{}).t)t[ym]=D.months[ym].t;}
-    pxFromOld(D.items,D.ptCut,t);save();render();toast('読み込みました');return;}
-  if(a==='cfglink'){const v=(document.getElementById('cfglink')||{}).value||'';const m=v.match(/[#&]cfg=([A-Za-z0-9_\-]+)/);if(!m){alert('「#cfg=」が入ったリンクを貼ってください');return;}
-    let c;try{c=await decCode(m[1]);}catch(err){alert('読み込めませんでした。リンクが途中で切れているかもしれません。');return;}
-    if(!c||c.kind!=='cfg'||!Array.isArray(c.items)){alert('目標達成マネージャーの設定リンクではありません');return;}
-    if(!confirm(`前のアプリの項目を読み込みます。\n${c.items.map(x=>'・'+(x.name||'名前なし')).join('\n')}\n\nフェニックスの項目が置き換わります。`))return;
-    pxFromOld(c.items,c.ptCut,c.t);save();render();toast('読み込みました');return;}
-  if(a==='newx'){view.newG=view.newS=null;render();return;}
-  if(a==='newg'){const it=pxById(id),v=(document.getElementById('newG')||{}).value||'';const n=v.trim().slice(0,30);if(!it||!n)return;it.grp=n;it.sbl='';view.newG=null;save();render();toast('大項目「'+n+'」を追加しました');return;}
-  if(a==='news'){const it=pxById(id),v=(document.getElementById('newS')||{}).value||'';const n=v.trim().slice(0,60);if(!it||!n||!it.grp)return;
-    let z=S.inp.find(x=>catOf(x)==='sb'&&(x.grp||'その他')===it.grp&&nm(x.name)===nm(n));
-    if(!z){z={id:uid(),name:n,grp:it.grp,cat:'sb',link:'',sb:[],px:[]};S.inp.push(z);}
-    it.sbl=z.id;view.newS=null;save();render();toast('小項目「'+n+'」を追加しました');return;}
-  if(a==='add'){const k=t.dataset.kind,nid=uid();
-    if(k==='sb')S.sb.push({id:nid,name:'',kind:'cnt',den:'',hai:'',note:'',tiers:[],goal:{fixed:false,value:''}});
-    else if(k==='px')S.px.push({id:nid,name:'',unit:'件',pt:'',mode:'cnt',subs:[],cut:{fixed:true,value:''},goal:{fixed:false,value:''}});
-    else S.inp.push({id:nid,name:'',grp:'その他',cat:'',sb:[],px:[]});
-    view.open=nid;save();render();return;}
-  if(a==='mv'){const L=listOf(t.dataset.kind),i=L.findIndex(x=>x.id===id),j=i+(+t.dataset.v);if(i<0||j<0||j>=L.length)return;[L[i],L[j]]=[L[j],L[i]];save();render();return;}
-  if(a==='del'){if(view.del!==id){view.del=id;render();return;}const k=t.dataset.kind;
-    if(k==='sb'){S.sb=S.sb.filter(x=>x.id!==id);S.inp.forEach(x=>x.sb=x.sb.filter(l=>l.i!==id));S.sb.forEach(x=>{if(x.den===id)x.den='';});}
-    else if(k==='px'){S.px=S.px.filter(x=>x.id!==id);S.inp.forEach(x=>x.px=x.px.filter(l=>l.i!==id));}
-    else S.inp=S.inp.filter(x=>x.id!==id);
-    view.del=null;save();render();return;}
-  if(a==='tfix'){const it=findK(t.dataset.kind,id);if(!it)return;it[t.dataset.k].fixed=t.dataset.v==='1';save();render();return;}
-  if(a==='tadd'){const it=sbById(id);if(it){it.tiers.push({id:uid(),p:'',pt:''});save();render();}return;}
-  if(a==='tdel'){const it=sbById(id);if(it){it.tiers=it.tiers.filter(x=>x.id!==t.dataset.t);save();render();}return;}
-  if(a==='sadd'){const it=pxById(id);if(it){it.subs.push({id:uid(),name:'',pt:it.subs.length?'':it.pt,cut:false});save();render();}return;}
-  if(a==='sdel'){const it=pxById(id);if(it){const s=t.dataset.s;it.subs=it.subs.filter(x=>x.id!==s);S.inp.forEach(x=>x.px=x.px.filter(l=>!(l.i===id&&l.s===s)));save();render();}return;}
-  if(a==='ladd'){const x=inpById(id);if(!x)return;x[t.dataset.kind].push({i:'',q:1});render();return;}
-  if(a==='ldel'){const x=inpById(id);if(!x)return;x[t.dataset.kind].splice(+t.dataset.j,1);save();render();return;}
+  if(a==='tfix'){if(BAD_K(id))return;cfgOf(id)[t.dataset.k].fixed=t.dataset.v==='1';save();render();return;}
+  if(a==='bkload'){document.getElementById('fileIn').click();return;}
+  if(a==='bksave'){dl(S,`takami-backup-${todayKey}.json`);return;}
+  if(a==='oldsave'){let raw=null;try{raw=JSON.parse(localStorage.getItem(OLD_LS)||'null');}catch(err){}if(!raw){toast('前のデータが見つかりませんでした');return;}dl(raw,`takami-old-${todayKey}.json`);return;}
   if(a==='wipe'){if(view.del!=='wipe'){view.del='wipe';render();return;}if(!confirm('入力した実績・設定をすべて消します。元に戻せません。'))return;S=blank();save();view.del=null;render();return;}
 });
+document.addEventListener('input',e=>{const t=e.target,a=t.dataset.a;if(a!=='model'&&a!=='yen')return;
+  if(a==='model')IN.model=t.value.slice(0,60);else IN.yen=t.value;
+  const b=document.getElementById('prevbox');if(b)b.innerHTML=prevHTML(draft(),catBy(IN.cat));
+});
 document.addEventListener('change',e=>{
-  const t=e.target;if(t.id==='selN'){selN=+t.value;render();return;}
+  const t=e.target;if(t.id==='selN'){IN.n=+t.value;render();return;}
   const a=t.dataset.a;if(!a)return;const id=t.dataset.id;
-  if(a==='pick'){if(t.value)toggleSel(t.value);render();return;}
-  if(a==='yen'){selY[id]=t.value;return;}
   if(a==='from'||a==='to'){if(DAY_RE.test(t.value))view[a]=t.value;render();return;}
   if(a==='note'){const k=t.dataset.k,n=S.notes[k]=S.notes[k]||{memo:'',mgr:'',bu:''};n[t.dataset.f]=t.value.slice(0,3000);if(!n.memo&&!n.mgr&&!n.bu)delete S.notes[k];save();toast('保存しました');return;}
   if(a==='ptcut'){S.ptCut=numB(t.value);save();render();return;}
-  if(a==='f'&&t.value==='__new'){if(t.dataset.f==='grp'){view.newG=id;view.newS=null;}else{view.newS=id;view.newG=null;}render();const i=document.getElementById(t.dataset.f==='grp'?'newG':'newS');if(i)i.focus();return;}
-  if(a==='pxsbc'){const it=pxById(id),z=it&&inpById(it.sbl);if(!z)return;z.sb=z.sb.slice(1);if(t.value)z.sb.unshift({i:t.value,q:1});save();render();return;}
-  if(a==='f'){const it=findK(t.dataset.kind,id);if(!it)return;const f=t.dataset.f;
-    if(['hai','pt'].includes(f))it[f]=numB(t.value);else if(f==='kind')it.kind=t.value==='rate'?'rate':'cnt';else if(f==='mode')it.mode=t.value==='yen'?'yen':'cnt';else it[f]=t.value.slice(0,f==='note'?300:60);
-    if(t.dataset.kind==='px'&&f==='grp'&&it.sbl){const z=inpById(it.sbl);if(!z||(z.grp||'その他')!==it.grp)it.sbl='';}
-    save();render();return;}
-  if(a==='tval'){const it=findK(t.dataset.kind,id);if(!it)return;setT(view.ym,it,t.dataset.k,numB(t.value));save();render();return;}
-  if(a==='tier'){const it=sbById(id);const x=it&&it.tiers.find(v=>v.id===t.dataset.t);if(!x)return;x[t.dataset.f]=numB(t.value);save();render();return;}
-  if(a==='sf'){const it=pxById(id);const s=it&&it.subs.find(v=>v.id===t.dataset.s);if(!s)return;if(t.dataset.f==='pt')s.pt=numB(t.value);else s.name=t.value.slice(0,60);save();render();return;}
-  if(a==='lk'){const x=inpById(id);if(!x)return;const l=x[t.dataset.kind][+t.dataset.j];if(!l)return;
-    if(t.dataset.kind==='sb')l.i=t.value;else{const[i,s]=t.value.split('|');l.i=i||'';if(s)l.s=s;else delete l.s;}
-    if(!l.i)x[t.dataset.kind].splice(+t.dataset.j,1);save();render();return;}
-  if(a==='lq'){const x=inpById(id);if(!x)return;const l=x[t.dataset.kind][+t.dataset.j];if(!l)return;l.q=numB(t.value)===''?1:num(t.value);save();render();return;}
+  if(a==='tval'){if(BAD_K(id))return;setT(view.ym,id,t.dataset.k,numB(t.value));save();render();return;}
 });
 render();
 </script>
