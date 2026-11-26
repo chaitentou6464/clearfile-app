@@ -322,8 +322,12 @@ function elWork(ym){const w=monthWork(ym);if(ym<curYM)return w.length;if(ym>curY
 
 // ===================== 画面の状態 =====================
 const view={tab:'in',day:todayKey,ym:curYM,org:'px',range:'month',from:curYM+'-01',to:todayKey,cday:todayKey,open:null,del:null};
-let IN={cat:MAP[0].n,path:[],multi:{},model:'',yen:'',n:1};
-const resetIn=()=>{IN={cat:IN.cat,path:[],multi:{},model:'',yen:'',n:1};};
+let IN={cat:MAP[0].n,n:1},ST={};
+const stOf=n=>ST[n]||(ST[n]={path:[],multi:{},model:'',yen:'',on:false});
+const CUR=()=>stOf(IN.cat);
+const resetIn=()=>{ST[IN.cat]={path:[],multi:{},model:'',yen:'',on:false};};
+const resetAll=()=>{ST={};IN.n=1;};
+const touched=c=>{const C=stOf(c.n);return !!(C.path.length||Object.keys(C.multi).length||C.model.trim()||C.yen||C.on);};
 
 const IC={
  in:'<svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round"><path d="M12 5v14M5 12h14"/></svg>',
@@ -349,52 +353,53 @@ const tagS=x=>`<span class="tag sb">${esc(x)}${S_PT[x]!=null?' '+fmt(S_PT[x])+'p
 const chipSmall=nd=>nd.F||nd.S?`<small>${nd.F?`<span class="f">${fmt(nd.F.pt)}pt</span>`:''}${nd.S?`<span class="s">${nd.F?' ':''}${esc(nd.S.name)}</span>`:''}</small>`:'';
 
 // ---------- 今の選び方 → 登録する内容 ----------
-function draft(){
-  const cat=catBy(IN.cat);if(!cat)return null;
+function draft(cat){
+  cat=cat||catBy(IN.cat);const C=stOf(cat.n);
   const f=[],s=[],names=[];let ok=false,yen=0;
   const take=(nd,path)=>{if(nd.F)f.push([fKey(fGroup(cat,path),nd.F.name),nd.F.pt]);if(nd.S)s.push(nd.S.name);};
   if(cat.F||cat.S)take(cat,[]);
   if(cat.type==='path'){let list=cat.c,path=[];
-    for(const i of IN.path){const nd=list[i];if(!nd)break;path.push(nd);take(nd,path);names.push(nd.n);list=nd.c;}
+    for(const i of C.path){const nd=list[i];if(!nd)break;path.push(nd);take(nd,path);names.push(nd.n);list=nd.c;}
     ok=path.length>0&&path[path.length-1].c.length===0;}
-  else if(cat.type==='multi'){cat.c.forEach((nd,i)=>{if(!(i in IN.multi))return;const j=IN.multi[i];
+  else if(cat.type==='multi'){cat.c.forEach((nd,i)=>{if(!(i in C.multi))return;const j=C.multi[i];
       if(nd.c.length){const ch=nd.c[j];if(!ch)return;take(nd,[nd]);take(ch,[nd,ch]);names.push(nd.n+'（'+ch.n+'）');}
       else{take(nd,[nd]);names.push(nd.n);}});
     ok=names.length>0;}
-  else if(cat.type==='model'){const m=IN.model.trim();if(m){const nd=cat.c.find(x=>norm(x.n)===norm(m));if(nd){take(nd,[nd]);names.push(nd.n);}else names.push(m.slice(0,60));ok=true;}}
-  else if(cat.type==='yen'){yen=Math.max(0,num(IN.yen));ok=yen>0;if(ok)names.push(fmt(yen)+'円');}
-  else ok=true;
+  else if(cat.type==='model'){const m=C.model.trim();if(m){const nd=cat.c.find(x=>norm(x.n)===norm(m));if(nd){take(nd,[nd]);names.push(nd.n);}else names.push(m.slice(0,60));ok=true;}}
+  else if(cat.type==='yen'){yen=Math.max(0,num(C.yen));ok=yen>0;if(ok)names.push(fmt(yen)+'円');}
+  else ok=C.on;
   return{cat,f,s,yen,ok,label:names.join('／')};
 }
 
-function prevHTML(D,cat){
-  return `<div class="prev">${D.ok?`<div><b>${esc(D.label||cat.n)}</b></div>
-      <div><b>フェニックス</b>　${D.f.map(([k,p])=>tagF(k,p)).join('')||'<span class="sub">ポイントなし</span>'}${D.f.length?`　<b style="color:var(--px)">${fmt(IN.n*D.f.reduce((a,x)=>a+x[1],0))}pt</b>`:''}</div>
-      <div><b>ソフトバンク</b>　${D.s.map(tagS).join('')||'<span class="sub">数える項目なし</span>'}</div>`
-    :'<span class="sub">上から順に選んでください</span>'}</div>
+function allDrafts(){const ok=[],bad=[];MAP.forEach(c=>{if(!touched(c))return;const D=draft(c);if(D.ok)ok.push(D);else bad.push(c.n);});return{ok,bad};}
+function prevHTML(){
+  const{ok,bad}=allDrafts(),tot=ok.reduce((a,D)=>a+D.f.reduce((x,y)=>x+y[1],0),0)*IN.n,can=ok.length&&!bad.length;
+  return `<div class="prev">${ok.length||bad.length?ok.map(D=>`<div style="padding:4px 0;border-bottom:1px dashed var(--line)"><span class="tag">${esc(D.cat.n)}</span><b>${esc(D.label||D.cat.n)}</b><div>${D.f.map(([k,p])=>tagF(k,p)).join('')}${D.s.map(tagS).join('')}</div></div>`).join('')
+      +bad.map(n=>`<div style="color:var(--bad);padding:4px 0">${esc(n)}：最後まで選んでください</div>`).join('')
+      +`<div class="between" style="margin-top:6px"><button class="mini" data-a="clrall">すべて選び直す</button><b style="color:var(--px)">合計 ${fmt(tot)}pt</b></div>`
+    :'<span class="sub">上から順に選んでください。ほかの分類に切り替えても、登録するまで選んだ内容は残ります。</span>'}</div>
     <div class="flex" style="margin-top:10px"><span class="sub" style="white-space:nowrap">同じ内容を</span><select id="selN" class="inp" style="width:90px">${Array.from({length:10},(_,i)=>`<option value="${i+1}" ${IN.n===i+1?'selected':''}>${i+1}件</option>`).join('')}</select>
-      <button class="btn" data-a="reg" style="margin-top:0;flex:1" ${D.ok?'':'disabled'}>登録</button></div>`;
+      <button class="btn" data-a="reg" style="margin-top:0;flex:1" ${can?'':'disabled'}>まとめて登録</button></div>`;
 }
 // ---------- タブ1：入力 ----------
 function inView(){
-  const k=view.day,cat=catBy(IN.cat);
+  const k=view.day,cat=catBy(IN.cat),C=CUR();
   let h=`<div class="dayrow"><button class="mini" data-a="dprev" aria-label="前の日">‹</button><div class="dt">${dayLabel(k)}</div><button class="mini" data-a="dnext" aria-label="次の日">›</button>${k!==todayKey?'<button class="mini" data-a="dtoday">今日</button>':''}</div>`;
-  h+=`<div class="cats">${MAP.map(c=>`<button data-a="cat" data-v="${esc(c.n)}" class="${c.n===IN.cat?'on':''}" style="--c:${c.color==='blue'?'#1d4ed8':'var(--sb)'}">${esc(c.n)}</button>`).join('')}</div>`;
-  const D=draft();
-  h+=`<div class="card"><div class="between"><div class="ttl">${esc(cat.n)}を入力</div>${IN.path.length||Object.keys(IN.multi).length||IN.model||IN.yen?'<button class="mini" data-a="clr">選び直す</button>':''}</div>`;
+  h+=`<div class="cats">${MAP.map(c=>`<button data-a="cat" data-v="${esc(c.n)}" class="${c.n===IN.cat?'on':''}" style="--c:${c.color==='blue'?'#1d4ed8':'var(--sb)'}">${touched(c)?(draft(c).ok?'✓ ':'… '):''}${esc(c.n)}</button>`).join('')}</div>`;
+  h+=`<div class="card"><div class="between"><div class="ttl">${esc(cat.n)}を入力</div>${touched(cat)?'<button class="mini" data-a="clr">選び直す</button>':''}</div>`;
   if(cat.type==='path'){let list=cat.c,lv=0;
-    while(list.length){const cur=IN.path[lv];
+    while(list.length){const cur=C.path[lv];
       h+=`<div class="lvl"><div class="chips">${list.map((nd,i)=>`<button class="chip ${cur===i?'on':''}" data-a="step" data-l="${lv}" data-i="${i}">${cur===i?'✓ ':''}${esc(nd.n)}${chipSmall(nd)}</button>`).join('')}</div></div>`;
       if(cur==null||!list[cur])break;list=list[cur].c;lv++;}}
-  else if(cat.type==='multi'){h+=`<div class="sub" style="margin-top:4px">いくつでも選べます</div><div style="margin-top:6px">`+cat.c.map((nd,i)=>{const on=i in IN.multi;
+  else if(cat.type==='multi'){h+=`<div class="sub" style="margin-top:4px">いくつでも選べます</div><div style="margin-top:6px">`+cat.c.map((nd,i)=>{const on=i in C.multi;
       if(!nd.c.length)return `<div class="opt"><button class="chip ${on?'on':''}" data-a="mtog" data-i="${i}">${on?'✓ ':''}${esc(nd.n)}${chipSmall(nd)}</button></div>`;
-      return `<div class="opt"><div class="${on?'on':''}" style="margin-bottom:6px">${esc(nd.n)}</div><div class="chips">${nd.c.map((ch,j)=>{const o=on&&IN.multi[i]===j;return `<button class="chip ${o?'on':''}" data-a="msub" data-i="${i}" data-j="${j}">${o?'✓ ':''}${esc(ch.n)}${chipSmall(ch)}</button>`;}).join('')}</div></div>`;}).join('')+'</div>';}
-  else if(cat.type==='model'){h+=`<div class="field"><label>機種名</label><input id="model" class="inp" list="models" value="${esc(IN.model)}" data-a="model" placeholder="例：iPhone 17" autocomplete="off"><datalist id="models">${cat.c.map(x=>`<option value="${esc(x.n)}">`).join('')}</datalist></div>
-      <div class="chips" style="margin-top:8px">${cat.c.map(x=>{const o=norm(IN.model)===norm(x.n);return `<button class="chip ${o?'on':''}" data-a="mpick" data-v="${esc(x.n)}">${o?'✓ ':''}${esc(x.n)}${chipSmall(x)}</button>`;}).join('')}</div>
+      return `<div class="opt"><div class="${on?'on':''}" style="margin-bottom:6px">${esc(nd.n)}</div><div class="chips">${nd.c.map((ch,j)=>{const o=on&&C.multi[i]===j;return `<button class="chip ${o?'on':''}" data-a="msub" data-i="${i}" data-j="${j}">${o?'✓ ':''}${esc(ch.n)}${chipSmall(ch)}</button>`;}).join('')}</div></div>`;}).join('')+'</div>';}
+  else if(cat.type==='model'){h+=`<div class="field"><label>機種名</label><input id="model" class="inp" list="models" value="${esc(C.model)}" data-a="model" placeholder="例：iPhone 17" autocomplete="off"><datalist id="models">${cat.c.map(x=>`<option value="${esc(x.n)}">`).join('')}</datalist></div>
+      <div class="chips" style="margin-top:8px">${cat.c.map(x=>{const o=norm(C.model)===norm(x.n);return `<button class="chip ${o?'on':''}" data-a="mpick" data-v="${esc(x.n)}">${o?'✓ ':''}${esc(x.n)}${chipSmall(x)}</button>`;}).join('')}</div>
       <div class="sub" style="margin-top:6px">一覧にない機種も入力できます（ポイントなしで記録）</div>`;}
-  else if(cat.type==='yen'){h+=`<div class="field"><label>金額（円）</label><input id="yen" class="inp" type="number" inputmode="numeric" value="${esc(IN.yen)}" data-a="yen" placeholder="例：3000"></div>`;}
-  else h+=`<div class="sub" style="margin-top:6px">このまま「登録」を押してください</div>`;
-  h+=`<div id="prevbox">${prevHTML(D,cat)}</div></div>`;
+  else if(cat.type==='yen'){h+=`<div class="field"><label>金額（円）</label><input id="yen" class="inp" type="number" inputmode="numeric" value="${esc(C.yen)}" data-a="yen" placeholder="例：3000"></div>`;}
+  else h+=`<div class="chips" style="margin-top:10px"><button class="chip ${C.on?'on':''}" data-a="onetog">${C.on?'✓ ':''}${esc(cat.n)}${chipSmall(cat)}</button></div>`;
+  h+=`<div id="prevbox">${prevHTML()}</div></div>`;
   const L=S.logs[k]||[];let dayPt=0;const ds={};
   const rows=L.slice().reverse().map(r=>{const p=recPt(r);dayPt+=p;r.s.forEach(x=>{ds[x]=(ds[x]||0)+r.n;});const t=r.ts?new Date(r.ts):null;
     return `<div class="row"><div style="min-width:0"><div><span class="tag">${esc(r.cat)}</span><b>${esc(r.label||r.cat)}</b>${r.n>1?` ×${r.n}`:''}</div><div class="sub">${t?pad(t.getHours())+':'+pad(t.getMinutes()):''}${r.s.length?'　'+r.s.map(esc).join('・'):''}</div></div>
@@ -544,23 +549,26 @@ document.addEventListener('click',async e=>{
   if(a==='mprev'||a==='mnext'){const d=new Date(+view.ym.slice(0,4),+view.ym.slice(5,7)-1+(a==='mnext'?1:-1),1);view.ym=d.getFullYear()+'-'+pad(d.getMonth()+1);render();return;}
   if(a==='dprev'||a==='dnext'){view.day=addDay(view.day,a==='dnext'?1:-1);view.ym=view.day.slice(0,7);render();return;}
   if(a==='dtoday'){view.day=todayKey;view.ym=curYM;render();return;}
-  if(a==='cat'){if(catBy(t.dataset.v)){IN.cat=t.dataset.v;resetIn();}render();return;}
-  if(a==='step'){const l=+t.dataset.l,i=+t.dataset.i;if(IN.path[l]===i)IN.path=IN.path.slice(0,l);else{IN.path=IN.path.slice(0,l);IN.path[l]=i;}render();return;}
-  if(a==='mtog'){const i=+t.dataset.i;if(i in IN.multi)delete IN.multi[i];else IN.multi[i]=-1;render();return;}
-  if(a==='msub'){const i=+t.dataset.i,j=+t.dataset.j;if(IN.multi[i]===j)delete IN.multi[i];else IN.multi[i]=j;render();return;}
-  if(a==='mpick'){IN.model=norm(IN.model)===norm(t.dataset.v)?'':t.dataset.v;render();return;}
+  if(a==='cat'){if(catBy(t.dataset.v))IN.cat=t.dataset.v;render();return;}
+  if(a==='onetog'){const C=CUR();C.on=!C.on;render();return;}
+  if(a==='clrall'){resetAll();render();return;}
+  if(a==='step'){const C=CUR();const l=+t.dataset.l,i=+t.dataset.i;if(C.path[l]===i)C.path=C.path.slice(0,l);else{C.path=C.path.slice(0,l);C.path[l]=i;}render();return;}
+  if(a==='mtog'){const C=CUR();const i=+t.dataset.i;if(i in C.multi)delete C.multi[i];else C.multi[i]=-1;render();return;}
+  if(a==='msub'){const C=CUR();const i=+t.dataset.i,j=+t.dataset.j;if(C.multi[i]===j)delete C.multi[i];else C.multi[i]=j;render();return;}
+  if(a==='mpick'){const C=CUR();C.model=norm(C.model)===norm(t.dataset.v)?'':t.dataset.v;render();return;}
   if(a==='clr'){resetIn();render();return;}
-  if(a==='reg'){const D=draft();if(!D||!D.ok)return;
-    (S.logs[view.day]=S.logs[view.day]||[]).push({id:uid(),ts:Date.now(),n:IN.n,cat:D.cat.n,label:D.label,f:D.f,s:D.s,yen:D.yen});
-    save();resetIn();render();toast('登録しました');return;}
+  if(a==='reg'){const{ok,bad}=allDrafts();if(!ok.length||bad.length)return;const ts=Date.now(),L=S.logs[view.day]=S.logs[view.day]||[];
+    ok.forEach(D=>L.push({id:uid(),ts,n:IN.n,cat:D.cat.n,label:D.label,f:D.f,s:D.s,yen:D.yen}));
+    save();resetAll();IN.cat=MAP[0].n;render();toast('登録しました（'+ok.length+'件）');return;}
   if(a==='rdel'){if(view.del!==id){view.del=id;render();return;}const L=S.logs[view.day]||[];const i=L.findIndex(r=>r.id===id);if(i>=0)L.splice(i,1);if(!L.length)delete S.logs[view.day];view.del=null;save();render();return;}
   if(a==='rng'){view.range=t.dataset.v;render();return;}
   if(a==='quick'){const v=+t.dataset.v;if(v===30){view.from=addDay(todayKey,-29);view.to=todayKey;}else{const d=dOf(todayKey),mon=addDay(todayKey,-((d.getDay()+6)%7));view.from=addDay(mon,v);view.to=v?addDay(mon,-1):todayKey;}render();return;}
   if(a==='ptgo'){const cat=MAP[+t.dataset.c];if(!cat)return;const p=String(t.dataset.p).split(',').filter(x=>x!=='').map(Number);
     IN.cat=cat.n;resetIn();
-    if(cat.type==='path')IN.path=p;
-    else if(cat.type==='multi'){if(p.length===1&&!cat.c[p[0]].c.length)IN.multi[p[0]]=-1;else if(p.length===2)IN.multi[p[0]]=p[1];}
-    else if(cat.type==='model'&&cat.c[p[0]])IN.model=cat.c[p[0]].n;
+    const C=CUR();
+    if(cat.type==='path')C.path=p;
+    else if(cat.type==='multi'){if(p.length===1&&!cat.c[p[0]].c.length)C.multi[p[0]]=-1;else if(p.length===2)C.multi[p[0]]=p[1];}
+    else if(cat.type==='model'&&cat.c[p[0]])C.model=cat.c[p[0]].n;
     view.tab='in';view.day=todayKey;render();window.scrollTo(0,0);return;}
   if(a==='cday'){view.cday=t.dataset.k;render();return;}
   if(a==='offt'){const k=t.dataset.k,i=S.off.indexOf(k);if(i>=0)S.off.splice(i,1);else S.off.push(k);save();render();return;}
@@ -576,8 +584,8 @@ document.addEventListener('click',async e=>{
   if(a==='wipe'){if(view.del!=='wipe'){view.del='wipe';render();return;}if(!confirm('入力した実績・設定をすべて消します。元に戻せません。'))return;S=blank();save();view.del=null;render();return;}
 });
 document.addEventListener('input',e=>{const t=e.target,a=t.dataset.a;if(a!=='model'&&a!=='yen')return;
-  if(a==='model')IN.model=t.value.slice(0,60);else IN.yen=t.value;
-  const b=document.getElementById('prevbox');if(b)b.innerHTML=prevHTML(draft(),catBy(IN.cat));
+  const C=CUR();if(a==='model')C.model=t.value.slice(0,60);else C.yen=t.value;
+  const b=document.getElementById('prevbox');if(b)b.innerHTML=prevHTML();
 });
 document.addEventListener('change',e=>{
   const t=e.target;if(t.id==='selN'){IN.n=+t.value;render();return;}
