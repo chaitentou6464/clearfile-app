@@ -279,9 +279,7 @@ const ACC_KEY='アクセサリー（金額）';
 
 // ===================== データ =====================
 const BAD_K=k=>k==='__proto__'||k==='constructor'||k==='prototype';
-const SH_COL=['#2563eb','#ea580c','#16a34a','#9333ea','#0891b2','#db2777','#94a3b8'];
-const DEF_SH=()=>[{id:'hy',name:'早番',time:'',color:'#2563eb',off:false},{id:'os',name:'遅番',time:'',color:'#ea580c',off:false},{id:'ts',name:'通し',time:'',color:'#16a34a',off:false},{id:'ys',name:'休み',time:'',color:'#94a3b8',off:true}];
-function blank(){return{v:3,ptCut:'',cfg:{},months:{},logs:{},notes:{},off:[],shifts:DEF_SH(),sh:{},stores:[{id:'oh',name:'近江八幡'},{id:'yz',name:'野洲'},{id:'ok',name:'大津京'}],st:{}};}
+function blank(){return{v:3,ptCut:'',cfg:{},months:{},logs:{},notes:{},off:[],stores:[{id:'oh',name:'近江八幡'},{id:'yz',name:'野洲'},{id:'ok',name:'大津京'}],st:{}};}
 function sanitize(D){
   if(!D||typeof D!=='object'||Array.isArray(D))D={};
   const o=blank(),A=a=>Array.isArray(a)?a:[];
@@ -300,10 +298,11 @@ function sanitize(D){
   const N=D.notes&&typeof D.notes==='object'?D.notes:{};
   for(const k in N){if(!DAY_RE.test(k))continue;const v=N[k]||{},r={memo:str(v.memo,3000),mgr:str(v.mgr,3000),bu:str(v.bu,3000)};if(r.memo||r.mgr||r.bu)o.notes[k]=r;}
   o.off=A(D.off).filter(k=>typeof k==='string'&&DAY_RE.test(k));
-  if(Array.isArray(D.shifts))o.shifts=D.shifts.filter(x=>x&&typeof x==='object').slice(0,20).map(x=>({id:cid(x.id),name:str(x.name,10),time:str(x.time,20),color:SH_COL.includes(x.color)?x.color:SH_COL[0],off:!!x.off}));
+  // 前の版のシフト（休み扱いのものだけ休みにする）
+  if(Array.isArray(D.shifts)&&D.sh&&typeof D.sh==='object'){const offIds=D.shifts.filter(x=>x&&x.off).map(x=>String(x.id));for(const k in D.sh){if(DAY_RE.test(k)&&offIds.includes(String(D.sh[k]))&&!o.off.includes(k))o.off.push(k);}}
   if(Array.isArray(D.stores))o.stores=D.stores.filter(x=>x&&typeof x==='object').slice(0,20).map(x=>({id:cid(x.id),name:str(x.name,12)}));
   const STO=D.st&&typeof D.st==='object'?D.st:{};for(const k in STO){if(DAY_RE.test(k)&&o.stores.some(x=>x.id===STO[k]))o.st[k]=String(STO[k]);}
-  const SH=D.sh&&typeof D.sh==='object'?D.sh:{};for(const k in SH){if(DAY_RE.test(k)&&o.shifts.some(x=>x.id===SH[k]))o.sh[k]=String(SH[k]);}
+
   return o;
 }
 let S;try{S=sanitize(JSON.parse(localStorage.getItem(LS)||'null'));}catch(e){S=blank();}
@@ -325,10 +324,12 @@ function agg(from,to){
     r.yen+=rec.yen*rec.n;}}
   return r;
 }
-const shOf=k=>S.shifts.find(x=>x.id===S.sh[k])||null;
+
 const storeOf=k=>S.stores.find(x=>x.id===S.st[k])||null;
-const storeChips=(k,cur,act)=>`<div class="chips">${[{id:'',name:'いつもの店'}].concat(S.stores).map(x=>{const on=(cur||'')===x.id;return `<button class="chip" data-a="${act}" data-id="${x.id}" data-k="${k||''}" style="${on?'background:#7c3aed;border-color:#7c3aed;color:#fff':''}">${on?'✓ ':''}${esc(x.name)}</button>`;}).join('')}</div>`;
-const isOff=k=>{const x=shOf(k);return x?x.off:S.off.includes(k);};
+const dayChips=k=>{const so=S.st[k]||'',off=S.off.includes(k);const opts=[['w','出勤',!off&&!so,'#16a34a'],['off','休み',off,'#94a3b8']].concat(S.stores.map(x=>[x.id,'応援 '+x.name,so===x.id,'#7c3aed']));
+  return `<div class="chips">${opts.map(([v,n,on,c])=>`<button class="chip" data-a="dayset" data-v="${v}" data-k="${k}" style="${on?`background:${c};border-color:${c};color:#fff`:''}">${on?'✓ ':''}${esc(n)}</button>`).join('')}</div>`;};
+function setDay(k,v){if(!DAY_RE.test(k))return;S.off=S.off.filter(x=>x!==k);delete S.st[k];if(v==='off')S.off.push(k);else if(S.stores.some(x=>x.id===v))S.st[k]=v;}
+const isOff=k=>S.off.includes(k);
 function monthWork(ym){const n=daysIn(ym),out=[];for(let d=1;d<=n;d++){const k=ym+'-'+pad(d);if(!isOff(k))out.push(k);}return out;}
 function remWork(ym){const w=monthWork(ym);if(ym<curYM)return 0;if(ym>curYM)return w.length;return w.filter(k=>k>=todayKey).length;}
 function elWork(ym){const w=monthWork(ym);if(ym<curYM)return w.length;if(ym>curYM)return 0;return w.filter(k=>k<=todayKey).length;}
@@ -398,7 +399,7 @@ function prevHTML(){
 function inView(){
   const k=view.day,cat=catBy(IN.cat),C=CUR();
   let h=`<div class="dayrow"><button class="mini" data-a="dprev" aria-label="前の日">‹</button><div class="dt">${dayLabel(k)}</div><button class="mini" data-a="dnext" aria-label="次の日">›</button>${k!==todayKey?'<button class="mini" data-a="dtoday">今日</button>':''}</div>`;
-  h+=`<div class="card" style="padding:10px 12px"><div class="sub" style="margin-bottom:6px">この日の勤務先</div>${storeChips(k,S.st[k],'stday')}</div>`;
+  h+=`<div class="card" style="padding:10px 12px"><div class="sub" style="margin-bottom:6px">この日（出勤は選ばなくてOK）</div>${dayChips(k)}</div>`;
   h+=`<div class="cats">${MAP.map(c=>`<button data-a="cat" data-v="${esc(c.n)}" class="${c.n===IN.cat?'on':''}" style="--c:${c.color==='blue'?'#1d4ed8':'var(--sb)'}">${touched(c)?(draft(c).ok?'✓ ':'… '):''}${esc(c.n)}</button>`).join('')}</div>`;
   h+=`<div class="card"><div class="between"><div class="ttl">${esc(cat.n)}を入力</div>${touched(cat)?'<button class="mini" data-a="clr">選び直す</button>':''}</div>`;
   if(cat.type==='path'){let list=cat.c,lv=0;
@@ -493,21 +494,21 @@ function ptsView(){
 function calView(){
   const ym=view.ym,n=daysIn(ym),first=dOf(ym+'-01').getDay();
   let g='';for(let i=0;i<first;i++)g+='<span></span>';
-  for(let d=1;d<=n;d++){const k=ym+'-'+pad(d),L=S.logs[k]||[],p=L.reduce((a,r)=>a+recPt(r),0),off=isOff(k),nt=S.notes[k],x=shOf(k);
-    g+=`<button data-a="cday" data-k="${k}" class="${off?'off':''} ${k===todayKey?'tdy':''} ${k===view.cday&&!view.shm?'sel':''}"><b>${d}</b>${x?`<em class="shl" style="background:${x.color}">${esc(x.name)}</em>`:off?'<small style="color:inherit">休</small>':''}${storeOf(k)?`<em class="stl">${esc(storeOf(k).name)}</em>`:''}${p?`<small>${fmt(p)}pt</small>`:L.length?`<small>${L.length}件</small>`:''}${nt&&(nt.memo||nt.mgr||nt.bu)?'<i>●</i>':''}</button>`;}
-  const cnt={},scnt={};for(let d=1;d<=n;d++){const kk=ym+'-'+pad(d),x=shOf(kk),so=storeOf(kk);if(x)cnt[x.id]=(cnt[x.id]||0)+1;if(so)scnt[so.name]=(scnt[so.name]||0)+1;}
-  const shBar=`<div class="card"><div class="between"><div class="ttl">シフト</div><button class="mini ${view.shm?'on':''}" data-a="shm">${view.shm?'入力を終わる':'シフトを入力'}</button></div>
-    ${view.shm?`<div class="sub" style="margin-top:6px">種類を選んで、カレンダーの日付をタップ（もう一度タップで消す）</div><div class="chips" style="margin-top:8px">${S.shifts.map(x=>`<button class="chip ${view.shp===x.id?'on':''}" data-a="shp" data-id="${x.id}" style="${view.shp===x.id?`background:${x.color};border-color:${x.color};color:#fff`:''}">${esc(x.name)}${x.time?`<small>${esc(x.time)}</small>`:''}</button>`).join('')}</div><div class="sub" style="margin:10px 0 6px">勤務先（応援のときだけ選ぶ）</div>${storeChips('',view.shs,'shs')}`
-      :`<div class="sub" style="margin-top:4px">${S.shifts.map(x=>`${esc(x.name)} ${cnt[x.id]||0}日`).join('・')}・出勤 ${monthWork(ym).length}日${Object.keys(scnt).length?'<br>応援：'+Object.keys(scnt).map(n=>esc(n)+' '+scnt[n]+'日').join('・'):''}</div>`}</div>`;
+  for(let d=1;d<=n;d++){const k=ym+'-'+pad(d),L=S.logs[k]||[],p=L.reduce((a,r)=>a+recPt(r),0),off=isOff(k),nt=S.notes[k],so=storeOf(k);
+    g+=`<button data-a="cday" data-k="${k}" class="${off?'off':''} ${k===todayKey?'tdy':''} ${k===view.cday&&!view.shm?'sel':''}"><b>${d}</b>${off?'<em class="shl" style="background:#94a3b8">休み</em>':so?`<em class="shl" style="background:#7c3aed">${esc(so.name)}</em>`:''}${p?`<small>${fmt(p)}pt</small>`:L.length?`<small>${L.length}件</small>`:''}${nt&&(nt.memo||nt.mgr||nt.bu)?'<i>●</i>':''}</button>`;}
+  let offN=0;const scnt={};for(let d=1;d<=n;d++){const kk=ym+'-'+pad(d),so=storeOf(kk);if(isOff(kk))offN++;else if(so)scnt[so.name]=(scnt[so.name]||0)+1;}
+  const shOpts=[['off','休み','#94a3b8']].concat(S.stores.map(x=>[x.id,'応援 '+x.name,'#7c3aed']));
+  const shBar=`<div class="card"><div class="between"><div class="ttl">勤務</div><button class="mini ${view.shm?'on':''}" data-a="shm">${view.shm?'入力を終わる':'休み・応援を入力'}</button></div>
+    ${view.shm?`<div class="sub" style="margin-top:6px">選んでから日付をタップ（もう一度タップで出勤に戻る）</div><div class="chips" style="margin-top:8px">${shOpts.map(([v,nm,c])=>`<button class="chip" data-a="shp" data-v="${v}" style="${view.shp===v?`background:${c};border-color:${c};color:#fff`:''}">${view.shp===v?'✓ ':''}${esc(nm)}</button>`).join('')}</div>`
+      :`<div class="sub" style="margin-top:4px">出勤 ${monthWork(ym).length}日・休み ${offN}日${Object.keys(scnt).length?'（出勤のうち応援：'+Object.keys(scnt).map(x=>esc(x)+' '+scnt[x]+'日').join('・')+'）':''}<br>何も入れていない日は出勤です</div>`}</div>`;
   const k=view.cday&&view.cday.slice(0,7)===ym?view.cday:null;
   let h=shBar+`<div class="card" id="calcard"><div class="between" style="margin-bottom:8px"><button class="mini" data-a="mprev" style="min-width:64px">‹ 前月</button><b style="font-size:17px">${ymLabel(ym)}</b><button class="mini" data-a="mnext" style="min-width:64px">次月 ›</button></div><div class="cal">${[...WD].map((w,i)=>`<div class="w" style="${i===0?'color:var(--bad)':i===6?'color:var(--acc)':''}">${w}</div>`).join('')}${g}</div>
     <div class="sub" style="margin-top:8px">数字＝フェニックスのポイント、赤い●＝メモや報告あり</div></div>`;
   if(view.shm)return h;
   if(!k)return h+`<div class="card sub">日付をタップすると、その日のメモと報告が書けます。</div>`;
-  const L=S.logs[k]||[],A=agg(k,k),nt=S.notes[k]||{},xs=shOf(k);
+  const L=S.logs[k]||[],A=agg(k,k),nt=S.notes[k]||{};
   h+=`<div class="card"><div class="ttl">${dayLabel(k)}</div>
-    <div class="chips" style="margin-top:8px">${S.shifts.map(x=>`<button class="chip" data-a="shday" data-id="${x.id}" data-k="${k}" style="${xs===x?`background:${x.color};border-color:${x.color};color:#fff`:''}">${xs===x?'✓ ':''}${esc(x.name)}${x.time?`<small style="${xs===x?'color:#fff':''}">${esc(x.time)}</small>`:''}</button>`).join('')}</div>
-    <div class="sub" style="margin:10px 0 6px">勤務先</div>${storeChips(k,S.st[k],'stday')}
+    <div style="margin-top:8px">${dayChips(k)}</div>
     <div class="sub" style="margin-top:8px">入力 ${L.length}件・フェニックス <b style="color:var(--px)">${fmt(A.pts)}pt</b></div>
     <div style="margin-top:4px">${Object.keys(A.s).map(x=>`<span class="tag sb">${esc(x)} ${fmt(A.s[x])}</span>`).join('')}</div>
     <button class="mini" data-a="goin" data-k="${k}" style="margin-top:8px">この日の入力を開く</button>
@@ -523,7 +524,7 @@ function reportText(k,f){
   const A=agg(k,k),nt=S.notes[k]||{},ym=k.slice(0,7),M=agg(ym+'-01',k);
   const cats=Object.keys(A.cats).map(c=>`${c} ${fmt(A.cats[c])}`).join('、')||'なし';
   const sb=Object.keys(A.s).map(x=>`${x} ${fmt(A.s[x])}`).join('、')||'なし';
-  const xs=shOf(k),so=storeOf(k);return `【${dayLabel(k)}の報告】${xs?'（'+xs.name+(xs.time?' '+xs.time:'')+'）':''}${so?'\n■応援：'+so.name:''}\n■獲得：${cats}\n■ソフトバンク：${sb}\n■フェニックス：${fmt(A.pts)}pt（${+ym.slice(5)}月の累計 ${fmt(M.pts)}pt）${A.yen?`\n■アクセサリー：${fmt(A.yen)}円`:''}\n\n${nt[f]||''}`.trim();
+  const so=storeOf(k);return `【${dayLabel(k)}の報告】${so?'\n■応援：'+so.name:''}\n■獲得：${cats}\n■ソフトバンク：${sb}\n■フェニックス：${fmt(A.pts)}pt（${+ym.slice(5)}月の累計 ${fmt(M.pts)}pt）${A.yen?`\n■アクセサリー：${fmt(A.yen)}円`:''}\n\n${nt[f]||''}`.trim();
 }
 async function copyText(t){try{await navigator.clipboard.writeText(t);return true;}catch(e){const ta=document.createElement('textarea');ta.value=t;document.body.appendChild(ta);ta.select();let ok=false;try{ok=document.execCommand('copy');}catch(e2){}ta.remove();return ok;}}
 
@@ -541,12 +542,7 @@ function setView(){
     <div class="field"><label>ポイントの足切り（月）</label><div class="flex"><input class="inp" type="number" inputmode="decimal" value="${S.ptCut??''}" data-a="ptcut" placeholder="なしなら空欄"><span class="sub">pt</span></div></div>
     <div style="margin-top:8px">${F_LIST.map(k=>tgtRow(k,fLabel(k),ym,'件')).join('')}${tgtRow(ACC_KEY,'アクセサリー（金額）',ym,'円')}</div></div>`;
   h+=`<div class="card"><div class="ttl" style="color:var(--sb)">ソフトバンク</div><div style="margin-top:8px">${S_LIST.map(k=>tgtRow('S｜'+k,k,ym,'件')).join('')}</div></div>`;
-  h+=`<div class="card"><div class="ttl">シフトの種類</div><div class="sub">カレンダーで使うシフトです。「休み扱い」にすると、1日あたりの目安の計算で出勤日から外れます。</div>
-    ${S.shifts.map(x=>`<div class="ibody" style="margin-top:8px;padding-top:8px"><div class="r2"><div class="field" style="margin-top:0"><label>名前</label><input value="${esc(x.name)}" data-a="shf" data-id="${x.id}" data-f="name" maxlength="10"></div><div class="field" style="margin-top:0"><label>時間（なくてもOK）</label><input value="${esc(x.time)}" data-a="shf" data-id="${x.id}" data-f="time" placeholder="例：10-19" maxlength="20"></div></div>
-      <div class="flex wrap" style="margin-top:8px">${SH_COL.map(c=>`<button class="mini" data-a="shcol" data-id="${x.id}" data-v="${c}" aria-label="色" style="width:30px;min-width:30px;padding:0;background:${c};border:${x.color===c?'3px solid var(--ink)':'0'}"></button>`).join('')}</div>
-      <div class="between" style="margin-top:8px"><label class="flex sub"><input type="checkbox" data-a="shoff" data-id="${x.id}" ${x.off?'checked':''}>休み扱い</label><button class="mini" data-a="shdel" data-id="${x.id}" style="color:var(--bad)">${view.del===x.id?'本当に削除':'削除'}</button></div></div>`).join('')}
-    <button class="btn ghost" data-a="shadd">＋ シフトを追加</button></div>`;
-  h+=`<div class="card"><div class="ttl">応援先の店舗</div><div class="sub">カレンダーと入力タブで「勤務先」として選べます。今はポイントには関係しません。</div>
+  h+=`<div class="card"><div class="ttl">応援先の店舗</div><div class="sub">カレンダーと入力タブで「応援」として選べます。今はポイントには関係しません。</div>
     ${S.stores.map(x=>`<div class="lnk"><input style="flex:3" value="${esc(x.name)}" data-a="stf" data-id="${x.id}" maxlength="12"><button class="mini" data-a="stdel" data-id="${x.id}" style="color:var(--bad)">${view.del===x.id?'本当に削除':'削除'}</button></div>`).join('')}
     <button class="btn ghost" data-a="stadd">＋ 店舗を追加</button></div>`;
   h+=`<div class="card"><div class="ttl">入力の項目について</div><div class="sub" style="line-height:1.7">入力の項目とポイントはマインドマップ（${MAP_VER}版）から作っています。マインドマップに書き足したら、Claudeに送ってください。アプリに反映します。</div></div>`;
@@ -572,7 +568,7 @@ document.addEventListener('click',async e=>{
   const tb=e.target.closest('[data-tab]');if(tb){view.tab=tb.dataset.tab;view.del=null;render();window.scrollTo(0,0);return;}
   const t=e.target.closest('[data-a]');if(!t||t.disabled)return;const a=t.dataset.a,id=t.dataset.id;
   if(t.tagName==='INPUT'||t.tagName==='SELECT'||t.tagName==='TEXTAREA')return;
-  if(a!=='rdel'&&a!=='wipe'&&a!=='shdel'&&a!=='stdel')view.del=null;
+  if(a!=='rdel'&&a!=='wipe'&&a!=='stdel')view.del=null;
   if(a==='gear'){view.tab='set';view.open=null;render();window.scrollTo(0,0);return;}
   if(a==='back'){view.tab='in';render();return;}
   if(a==='org'){view.org=view.org==='px'?'sb':'px';render();return;}
@@ -600,23 +596,18 @@ document.addEventListener('click',async e=>{
     else if(cat.type==='multi'){if(p.length===1&&!cat.c[p[0]].c.length)C.multi[p[0]]=-1;else if(p.length===2)C.multi[p[0]]=p[1];}
     else if(cat.type==='model'&&cat.c[p[0]])C.model=cat.c[p[0]].n;
     view.tab='in';view.day=todayKey;render();window.scrollTo(0,0);return;}
-  if(a==='cday'){const k=t.dataset.k;if(view.shm){if(!view.shp){toast('先にシフトの種類を選んでください');return;}const ss=view.shs||'';if(S.sh[k]===view.shp&&(S.st[k]||'')===ss){delete S.sh[k];delete S.st[k];}else{S.sh[k]=view.shp;if(ss)S.st[k]=ss;else delete S.st[k];}save();}else view.cday=k;render();return;}
-  if(a==='shm'){view.shm=!view.shm;if(view.shm&&!view.shp&&S.shifts[0])view.shp=S.shifts[0].id;render();return;}
-  if(a==='shp'){view.shp=id;render();return;}
-  if(a==='shs'){view.shs=id||'';render();return;}
-  if(a==='stday'){const k=t.dataset.k;if(!DAY_RE.test(k))return;if(id)S.st[k]=id;else delete S.st[k];save();render();return;}
+  if(a==='cday'){const k=t.dataset.k;if(view.shm){if(!view.shp){toast('先に休み・応援先を選んでください');return;}const cur=S.off.includes(k)?'off':(S.st[k]||'w');setDay(k,cur===view.shp?'w':view.shp);save();}else view.cday=k;render();return;}
+  if(a==='shm'){view.shm=!view.shm;if(view.shm&&!view.shp)view.shp='off';render();return;}
+  if(a==='dayset'){setDay(t.dataset.k,t.dataset.v);save();render();return;}
+  if(a==='shp'){view.shp=t.dataset.v;render();return;}
   if(a==='stadd'){if(S.stores.length>=20)return;S.stores.push({id:uid(),name:'新しい店舗'});save();render();return;}
-  if(a==='stdel'){if(view.del!==id){view.del=id;render();return;}S.stores=S.stores.filter(x=>x.id!==id);for(const k in S.st)if(S.st[k]===id)delete S.st[k];if(view.shs===id)view.shs='';view.del=null;save();render();return;}
-  if(a==='shday'){const k=t.dataset.k;if(S.sh[k]===id)delete S.sh[k];else S.sh[k]=id;S.off=S.off.filter(x=>x!==k);save();render();return;}
-  if(a==='shadd'){if(S.shifts.length>=20)return;S.shifts.push({id:uid(),name:'新しいシフト',time:'',color:SH_COL[S.shifts.length%6],off:false});save();render();return;}
-  if(a==='shdel'){if(view.del!==id){view.del=id;render();return;}S.shifts=S.shifts.filter(x=>x.id!==id);for(const k in S.sh)if(S.sh[k]===id)delete S.sh[k];if(view.shp===id)view.shp=null;view.del=null;save();render();return;}
+  if(a==='stdel'){if(view.del!==id){view.del=id;render();return;}S.stores=S.stores.filter(x=>x.id!==id);for(const k in S.st)if(S.st[k]===id)delete S.st[k];if(view.shp===id)view.shp='off';view.del=null;save();render();return;}
   if(a==='offt'){const k=t.dataset.k,i=S.off.indexOf(k);if(i>=0)S.off.splice(i,1);else S.off.push(k);save();render();return;}
   if(a==='goin'){view.day=t.dataset.k;view.tab='in';render();window.scrollTo(0,0);return;}
   if(a==='send'||a==='copy'){const txt=reportText(t.dataset.k,t.dataset.f);
     if(a==='send'&&navigator.share){try{await navigator.share({text:txt});return;}catch(err){if(err&&err.name==='AbortError')return;}}
     toast(await copyText(txt)?'コピーしました。LINEなどに貼ってください':'コピーできませんでした');return;}
   if(a==='open'){view.open=view.open===id?null:id;render();return;}
-  if(a==='shcol'){const x=S.shifts.find(v=>v.id===id);if(x&&SH_COL.includes(t.dataset.v)){x.color=t.dataset.v;save();render();}return;}
   if(a==='tfix'){if(BAD_K(id))return;cfgOf(id)[t.dataset.k].fixed=t.dataset.v==='1';save();render();return;}
   if(a==='bkload'){document.getElementById('fileIn').click();return;}
   if(a==='bksave'){dl(S,`takami-backup-${todayKey}.json`);return;}
@@ -633,8 +624,6 @@ document.addEventListener('change',e=>{
   if(a==='from'||a==='to'){if(DAY_RE.test(t.value))view[a]=t.value;render();return;}
   if(a==='note'){const k=t.dataset.k,n=S.notes[k]=S.notes[k]||{memo:'',mgr:'',bu:''};n[t.dataset.f]=t.value.slice(0,3000);if(!n.memo&&!n.mgr&&!n.bu)delete S.notes[k];save();toast('保存しました');return;}
   if(a==='stf'){const x=S.stores.find(v=>v.id===id);if(!x)return;x.name=t.value.slice(0,12)||'店舗';save();render();return;}
-  if(a==='shf'){const x=S.shifts.find(v=>v.id===id);if(!x)return;x[t.dataset.f]=t.value.slice(0,t.dataset.f==='name'?10:20);save();render();return;}
-  if(a==='shoff'){const x=S.shifts.find(v=>v.id===id);if(!x)return;x.off=t.checked;save();render();return;}
   if(a==='ptcut'){S.ptCut=numB(t.value);save();render();return;}
   if(a==='tval'){if(BAD_K(id))return;setT(view.ym,id,t.dataset.k,numB(t.value));save();render();return;}
 });
